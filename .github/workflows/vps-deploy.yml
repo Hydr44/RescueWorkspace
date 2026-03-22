@@ -1,0 +1,70 @@
+name: Deploy VPS Services
+
+on:
+  push:
+    branches: [main, staging]
+    paths:
+      - 'moduli/**'
+      - '.github/workflows/vps-deploy.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            # Determine environment
+            if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+              ENV="production"
+              BASE_DIR="/opt/production"
+            else
+              ENV="staging"
+              BASE_DIR="/opt/staging"
+            fi
+            
+            echo "🚀 Deploying to $ENV environment..."
+            
+            # Create base directory if not exists
+            mkdir -p $BASE_DIR
+            
+            # Clone or pull latest code
+            if [ -d "$BASE_DIR/.git" ]; then
+              cd $BASE_DIR
+              git fetch origin
+              git checkout ${{ github.ref_name }}
+              git pull origin ${{ github.ref_name }}
+            else
+              git clone -b ${{ github.ref_name }} https://github.com/rescuemanager/rescuemanager.git $BASE_DIR
+            fi
+            
+            # Deploy each service
+            for service in assist-server rentri-api sdi-sftp-server lead-api ebay-oauth oauth-proxy-server; do
+              if [ -d "$BASE_DIR/moduli/$service" ]; then
+                echo "📦 Deploying $service..."
+                cd $BASE_DIR/moduli/$service
+                npm install --production
+              fi
+            done
+            
+            # Restart PM2 services
+            if [ "$ENV" == "production" ]; then
+              pm2 restart production-ecosystem || pm2 start production-ecosystem.config.js
+            else
+              pm2 restart staging-ecosystem || pm2 start staging-ecosystem.config.js
+            fi
+            
+            echo "✅ Deployment to $ENV complete!"
+      
+      - name: Notify deployment
+        if: success()
+        run: |
+          echo "✅ VPS services deployed to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}"

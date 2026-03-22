@@ -1,1 +1,52 @@
 moduli/SDI-SFTP/.ssh_key_temp
+
+# Dependencies
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+.env.*.local
+
+# Build outputs
+dist/
+build/
+release/
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Electron
+*.log
+electron/dist/
+
+# Supabase
+.temp/
+.branches/
+
+# Certificates & Keys
+*.p12
+*.pem
+*.key
+*.crt
+!*.example.*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS
+Thumbs.db
