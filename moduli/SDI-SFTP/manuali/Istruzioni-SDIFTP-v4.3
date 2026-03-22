@@ -1,0 +1,590 @@
+
+1
+
+Zoom automatico
+ISTRUZIONI PER IL
+SERVIZIO SDIFTP
+VERSIONE 4.3
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.2]
+Pag. 2 di 37
+INDICE
+STATO DEL DOCUMENTO..................................................................................................... 4
+INTRODUZIONE ....................................................................................................................... 6
+1. DEFINIZIONI .................................................................................................................. 7
+2. REQUISITI DELLA TRASMISSIONE ......................................................................... 8
+2.1 Modalità di connessione ............................................................................................................ 8
+2.2 Connessione con il servizio in Disaster Recovery ........................................................................ 8
+2.3 Calendario di connessione ......................................................................................................... 9
+2.4 Test d’interoperabilità ............................................................................................................... 9
+2.5 Revoca richiesta di accreditamento ......................................................................................... 10
+2.6 Chiusura canale accreditato ..................................................................................................... 10
+3. STRUTTURA DELLE INFORMAZIONI .................................................................. 11
+3.1 Supporti ................................................................................................................................... 11
+3.1.1 Criteri di aggregazione ............................................................................................... 11
+3.1.2 Numero di supporti predisposti in corrispondenza ad ogni connessione ................. 11
+3.1.3 Attività preliminari allo scambio dei supporti ........................................................... 12
+3.1.4 Nomenclatura dei supporti ........................................................................................ 12
+3.1.5 Composizione dei supporti ........................................................................................ 13
+3.1.6 Controllo dei supporti ................................................................................................ 15
+3.2 File esito o scarto ..................................................................................................................... 16
+3.2.1 Nomenclatura dei file di scarto ................................................................................. 16
+3.2.2 Composizione dei file di scarto .................................................................................. 16
+3.2.3 Nomenclatura dei file di esito.................................................................................... 17
+3.2.4 Composizione dei file di esito .................................................................................... 17
+4. DIRECTORY DI SCAMBIO FILE .............................................................................. 19
+4.1 Flusso reale .............................................................................................................................. 19
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 3 di 37
+4.2 Flusso di test ............................................................................................................................ 20
+5. ESEMPIO DI FLUSSO ................................................................................................. 21
+5.1 Flusso reale .............................................................................................................................. 21
+5.1.1 File da SdI ................................................................................................................... 21
+5.1.2 File verso SdI .............................................................................................................. 21
+5.2 Flusso di test ............................................................................................................................ 22
+5.2.1 File da SdI ................................................................................................................... 22
+5.2.2 File verso SdI .............................................................................................................. 22
+5.3 Errori di quadratura ................................................................................................................. 23
+5.4 Malfunzionamenti.................................................................................................................... 23
+5.5 REPORT .................................................................................................................................... 24
+6. SPECIFICHE DI SICUREZZA E CRITTOGRAFIA ................................................. 25
+7. DISPONIBILITÀ DEL SERVIZIO ............................................................................. 26
+8. SERVIZI MASSIVI DI QUADRATURA E REINOLTRO ....................................... 26
+8.1 Servizio di Quadratura via SFTP ................................................................................................ 26
+8.1.1 Lista Richieste di report di quadratura ...................................................................... 27
+8.1.2 Report di quadratura e File di esito Richiesta ............................................................ 29
+8.2 Servizio di Reinoltro File via SFTP ............................................................................................. 33
+8.2.1 Richiesta Rinvio di Fatture e Notifiche ....................................................................... 33
+8.2.2 Report di ritrasmissione e File di esito richiesta ........................................................ 35
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 4 di 37
+STATO DEL DOCUMENTO
+Revisione Data Note
+1.3 13 dicembre 2016 Aggiornamento del file di quadratura per
+adeguamento alla nuova tipologia di file “Dati
+fattura” ideata per la trasmissione delle fatture
+emesse e ricevute”
+2.0 3 aprile 2017 Aggiornamento del file di quadratura per la nuova
+tipologia di file “Liquidazioni IVA”
+3.0 1 giugno 2018 Aggiornamento delle tipologie di notifiche attese
+in seguito a emanazione Provvedimento
+dell’Agenzia delle Entrate del 30 Aprile 2018 e
+limitazione dimensionale file contenuti all’interno
+dei supporti FTP
+4.0 1 luglio 2018 Passaggio dal protocollo FTP al protocollo SFTP
+4.1 25 febbraio 2019 Aggiornamento delle verifiche previste in fase di
+test di interoperabilità e modifica relativa a
+crittografia e firma per i supporti di tipo EO
+4.1.1 27 marzo 2019 Introdotto file di scarto (tipo ER) per fallimento
+controlli di firma e/o decifratura.
+Il file di esito EO non viene più firmato né cifrato e
+al termine della trasmissione (effettuata con
+successo) viene rinominato.
+Introdotta la descrizione dei report giornalieri di
+quadratura trasmessi relativi ai supporti FI-EO e
+FO
+Integrata la sezione delle regole sul prelevamento
+dei supporti (par 3.1.2).
+4.2 13 settembre 2022 Introdotto file richiesta di quadratura (RQ) per
+richiedere la quadratura dei file ricevuti da un
+nodo, archivio zip (RQZ) contenente il file di esito
+della richiesta di quadratura ed eventuale report
+di quadratura, il file richiesta di reinoltro di fatture
+o notifiche (RR) e archivio zip (RRZ) contenente il
+file di esito della richiesta ed eventuale report di
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 5 di 37
+14 dicembre 2022
+ritrasmissione. Integrata la sezione Specifiche Di
+Sicurezza E Crittografia (cap. 6)
+Corretto refuso al paragrafo 8.2.1 sul significato
+di ‘data della richiesta’
+4.3 08 marzo 2023 Introdotti i criteri e le modalità di attuazione
+d’ufficio della revoca di una richiesta di
+accreditamento (paragrafo 2.5) e della chiusura di
+un canale precedentemente accreditato
+(paragrafo 2.6)
+Paragrafi interessati dai cambiamenti rispetto alla versione precedente
+Paragrafi Aggiunti:
+2.5 e 2.6.
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 6 di 37
+INTRODUZIONE
+Il presente documento descrive le specifiche tecniche relative alla interazione con il
+Sistema di Interscambio per la Fatturazione Elettronica tramite protocollo SFTP per lo
+scambio “massivo” di documenti ottimizzando i volumi e riducendo al minimo le
+connessioni tra sistemi remoti.
+L’utilizzo di tale modalità presuppone una struttura a supporto delle attività
+informatiche, la capacità di gestire sistemi informativi ed un centro di elaborazione dati
+con caratteristiche di continuità e disponibilità di personale di presidio.
+Per le caratteristiche espresse la modalità si adatta a realtà di soggetti intermediari che
+si configurano come nodi di concentrazione e di smistamento.
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 7 di 37
+1. DEFINIZIONI
+Ai fini del presente documento si intende:
+- per SdI, il Sistema di Interscambio, vale a dire la struttura istituita dal Ministero
+dell’Economia e delle Finanze attraverso la quale avviene la trasmissione delle
+fatture elettroniche verso la Pubblica Amministrazione (art.1, comma 211, legge 24
+dicembre 2007 n. 244) e soggetti diversi dalla Pubblica Amministrazione;
+- per Nodo, il sistema remoto del soggetto che trasmette e/o riceve le fatture;
+- per Destinatario, i soggetti destinatari di fattura;
+- per Flusso, l’insieme di informazioni scambiate durante una sessione di
+collegamento tra il SdI ed il Nodo;
+- per Supporto, il file in formato compresso contenente a sua volta i file che
+rappresentano le fatture elettroniche o le notifiche o le ricevute;
+- per Esito, il risultato della trasmissione e della quadratura di ogni singolo supporto
+ricevuto dal SdI; è rappresentato dal “file di esito”;
+- per Supporto Operativo, il servizio di assistenza tecnico-operativa fornito dal SdI e
+dal Nodo per affrontare le situazioni di errori e malfunzionamenti che si dovessero
+verificare nel processo di trasferimento.
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 8 di 37
+2. REQUISITI DELLA TRASMISSIONE
+L’interazione tra il SdI ed il Nodo prevede:
+- la ricezione e la trasmissione delle fatture;
+- la ricezione e la trasmissione dei messaggi di notifica e ricevute;
+- la trasmissione di file Dati Fattura;
+- la trasmissione di file Liquidazioni IVA;
+- la diagnostica dei flussi di cui ai punti precedenti per verificare l’esito del
+trasferimento in ingresso al SdI.
+2.1 MODALITÀ DI CONNESSIONE
+Il collegamento tra SdI e il Nodo è di tipo “Secure File Transfer Protocol” su dorsali
+pubbliche (Internet e SPC Infranet).
+Il colloquio client-server avviene su iniziativa del client SdI (client SFTP) che gestisce i
+flussi accedendo direttamente al server SFTP del Nodo ed effettuando azioni di “get” e
+“put”.
+A questo scopo il Nodo rende noto al SdI:
+- indirizzo IP e porte per la connessione al server SFTP;
+- credenziali (utente e password) per la connessione.
+I flussi sono sempre identificati dal punto di vista del SdI, quindi si distinguono:
+- flussi in uscita → dal SdI al Nodo;
+- flussi in ingresso → dal Nodo al SdI;
+In entrambi i casi, i flussi comprendono fatture e messaggi.
+2.2 CONNESSIONE CON IL SERVIZIO IN DISASTER RECOVERY
+Grazie ai servizi di Disaster Recovery la continuità operativa rientra nell'offerta che
+l'Amministrazione Finanziaria ha richiesto a Sogei per il progetto della Fatturazione
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 9 di 37
+Elettronica: a seguito di eventi disastrosi, incidenti gravi o situazioni di emergenza che
+possono pregiudicare l'operatività del sito primario di Roma, la completa funzionalità
+dei processi business critical può essere assicurata, nel minor tempo possibile e con la
+minima perdita di dati, attuando un piano di misure tecniche, logistiche e organizzative,
+in grado di garantire la continuità dei servizi, grazie alle risorse disponibili nel sito
+secondario alternativo.
+Al momento dell’accreditamento al Servizio SDIFTP verranno forniti, oltre agli IP del
+sito primario, anche quelli per la connessione al sito secondario di Disaster Recovery.
+2.3 CALENDARIO DI CONNESSIONE
+Lo scambio di flussi avviene in modalità H24 – 365 giorni, al fine di ottimizzare al
+meglio l’elaborazione dei files messi a disposizione degli Enti.
+Al fine di velocizzare le fasi di scambio dei dati, è importante garantire che il
+trasferimento di file, durante una connessione, possa essere correttamente concluso
+da parte degli automatismi di prelevamento/invio files entro un tempo ragionevole e
+rapportato alla quantità e alla dimensione dei files messi a disposizione. A tal fine
+vengono svolti in fase di accreditamento, dei test di carico relativamente
+all’infrastruttura messa a disposizione dall’Ente. Poiché non è possibile predefinire un
+tempo massimo di connessione, occorre verificare di concerto con l’Ente coinvolto i
+tempi di trasferimento riscontrati dall’infrastruttura di accoglienza e valutare
+l’opportunità di adeguare la configurazione di connessione e/o comunque modulare al
+meglio la grandezza dei file da trasferire e la loro numerosità.
+I dati statistici relativi allo scambio dei flussi con l’Ente possono essere messi a
+disposizione dello stesso in qualsiasi momento e comunque forniti in caso di una
+rilevazione del transfer rate da parte del sistema di accoglienza ritenuto non idoneo
+alla mole di dati trattati.
+2.4 TEST D’INTEROPERABILITÀ
+Per validare l’accreditamento del proprio canale al Servizio SDIFTP è necessario
+effettuare dei test di interoperabilità tra il Nodo e il Sistema di Interscambio.
+Il test di interoperabilità ha il duplice scopo:
+- di testare il colloquio tra sistemi in un’ottica di scambio file via SFTP;
+- di testare, attraverso la produzione di supporti e file di esito di prova, il flusso reale
+prima che esso venga effettuato in ambiente di produzione.
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 10 di 37
+I flussi di test hanno una opportuna nomenclatura e directory di scambio separate.
+Il test di interoperabilità viene avviato a partire dalla consegna dei certificati di firma e
+cifratura presso l’Ente. Quest’ultimo deve, entro 15 giorni, provvedere a fornire
+conferma della predisposizione dell’ambiente SFTP, comunicando l’allocazione delle
+cartelle di test e produzione, oltre alla fornitura di utenza e password necessarie allo
+scambio dati. Dapprima si effettuerà un test di connettività, contestualmente a quello di
+cifratura/decifratura, attraverso il trasferimento di un file di prova. Se questo test
+risulterà positivo si darà inizio ai test relativi al contenuto dei file trasmessi. Tale test
+avrà una durata massima di 15 giorni e si propone di:
+- verificare la corretta ricezione di un supporto in ingresso;
+- verificare la corretta predisposizione del supporto in ingresso;
+- verificare la corretta trasmissione di un file di esito in uscita;
+- verificare la corretta trasmissione di un supporto in uscita.
+In aggiunta saranno previsti:
+- test di carico relativi alla velocità di trasferimento dati per supporti di
+dimensione massima (150 megabyte);
+- test di contemporaneità di presa in carico dei supporti da parte del Nodo.
+Per effettuare la trasmissione di flussi di test, dopo aver terminato la fase di test di
+interoperabilità ovvero dopo il passaggio in produzione dell’Ente, è opportuno un
+preventivo contatto con il referente tecnico del Sistema di Interscambio.
+2.5 REVOCA RICHIESTA DI ACCREDITAMENTO
+Nel caso in cui, per motivi non imputabili al Sistema di Interscambio, le attività di
+validazione dell’accreditamento del proprio canale al servizio SFTP (descritte al
+paragrafo 2.4) si protraggano per un periodo di tempo superiore a 90 gg dalla data
+della richiesta, quest’ultima verrà revocata d’ufficio e si dovrà eventualmente
+procedere ad una nuova richiesta.
+2.6 CHIUSURA CANALE ACCREDITATO
+Nel caso in cui, nel periodo 1 gennaio – 31 dicembre di ciascun anno, per un canale
+validato e accreditato in produzione si dovesse riscontrare assenza di flussi sia in
+ingresso che in uscita, si procederà ad una chiusura d’ufficio del canale stesso.
+
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 28 di 37
+richiesta;
+- potranno abbracciare un intervallo massimo di 15 giorni;
+- non potranno andare oltre i 30 giorni indietro dalla data della richiesta.
+Pertanto per una richiesta effettuata, ad esempio, il giorno 31/03, le date da indicare
+potranno fare riferimento ad un intervallo temporale che va, al più, dal giorno 01/03 al
+giorno 15/03 oppure ad un intervallo più breve, ma sempre ricadente tra queste due
+date.
+Invece, per un report di tipo SFTP:
+- non potranno ricomprendere i 7 giorni antecedenti la data in cui si effettua
+la richiesta;
+- potranno abbracciare un intervallo massimo di 15 giorni;
+- non potranno andare oltre i 22 giorni indietro dalla data della richiesta.
+Pertanto per una richiesta effettuata, ad esempio, il giorno 31/03, le date da indicare
+potranno fare riferimento ad un intervallo temporale che va, al più, dal giorno 09/03 al
+giorno 23/03 oppure ad un intervallo più breve ma sempre ricadente tra queste due
+date.
+La data di ricezione della richiesta di quadratura, a cui fanno riferimento i calcoli
+sopraesposti corrisponde alla data di ricezione del supporto FI.
+Infine, non è permesso richiedere un report della stessa tipologia relativo ad una
+stessa data più volte. Al fine di ottenere dei report non eccessivamente grandi, si
+consiglia di indicare periodi temporali di pochi giorni.
+8.1.1.1 Nomenclatura della Lista Richieste di report di quadratura
+Il nome del file xml contenente la lista di richieste di report di quadratura deve
+rispettare la seguente nomenclatura:
+stringa alfanumerica suffisso tipologia richiesta progressivo
+I campi, separati dal carattere “_ “, sono così costituiti:
+- stringa alfanumerica da 3 a 30 caratteri, così composta:
+▪ codice paese (espresso secondo lo standard ISO 3166-1 alpha-2 code);
+▪ identificativo fiscale univoco del soggetto trasmittente, sia esso persona fisica o
+persona giuridica (codice fiscale nel caso di soggetto trasmittente residente in
+Italia, identificativo proprio del paese di appartenenza nel caso di soggetto
+trasmittente residente all’estero);
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 29 di 37
+- suffisso tipologia richiesta: di 2 caratteri obbligatoriamente impostato con il valore
+RQ
+- progressivo univoco del file: rappresentato da una stringa alfanumerica di
+lunghezza massima di 5 caratteri e con valori ammessi [a-z], [A-Z], [0-9].
+Il progressivo univoco del file ha il solo scopo di differenziare il nome delle richieste al
+Sistema di Interscambio da parte del medesimo soggetto; non deve necessariamente
+seguire una stretta progressività e può presentare anche stili di numerazione
+differenti.
+A titolo di esempio, un nome corretto per una lista di richieste di quadrature è
+IT12345678901_RQ_AB001.xml
+8.1.2 REPORT DI QUADRATURA E FILE DI ESITO RICHIESTA
+Per ciascuna richiesta di quadratura pervenuta:
+- se corretta, vengono generati il file di esito richiesta riportante le informazioni
+relative alla richiesta inviata dall’utente ed i report di quadratura dei file fattura e
+notifiche B2B/B2C, ovvero B2G;
+- se scartata viene generato solamente l’esito richiesta in cui sono riportate le
+informazioni relative alla richiesta trasmessa ed il motivo dello scarto.
+8.1.2.1 File di esito richiesta
+Il file di esito richiesta è in formato .xml e viene creato a fronte di tutte le richieste di
+quadratura e di reinoltro pervenute a sistema. Il file è strutturato secondo lo schema
+seguente.
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 30 di 37
+I tipi ai quali si fa riferimento sono definiti nel file
+SMQREsitoRichiestaTypes_v1.0.xsd scaricabile nella sezione Documentazione
+Sistema di Interscambio del sito istituzionale https://www.fatturapa.gov.it.
+Nome tag Tipo info Descrizione Valori
+ammessi Molteplicità
+EsitoRichiesta EsitoRichiesta_Type File di esito della richiesta
+@versione Versione_Type Versione del tracciato a cui
+far riferimento ‘1.0’ 1
+IdRichiesta xsd:number Identificativo univoco della
+richiesta generato dal SdI 1
+Esito Esito_Type Esito della elaborazione
+della richiesta
+‘ES00’ =
+accettata
+‘ES01’ = scartata
+1
+NomeArchivio NomeFile_Type Nome dell’archivio zip in cui
+il file di esito è contenuto 1
+ListaErrori ListaErrori_Type Lista degli eventuali errori
+riscontrati nella richiesta. 0..1
+Errore Errore_Type Errore riscontrato sulla
+richiesta 1..200
+Codice Codice_Type Codice dell’errore tabella errori 1
+Descrizione Descrizione_Type Descrizione dell’errore 1
+InfoRichiestaQuadratura InfoRichiestaQuadratura_Type
+Riepilogo informazioni della
+richiesta di quadratura
+trasmessa (solo in esiti di
+richiesta di quadratura)
+0..1
+DataOraRicezione xsd:DateTime Data e ora della
+trasmissione della richiesta 1
+NomeSupporto NomeFile_Type Nome del supporto con cui è
+stata trasmessa la richiesta 1
+NomeRichiesta NomeFile_Type Nome della richiesta
+trasmessa dall’utente 1
+TipoFlusso TipoFlusso_Type
+Tipo flusso indicato
+dall’utente (se riportato un
+valore ammesso nella
+richiesta originale)
+‘SFTP’,
+‘SFTP_FPA’ 0..1
+DataDa xsd:date
+Estremo inferiore indicato
+dall’utente (se riportata con il
+formato corretto nella
+richiesta originale)
+In formato
+AAAA-MM-DD 0..1
+DataA xsd:date
+Estremo superiore indicato
+dall’utente (se riportata con il
+formato corretto nella
+richiesta originale)
+In formato
+AAAA-MM-DD 0..1
+InfoRichiestaReinoltro InfoRichiestaReinoltro_Type
+Riepilogo informazioni della
+richiesta di reinoltro
+trasmessa (solo in esiti di
+richiesta di reinoltro)
+0..1
+DataOraRicezione xsd:DateTime Data e ora della
+trasmissione della richiesta 1
+NomeSupporto NomeFile_Type Nome del supporto con cui è
+stata trasmessa la richiesta 1
+NomeElencoIdFile NomeFile_Type Nome della richiesta
+trasmessa dall’utente 1
+TipoIdFile TipoIdFile_Type Tipo degli identificativi
+riportati nel csv
+‘N’ = file-notifiche
+‘F’ = file-fatture 1
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 31 di 37
+Nella tabella seguente sono riportate le casistiche con i relativi codici di errore
+riscontrabili per una richiesta di quadratura.
+TABELLA ERRORI QUADRATURA
+DESCRIZIONE ERRORE CODICE ERRORE
+DataA minore di DataDa 0001
+DataA al di fuori dell’intervallo permesso 0002
+DataDa al di fuori dell’intervallo permesso 0003
+Intervallo già richiesto 0004
+Almeno un giorno nell'intervallo indicato è
+già stato richiesto
+0005
+Non conformità con il tracciato XSD 0016
+Tipologia flusso non ammessa 0017
+Richiesta duplicata 0018
+8.1.2.2 Report di quadratura
+A fronte di una richiesta di quadratura, sia SFTP che SFTP_FPA, vengono generati
+due report in formato “csv” che contengono le informazioni richieste dall’utente:
+- relative a File-fatture;
+- relative a File-notifica.
+Il report File-fatture contiene le seguenti informazioni:
+ID SDI FILE FATTURA NOME FILE FATTURA DATA RICEZIONE SDI TIPO STATO NOME_FO STATO_FO
+Nel dettaglio, i valori del dato “STATO” riguardano il processo di instradamento del file-
+fattura e nel report possono assumere i seguenti valori:
+- IMPOSSIBILITA_DI_RECAPITO: in seguito alla mancata consegna del file-fattura
+al destinatario è stata inoltrata una notifica di mancata consegna (impossibilità di
+recapito) al trasmittente.
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 32 di 37
+- CONSEGNATO: il file ha terminato la fase di instradamento.
+Il report File-notifica contiene, invece, le seguenti informazioni:
+ID SDI FILE NOTIFICA NOME FILE NOTIFICA STATO ID SDI FILE FATTURA NOME_FO STATO_FO
+Il campo STATO delle notifiche può esser valorizzato con
+- CONSEGNATA: la notifica è stata consegnata all’utente;
+- NON_CONSEGNATA: la notifica non è stata consegnata.
+Si precisa che:
+- in riferimento al flusso B2G (SFTP_FPA), a fronte di uno stesso ID SDI FILE
+FATTURA si potranno avere più notifiche:
+▪ Notifiche di scarto,
+▪ Ricevute di consegna,
+▪ Notifiche di mancata consegna,
+▪ Notifiche di esito,
+▪ Notifiche di decorrenza termini,
+▪ Attestazioni di impossibilità di recapito;
+- in riferimento al flusso B2B-B2C (SFTP), invece, le notifiche presenti sono una per
+ogni ID SDI FILE FATTURA e riguarderanno Notifiche di scarto, Ricevute di
+consegna, Ricevute di impossibilità di recapito.
+Inoltre, lo stato FO in entrambi i report può essere:
+- CONSEGNATO: il supporto risulta esser stato messo a disposizione nella cartella
+DatiDaSdi dell’utente;
+- NON_CONSEGNATO: il supporto è disponibile per la consegna, ma non è stato
+possibile consegnarlo.
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 33 di 37
+8.2 SERVIZIO DI REINOLTRO FILE VIA SFTP
+L’utente per richiedere la ritrasmissione di file-fattura o file-notifica già indirizzati al suo
+sistema può inserire all’interno del supporto FTP di tipo FI (valido solo per i supporti a
+partire dalla versione 2.0) un file csv in cui è riportata una lista di identificativi dei file da
+re-inoltrare. Tale file csv deve essere identificato nel file di quadratura del supporto in
+ingresso con il tipofile RR.
+Gli eventuali file richiesti e l’archivio zip contenente l’esito richiesta e il report di
+ritrasmissione vengono inviati in un supporto di tipo FO. L’archivio zip viene identificato
+nel file di quadratura del supporto in uscita con il tipoFile RRZ.
+8.2.1 RICHIESTA RINVIO DI FATTURE E NOTIFICHE
+La richiesta di rinvio consiste in un file csv in cui è riportata la lista di identificativi dei
+file di cui si vuole la ritrasmissione.
+Il file di richiesta non può eccedere la dimensione massima di 5 MB e non può
+contenere più di 10.000 identificativi. In più, un utente può chiedere al più 100.000
+(centomila) ritrasmissioni al mese per singolo flusso. Non è possibile richiedere la
+stessa fornitura più volte.
+Affinché gli identificativi contenuti nel csv relativi a file fatture o file notifiche siano
+accettabili devono riferirsi a file fattura ricevuti dal SdI entro i 30 giorni antecedenti la
+data della richiesta, con esclusione dei 7 giorni immediatamente precedenti. Pertanto
+una richiesta effettuata, ad esempio, il giorno 31/03, potrà contenere identificativi di
+notifiche riferite a file fattura ricevuti dal SdI dal giorno 01/03 al giorno 23/03.
+Per data della richiesta si intende la data in cui il sistema elabora il supporto FI con cui
+è stata trasmessa.
+Gli id Sdi da riportare sono recuperabili dai report di quadratura, ciascuna lista potrà
+contenere soltanto la tipologia di identificativi desiderati, fatture (RR_F) o notifiche
+(RR_N), indicata nella nomenclatura del file.
+Di seguito un esempio di file csv in cui sono riportati solo gli identificativi numerici
+senza ulteriori caratteri e separatori.
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 34 di 37
+8.2.1.1 Nomenclatura Richiesta Rinvio di Fatture e Notifiche
+Il file dovrà essere in formato “csv” e rispettare la seguente nomenclatura:
+stringa alfanumerica suffisso tipologia richiesta progressivo .csv
+I campi, separati dal carattere “_ “, sono così costituiti:
+- stringa alfanumerica: da 3 a 30 caratteri così composta:
+▪ codice paese (espresso secondo lo standard ISO 3166-1 alpha-2 code);
+▪ identificativo fiscale univoco del soggetto trasmittente, sia esso persona
+fisica o persona giuridica (codice fiscale nel caso di soggetto trasmittente
+residente in Italia, identificativo proprio del paese di appartenenza nel caso
+di soggetto trasmittente residente all’estero);
+- suffisso tipologia richiesta: di 4 caratteri obbligatoriamente impostato con i
+seguenti valori:
+▪ RR_F - in caso di ritrasmissione di fatture
+▪ RR_N - in caso di ritrasmissione di notifiche
+- progressivo univoco del file: rappresentato da una stringa alfanumerica di
+lunghezza massima di 5 caratteri e con valori ammessi [a-z], [A-Z], [0-9].
+Il progressivo univoco del file ha il solo scopo di differenziare il nome delle richieste al
+Sistema di Interscambio da parte del medesimo soggetto; non deve necessariamente
+seguire una stretta progressività e può presentare anche stili di numerazione differenti.
+Di seguito due esempi di nomi corretti per le forniture di identificativi rispettivamente di
+file-fatture e di file-notifiche:
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 35 di 37
+- IT12345678901_RR_F_AB001.csv
+- IT12345678901_RR_N_AB001.csv
+8.2.2 REPORT DI RITRASMISSIONE E FILE DI ESITO RICHIESTA
+A fronte di una richiesta di reinoltro corretta, viene trasmesso un supporto FO ad hoc
+in cui sono riportati:
+- Tutti i file di cui è stata richiesta la ritrasmissione e per cui tale operazione è
+permessa;
+- Archivio zip contenente un file di esito richiesta e il report di ritrasmissione in
+cui sono riportati gli identificativi che sono stati ammessi alla ritrasmissione e
+quelli rigettati con il corrispondente motivo dello scarto;
+- File di quadratura del supporto in uscita in cui è riportato il numero di documenti
+contenuti nel supporto raggruppati per tipologia.
+In caso, invece, di una richiesta di reinoltro non corretta, viene generato un archivio
+contenente il solo file di esito richiesta riportante la motivazione dello scarto, il quale
+viene trasmesso all’interno di un qualsiasi FO indirizzato all’utente.
+8.2.2.1 File di esito richiesta
+Il file di esito richiesta rispetta la struttura descritta nel paragrafo 8.1.2.1 e viene
+sempre generato a fronte di una richiesta. In aggiunta, si riportano i codici di errore
+riscontrabili in una richiesta di reinoltro.
+TABELLA ERRORI REINOLTRO
+CASISTICA di ERRORE CODICE ERRORE
+File vuoto 0006
+Presenti id non numerici 0007
+Superato numero righe consentite nel file 0008
+Superato limite massimo periodico di reinvii 0009
+File già trasmesso 0012
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 36 di 37
+Superato numero massimo di richieste
+giornaliere 0013
+Superiore a 5 MB 0014
+Nome file non valido 0015
+8.2.2.2 Report di Ritrasmissione
+Il report di ritrasmissione viene generato solo in caso di richiesta priva di errori. La
+struttura del report è riportata qui di seguito.
+Flusso rinvio Fatture
+Identificativo
+File Fattura
+Nome File
+Fattura
+Data di
+Ricezione a
+sistema
+Tipologia del
+file fattura Esito
+Eventuale
+motivo di
+rigetto
+Flusso rinvio Notifiche
+Identificativo
+notifica
+Nome
+notifica
+Identificativo
+File Fattura
+Data di Ricezione
+a sistema del file
+fattura correlato
+Esito
+Eventuale
+motivo di
+rigetto
+L’esito, riportato nel report, potrà essere di due tipi:
+- INVIATO: il file è stato ritrasmesso all’utente;
+- RIGETTATO: la ritrasmissione non è stata eseguita perché l’identificativo non
+rispetta i criteri indicati;
+In caso di RIGETTATO, viene anche indicato il motivo per cui il file non è stato
+ritrasmesso. I codici che sono utilizzati nel documento e le relative casistiche sono
+riportate nella tabella qui di seguito.
+CASISTICA di RIGETTO CODICE
+identificativo ripetuto nella stessa richiesta di reinoltro RG00
+identificativo non appartenente al traffico del richiedente RG01
+file non ricevuto nel periodo permesso di reinoltro RG02
+Istruzioni per il
+Servizio SDIFTP
+[ver. 4.3]
+Pag. 37 di 37
+8.2.2.3 Presa visione
+Limitatamente alle fatture del flusso B2B, se il re-inoltro riguarda file fattura che si
+trovano nello stato di Impossibilità di recapito, il buon esito della ritrasmissione
+comporterà, laddove la presa visione non sia già stata effettuata direttamente da parte
+dell’interessato, l’impostazione automatica della data di presa visione con la data di

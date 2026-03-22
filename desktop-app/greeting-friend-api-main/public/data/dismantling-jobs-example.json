@@ -1,0 +1,339 @@
+[
+  {
+    "targa": "AB123CD",
+    "telaio": "ZFA31200001234567",
+    "marca": "Fiat",
+    "modello": "Panda",
+    "anno": 2010,
+    "dismantling_date": "2024-01-15",
+    "dismantler_name": "Mario Rossi",
+    "notes": "Veicolo incidentato frontalmente, motore e interni in buone condizioni",
+    "parts": [
+      {
+        "oem_code": "71712345",
+        "part_name": "Motore 1.2 8V",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 800.00,
+        "list_price": 1200.00,
+        "sell_price": 1000.00,
+        "notes": "Motore funzionante, 120.000 km"
+      },
+      {
+        "oem_code": "71712346",
+        "part_name": "Cambio Manuale 5 Marce",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 300.00,
+        "list_price": 450.00,
+        "sell_price": 380.00,
+        "notes": "Cambio in ottime condizioni"
+      },
+      {
+        "oem_code": "71712347",
+        "part_name": "Specchietto Retrovisore Sinistro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 25.00,
+        "list_price": 65.00,
+        "sell_price": 45.00,
+        "notes": "Specchietto con regolazione elettrica"
+      },
+      {
+        "oem_code": "71712348",
+        "part_name": "Fanale Anteriore Sinistro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 40.00,
+        "list_price": 120.00,
+        "sell_price": 85.00,
+        "notes": "Fanale con LED, funzionante"
+      },
+      {
+        "oem_code": "71712349",
+        "part_name": "Volante",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 80.00,
+        "list_price": 180.00,
+        "sell_price": 120.00,
+        "notes": "Volante con airbag, ottime condizioni"
+      },
+      {
+        "oem_code": "71712350",
+        "part_name": "Sedile Anteriore Sinistro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 120.00,
+        "list_price": 250.00,
+        "sell_price": 180.00,
+        "notes": "Sedile regolabile, tessuto in buone condizioni"
+      },
+      {
+        "oem_code": "71712351",
+        "part_name": "Centralina Motore",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 200.00,
+        "list_price": 450.00,
+        "sell_price": 350.00,
+        "notes": "Centralina originale, funzionante"
+      },
+      {
+        "oem_code": "71712352",
+        "part_name": "Ammortizzatore Anteriore Sinistro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 60.00,
+        "list_price": 85.00,
+        "sell_price": 70.00,
+        "notes": "Ammortizzatore in buone condizioni"
+      },
+      {
+        "oem_code": "71712353",
+        "part_name": "Pastiglie Freni Anteriori",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 20.00,
+        "list_price": 45.80,
+        "sell_price": 35.00,
+        "notes": "Pastiglie con ancora 70% di vita utile"
+      },
+      {
+        "oem_code": "71712354",
+        "part_name": "Cerchio 14\" con Pneumatico",
+        "condition": "used",
+        "qty": 4,
+        "cost_price": 40.00,
+        "list_price": 80.00,
+        "sell_price": 60.00,
+        "notes": "Cerchi in lega, pneumatici con 60% di battistrada"
+      }
+    ]
+  },
+  {
+    "targa": "EF456GH",
+    "telaio": "ZFA31200001234568",
+    "marca": "Fiat",
+    "modello": "Punto",
+    "anno": 2012,
+    "dismantling_date": "2024-01-16",
+    "dismantler_name": "Luigi Bianchi",
+    "notes": "Veicolo con problemi meccanici, carrozzeria in buone condizioni",
+    "parts": [
+      {
+        "oem_code": "71712355",
+        "part_name": "Motore 1.4 16V",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 900.00,
+        "list_price": 1400.00,
+        "sell_price": 1150.00,
+        "notes": "Motore con problemi al cambio, altri componenti OK"
+      },
+      {
+        "oem_code": "71712356",
+        "part_name": "Cambio Manuale 6 Marce",
+        "condition": "damaged",
+        "qty": 1,
+        "cost_price": 150.00,
+        "list_price": 500.00,
+        "sell_price": 200.00,
+        "notes": "Cambio con problemi alla terza marcia"
+      },
+      {
+        "oem_code": "71712357",
+        "part_name": "Specchietto Retrovisore Destro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 30.00,
+        "list_price": 75.00,
+        "sell_price": 50.00,
+        "notes": "Specchietto con regolazione elettrica"
+      },
+      {
+        "oem_code": "71712358",
+        "part_name": "Fanale Anteriore Destro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 45.00,
+        "list_price": 140.00,
+        "sell_price": 95.00,
+        "notes": "Fanale con LED, funzionante"
+      },
+      {
+        "oem_code": "71712359",
+        "part_name": "Paraurti Anteriore",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 80.00,
+        "list_price": 200.00,
+        "sell_price": 140.00,
+        "notes": "Paraurti in buone condizioni"
+      },
+      {
+        "oem_code": "71712360",
+        "part_name": "Sedile Anteriore Destro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 130.00,
+        "list_price": 280.00,
+        "sell_price": 200.00,
+        "notes": "Sedile regolabile, pelle in buone condizioni"
+      },
+      {
+        "oem_code": "71712361",
+        "part_name": "Centralina ABS",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 180.00,
+        "list_price": 400.00,
+        "sell_price": 300.00,
+        "notes": "Centralina ABS funzionante"
+      },
+      {
+        "oem_code": "71712362",
+        "part_name": "Ammortizzatore Posteriore Sinistro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 70.00,
+        "list_price": 95.00,
+        "sell_price": 80.00,
+        "notes": "Ammortizzatore posteriore in buone condizioni"
+      },
+      {
+        "oem_code": "71712363",
+        "part_name": "Pastiglie Freni Posteriori",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 25.00,
+        "list_price": 55.20,
+        "sell_price": 40.00,
+        "notes": "Pastiglie posteriori con ancora 80% di vita utile"
+      },
+      {
+        "oem_code": "71712364",
+        "part_name": "Cerchio 15\" con Pneumatico",
+        "condition": "used",
+        "qty": 4,
+        "cost_price": 50.00,
+        "list_price": 105.00,
+        "sell_price": 75.00,
+        "notes": "Cerchi in lega, pneumatici con 70% di battistrada"
+      }
+    ]
+  },
+  {
+    "targa": "IJ789KL",
+    "telaio": "WVWZZZ1KZ8W123456",
+    "marca": "Volkswagen",
+    "modello": "Golf",
+    "anno": 2015,
+    "dismantling_date": "2024-01-17",
+    "dismantler_name": "Giuseppe Verdi",
+    "notes": "Veicolo con problemi elettrici, meccanica in buone condizioni",
+    "parts": [
+      {
+        "oem_code": "71712365",
+        "part_name": "Motore 1.6 TDI",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 1200.00,
+        "list_price": 1800.00,
+        "sell_price": 1500.00,
+        "notes": "Motore diesel in ottime condizioni"
+      },
+      {
+        "oem_code": "71712366",
+        "part_name": "Cambio Manuale 6 Marce",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 400.00,
+        "list_price": 650.00,
+        "sell_price": 520.00,
+        "notes": "Cambio diesel in ottime condizioni"
+      },
+      {
+        "oem_code": "71712367",
+        "part_name": "Specchietto Retrovisore Sinistro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 35.00,
+        "list_price": 85.00,
+        "sell_price": 60.00,
+        "notes": "Specchietto con regolazione elettrica e riscaldamento"
+      },
+      {
+        "oem_code": "71712368",
+        "part_name": "Fanale Anteriore Sinistro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 60.00,
+        "list_price": 160.00,
+        "sell_price": 110.00,
+        "notes": "Fanale con LED, funzionante"
+      },
+      {
+        "oem_code": "71712369",
+        "part_name": "Volante",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 120.00,
+        "list_price": 220.00,
+        "sell_price": 170.00,
+        "notes": "Volante con airbag e controlli multifunzione"
+      },
+      {
+        "oem_code": "71712370",
+        "part_name": "Sedile Anteriore Sinistro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 150.00,
+        "list_price": 300.00,
+        "sell_price": 225.00,
+        "notes": "Sedile regolabile elettricamente, pelle in buone condizioni"
+      },
+      {
+        "oem_code": "71712371",
+        "part_name": "Centralina Motore",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 300.00,
+        "list_price": 550.00,
+        "sell_price": 425.00,
+        "notes": "Centralina motore diesel funzionante"
+      },
+      {
+        "oem_code": "71712372",
+        "part_name": "Ammortizzatore Anteriore Sinistro",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 80.00,
+        "list_price": 105.00,
+        "sell_price": 90.00,
+        "notes": "Ammortizzatore anteriore in buone condizioni"
+      },
+      {
+        "oem_code": "71712373",
+        "part_name": "Pastiglie Freni Anteriori",
+        "condition": "used",
+        "qty": 1,
+        "cost_price": 30.00,
+        "list_price": 65.80,
+        "sell_price": 48.00,
+        "notes": "Pastiglie anteriori con ancora 75% di vita utile"
+      },
+      {
+        "oem_code": "71712374",
+        "part_name": "Cerchio 16\" con Pneumatico",
+        "condition": "used",
+        "qty": 4,
+        "cost_price": 70.00,
+        "list_price": 140.00,
+        "sell_price": 105.00,
+        "notes": "Cerchi in lega, pneumatici con 65% di battistrada"
+      }
+    ]
+  }
+]
+

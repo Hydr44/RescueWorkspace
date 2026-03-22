@@ -1,0 +1,19 @@
+/* Fix per mantenere l'header sempre della stessa altezza */
+.top-bar-fixed {
+  height: 4rem !important;
+  min-height: 4rem !important;
+  max-height: 4rem !important;
+  flex-shrink: 0 !important;
+}
+
+/* Assicura che il contenuto principale abbia il padding corretto */
+.main-content {
+  padding-top: 0 !important;
+}
+
+/* Rimuove eventuali margini che potrebbero influenzare l'header */
+header[class*="h-16"] {
+  height: 4rem !important;
+  min-height: 4rem !important;
+  max-height: 4rem !important;
+}

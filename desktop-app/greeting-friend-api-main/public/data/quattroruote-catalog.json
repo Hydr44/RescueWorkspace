@@ -1,0 +1,316 @@
+{
+  "catalog": {
+    "Fiat": {
+      "Panda": {
+        "2003-2012": {
+          "categories": {
+            "Motore": {
+              "Filtro Olio": 15.50,
+              "Filtro Aria": 12.30,
+              "Filtro Carburante": 18.75,
+              "Candela": 8.90,
+              "Candela Glow": 12.50,
+              "Termostato": 25.00,
+              "Pompa Acqua": 85.00,
+              "Cinghia Distribuzione": 45.00,
+              "Tenditore": 35.00,
+              "Sensore Temperatura": 25.00,
+              "Sensore Pressione Olio": 30.00
+            },
+            "Freni": {
+              "Pastiglie Anteriori": 45.80,
+              "Pastiglie Posteriori": 35.20,
+              "Dischi Anteriori": 65.00,
+              "Dischi Posteriori": 55.00,
+              "Pinze Anteriori": 120.00,
+              "Pinze Posteriori": 95.00,
+              "Liquido Freni": 8.50,
+              "Tubo Flessibile": 25.00,
+              "Sensore Usura": 15.00
+            },
+            "Sospensioni": {
+              "Ammortizzatore Anteriore": 85.00,
+              "Ammortizzatore Posteriore": 75.00,
+              "Molla Anteriore": 45.00,
+              "Molla Posteriore": 40.00,
+              "Braccio Anteriore": 95.00,
+              "Braccio Posteriore": 85.00,
+              "Cuscinetto Ruota": 35.00,
+              "Cuscinetto Cuscinetto": 25.00,
+              "Giunto Omocinetico": 65.00
+            },
+            "Carrozzeria": {
+              "Specchietto Retrovisore": 65.00,
+              "Fanale Anteriore": 120.00,
+              "Fanale Posteriore": 95.00,
+              "Paraurti Anteriore": 180.00,
+              "Paraurti Posteriore": 160.00,
+              "Portiera Anteriore": 250.00,
+              "Portiera Posteriore": 220.00,
+              "Cofano": 200.00,
+              "Tetto": 300.00,
+              "Vetro Laterale": 45.00,
+              "Vetro Posteriore": 85.00
+            },
+            "Interni": {
+              "Volante": 180.00,
+              "Sedile Anteriore": 250.00,
+              "Sedile Posteriore": 200.00,
+              "Console Centrale": 120.00,
+              "Cruscotto": 350.00,
+              "Tappezzeria": 150.00,
+              "Cintura Sicurezza": 45.00,
+              "Airbag": 200.00,
+              "Pomello Cambio": 25.00,
+              "Pomello Freno": 15.00
+            },
+            "Elettronica": {
+              "Centralina Motore": 450.00,
+              "Centralina ABS": 350.00,
+              "Centralina Airbag": 280.00,
+              "Sensore Temperatura": 25.00,
+              "Sensore Pressione": 30.00,
+              "Sensore Velocità": 35.00,
+              "Sensore Posizione": 40.00,
+              "Relè": 15.00,
+              "Fusibile": 2.50,
+              "Cavo Accensione": 45.00
+            },
+            "Illuminazione": {
+              "Faro Anteriore": 120.00,
+              "Faro Posteriore": 95.00,
+              "Luce Interna": 25.00,
+              "Luce Bagagliaio": 15.00,
+              "Luce Targa": 12.00,
+              "Lampadina H7": 8.50,
+              "Lampadina H1": 6.50,
+              "Lampadina W5W": 3.50,
+              "Lampadina W21W": 4.50
+            },
+            "Pneumatici": {
+              "Cerchio 14\"": 80.00,
+              "Cerchio 15\"": 95.00,
+              "Cerchio 16\"": 120.00,
+              "Pneumatico 165/70R14": 65.00,
+              "Pneumatico 175/65R14": 75.00,
+              "Pneumatico 185/60R15": 85.00,
+              "Pneumatico 195/55R15": 95.00,
+              "Valvola": 5.00,
+              "Tappo Valvola": 1.50
+            }
+          }
+        }
+      },
+      "Punto": {
+        "2005-2018": {
+          "categories": {
+            "Motore": {
+              "Filtro Olio": 18.50,
+              "Filtro Aria": 15.30,
+              "Filtro Carburante": 22.75,
+              "Candela": 12.90,
+              "Candela Glow": 18.50,
+              "Termostato": 35.00,
+              "Pompa Acqua": 95.00,
+              "Cinghia Distribuzione": 55.00,
+              "Tenditore": 45.00,
+              "Sensore Temperatura": 35.00,
+              "Sensore Pressione Olio": 40.00
+            },
+            "Freni": {
+              "Pastiglie Anteriori": 55.80,
+              "Pastiglie Posteriori": 45.20,
+              "Dischi Anteriori": 75.00,
+              "Dischi Posteriori": 65.00,
+              "Pinze Anteriori": 140.00,
+              "Pinze Posteriori": 115.00,
+              "Liquido Freni": 10.50,
+              "Tubo Flessibile": 35.00,
+              "Sensore Usura": 25.00
+            },
+            "Sospensioni": {
+              "Ammortizzatore Anteriore": 95.00,
+              "Ammortizzatore Posteriore": 85.00,
+              "Molla Anteriore": 55.00,
+              "Molla Posteriore": 50.00,
+              "Braccio Anteriore": 115.00,
+              "Braccio Posteriore": 105.00,
+              "Cuscinetto Ruota": 45.00,
+              "Cuscinetto Cuscinetto": 35.00,
+              "Giunto Omocinetico": 75.00
+            },
+            "Carrozzeria": {
+              "Specchietto Retrovisore": 75.00,
+              "Fanale Anteriore": 140.00,
+              "Fanale Posteriore": 115.00,
+              "Paraurti Anteriore": 200.00,
+              "Paraurti Posteriore": 180.00,
+              "Portiera Anteriore": 280.00,
+              "Portiera Posteriore": 250.00,
+              "Cofano": 220.00,
+              "Tetto": 320.00,
+              "Vetro Laterale": 55.00,
+              "Vetro Posteriore": 95.00
+            },
+            "Interni": {
+              "Volante": 200.00,
+              "Sedile Anteriore": 280.00,
+              "Sedile Posteriore": 230.00,
+              "Console Centrale": 140.00,
+              "Cruscotto": 380.00,
+              "Tappezzeria": 170.00,
+              "Cintura Sicurezza": 55.00,
+              "Airbag": 220.00,
+              "Pomello Cambio": 35.00,
+              "Pomello Freno": 25.00
+            },
+            "Elettronica": {
+              "Centralina Motore": 500.00,
+              "Centralina ABS": 400.00,
+              "Centralina Airbag": 320.00,
+              "Sensore Temperatura": 35.00,
+              "Sensore Pressione": 40.00,
+              "Sensore Velocità": 45.00,
+              "Sensore Posizione": 50.00,
+              "Relè": 25.00,
+              "Fusibile": 3.50,
+              "Cavo Accensione": 55.00
+            },
+            "Illuminazione": {
+              "Faro Anteriore": 140.00,
+              "Faro Posteriore": 115.00,
+              "Luce Interna": 35.00,
+              "Luce Bagagliaio": 25.00,
+              "Luce Targa": 22.00,
+              "Lampadina H7": 12.50,
+              "Lampadina H1": 8.50,
+              "Lampadina W5W": 5.50,
+              "Lampadina W21W": 6.50
+            },
+            "Pneumatici": {
+              "Cerchio 15\"": 105.00,
+              "Cerchio 16\"": 130.00,
+              "Cerchio 17\"": 155.00,
+              "Pneumatico 185/60R15": 85.00,
+              "Pneumatico 195/55R15": 95.00,
+              "Pneumatico 205/50R16": 105.00,
+              "Pneumatico 215/45R17": 115.00,
+              "Valvola": 7.00,
+              "Tappo Valvola": 2.50
+            }
+          }
+        }
+      }
+    },
+    "Volkswagen": {
+      "Golf": {
+        "2008-2019": {
+          "categories": {
+            "Motore": {
+              "Filtro Olio": 22.50,
+              "Filtro Aria": 18.30,
+              "Filtro Carburante": 25.75,
+              "Candela": 15.90,
+              "Candela Glow": 22.50,
+              "Termostato": 45.00,
+              "Pompa Acqua": 105.00,
+              "Cinghia Distribuzione": 65.00,
+              "Tenditore": 55.00,
+              "Sensore Temperatura": 45.00,
+              "Sensore Pressione Olio": 50.00
+            },
+            "Freni": {
+              "Pastiglie Anteriori": 65.80,
+              "Pastiglie Posteriori": 55.20,
+              "Dischi Anteriori": 85.00,
+              "Dischi Posteriori": 75.00,
+              "Pinze Anteriori": 160.00,
+              "Pinze Posteriori": 135.00,
+              "Liquido Freni": 12.50,
+              "Tubo Flessibile": 45.00,
+              "Sensore Usura": 35.00
+            },
+            "Sospensioni": {
+              "Ammortizzatore Anteriore": 105.00,
+              "Ammortizzatore Posteriore": 95.00,
+              "Molla Anteriore": 65.00,
+              "Molla Posteriore": 60.00,
+              "Braccio Anteriore": 135.00,
+              "Braccio Posteriore": 125.00,
+              "Cuscinetto Ruota": 55.00,
+              "Cuscinetto Cuscinetto": 45.00,
+              "Giunto Omocinetico": 85.00
+            },
+            "Carrozzeria": {
+              "Specchietto Retrovisore": 85.00,
+              "Fanale Anteriore": 160.00,
+              "Fanale Posteriore": 135.00,
+              "Paraurti Anteriore": 220.00,
+              "Paraurti Posteriore": 200.00,
+              "Portiera Anteriore": 300.00,
+              "Portiera Posteriore": 270.00,
+              "Cofano": 240.00,
+              "Tetto": 340.00,
+              "Vetro Laterale": 65.00,
+              "Vetro Posteriore": 105.00
+            },
+            "Interni": {
+              "Volante": 220.00,
+              "Sedile Anteriore": 300.00,
+              "Sedile Posteriore": 250.00,
+              "Console Centrale": 160.00,
+              "Cruscotto": 400.00,
+              "Tappezzeria": 190.00,
+              "Cintura Sicurezza": 65.00,
+              "Airbag": 240.00,
+              "Pomello Cambio": 45.00,
+              "Pomello Freno": 35.00
+            },
+            "Elettronica": {
+              "Centralina Motore": 550.00,
+              "Centralina ABS": 450.00,
+              "Centralina Airbag": 360.00,
+              "Sensore Temperatura": 45.00,
+              "Sensore Pressione": 50.00,
+              "Sensore Velocità": 55.00,
+              "Sensore Posizione": 60.00,
+              "Relè": 35.00,
+              "Fusibile": 4.50,
+              "Cavo Accensione": 65.00
+            },
+            "Illuminazione": {
+              "Faro Anteriore": 160.00,
+              "Faro Posteriore": 135.00,
+              "Luce Interna": 45.00,
+              "Luce Bagagliaio": 35.00,
+              "Luce Targa": 32.00,
+              "Lampadina H7": 15.50,
+              "Lampadina H1": 10.50,
+              "Lampadina W5W": 7.50,
+              "Lampadina W21W": 8.50
+            },
+            "Pneumatici": {
+              "Cerchio 16\"": 140.00,
+              "Cerchio 17\"": 165.00,
+              "Cerchio 18\"": 190.00,
+              "Pneumatico 205/55R16": 95.00,
+              "Pneumatico 215/50R17": 105.00,
+              "Pneumatico 225/45R18": 115.00,
+              "Pneumatico 235/40R18": 125.00,
+              "Valvola": 9.00,
+              "Tappo Valvola": 3.50
+            }
+          }
+        }
+      }
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2024-01-16",
+    "source": "Quattroruote Official Catalog",
+    "currency": "EUR",
+    "notes": "Prezzi listino ufficiali Quattroruote per autodemolizione"
+  }
+}
+

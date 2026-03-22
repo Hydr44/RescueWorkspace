@@ -1,0 +1,32 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../vps_rescue"
+		},
+		{
+			"path": "../../Desktop/SISTEMA DI INTERSCAMBIO"
+		},
+		{
+			"path": "../../Desktop/rentri/sdi_markdown_with_images"
+		},
+		{
+			"path": "../../Desktop/rentri/sdi_diagrammi_md"
+		},
+		{
+			"path": "../../Desktop/rentri/sdi_md_parts"
+		},
+		{
+			"path": "../../Downloads/doc2"
+		},
+		{
+			"path": "../../Downloads/doc2/sdi_ricezione_mermaid_md"
+		},
+		{
+			"path": "../../Downloads/doc2/SDICoop-Trasmissione_md1"
+		}
+	],
+	"settings": {}
+}

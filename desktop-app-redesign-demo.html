@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RescueManager Desktop App - Redesign Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+
+    /* Animazioni custom */
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+
+    /* Scrollbar custom */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Gradient backgrounds */
+    .gradient-blue {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+
+    .gradient-emerald {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .gradient-amber {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .gradient-purple {
+      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  
+  <!-- Sidebar -->
+  <div class="fixed left-0 top-0 bottom-0 w-64 bg-[#0c1929] border-r border-[#1e293b] flex flex-col">
+    <!-- Logo -->
+    <div class="p-6 border-b border-[#1e293b]">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="text-sm font-bold text-white">RESCUE<span class="text-blue-500">MANAGER</span></div>
+          <div class="text-xs text-slate-500">Desktop App</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-600 text-white font-medium text-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        Dashboard
+      </a>
+      
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-[#1e293b] hover:text-white transition-colors text-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        Calendario
+      </a>
+
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-[#1e293b] hover:text-white transition-colors text-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+        </svg>
+        Clienti
+      </a>
+
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-[#1e293b] hover:text-white transition-colors text-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        Fatture
+      </a>
+
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-[#1e293b] hover:text-white transition-colors text-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+        </svg>
+        Piazzale
+      </a>
+
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-[#1e293b] hover:text-white transition-colors text-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        Report
+      </a>
+
+      <div class="pt-4 mt-4 border-t border-[#1e293b]">
+        <div class="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Moduli Speciali</div>
+        
+        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-[#1e293b] hover:text-white transition-colors text-sm">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+          </svg>
+          RVFU
+        </a>
+
+        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-[#1e293b] hover:text-white transition-colors text-sm">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+          </svg>
+          RENTRI
+        </a>
+      </div>
+    </nav>
+
+    <!-- User Profile -->
+    <div class="p-4 border-t border-[#1e293b]">
+      <div class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#1e293b] cursor-pointer transition-colors">
+        <div class="w-8 h-8 bg-gradient-blue rounded-full flex items-center justify-center text-white text-sm font-semibold">
+          ES
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-white truncate">Emmanuel S.</div>
+          <div class="text-xs text-slate-500 truncate">Admin</div>
+        </div>
+        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="ml-64 min-h-screen">
+    <!-- Header -->
+    <header class="bg-[#0c1929] border-b border-[#1e293b] sticky top-0 z-10">
+      <div class="px-8 py-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-white">Dashboard</h1>
+            <p class="text-sm text-slate-400 mt-0.5">Benvenuto, ecco una panoramica della tua attività</p>
+          </div>
+          
+          <div class="flex items-center gap-3">
+            <!-- Search -->
+            <div class="relative">
+              <input 
+                type="text" 
+                placeholder="Cerca..." 
+                class="w-64 pl-10 pr-4 py-2 bg-[#1e293b] border border-[#334155] rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </div>
+
+            <!-- Notifications -->
+            <button class="relative p-2 rounded-lg bg-[#1e293b] border border-[#334155] hover:bg-[#334155] transition-colors">
+              <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+              </svg>
+              <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+
+            <!-- Settings -->
+            <button class="p-2 rounded-lg bg-[#1e293b] border border-[#334155] hover:bg-[#334155] transition-colors">
+              <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="p-8">
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Card 1 -->
+        <div class="bg-[#1a2536] border border-[#243044] rounded-xl p-6 animate-slide-in">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 gradient-blue rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+              </svg>
+            </div>
+            <span class="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full">+12.5%</span>
+          </div>
+          <h3 class="text-2xl font-bold text-white mb-1">€24,580</h3>
+          <p class="text-sm text-slate-400">Fatturato Mensile</p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="bg-[#1a2536] border border-[#243044] rounded-xl p-6 animate-slide-in" style="animation-delay: 0.1s;">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 gradient-emerald rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <span class="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full">+8.2%</span>
+          </div>
+          <h3 class="text-2xl font-bold text-white mb-1">127</h3>
+          <p class="text-sm text-slate-400">Interventi Completati</p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="bg-[#1a2536] border border-[#243044] rounded-xl p-6 animate-slide-in" style="animation-delay: 0.2s;">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 gradient-amber rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <span class="text-xs font-semibold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full">In corso</span>
+          </div>
+          <h3 class="text-2xl font-bold text-white mb-1">18</h3>
+          <p class="text-sm text-slate-400">Interventi Attivi</p>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="bg-[#1a2536] border border-[#243044] rounded-xl p-6 animate-slide-in" style="animation-delay: 0.3s;">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 gradient-purple rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+            </div>
+            <span class="text-xs font-semibold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-full">+5</span>
+          </div>
+          <h3 class="text-2xl font-bold text-white mb-1">342</h3>
+          <p class="text-sm text-slate-400">Clienti Attivi</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Recent Activity -->
+        <div class="lg:col-span-2 bg-[#1a2536] border border-[#243044] rounded-xl p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-semibold text-white">Attività Recente</h2>
+            <button class="text-sm text-blue-400 hover:text-blue-300 font-medium">Vedi tutto</button>
+          </div>
+
+          <div class="space-y-4">
+            <!-- Activity Item -->
+            <div class="flex items-start gap-4 p-4 rounded-lg bg-[#0c1929] border border-[#243044] hover:border-[#334155] transition-colors">
+              <div class="w-10 h-10 gradient-blue rounded-lg flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-white mb-1">Nuova fattura emessa</p>
+                <p class="text-xs text-slate-400 mb-2">Fattura #2024-0156 per €1,250.00 - Cliente: Autofficina Rossi</p>
+                <span class="text-xs text-slate-500">2 minuti fa</span>
+              </div>
+              <span class="px-2 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-400 rounded-full">Completato</span>
+            </div>
+
+            <!-- Activity Item -->
+            <div class="flex items-start gap-4 p-4 rounded-lg bg-[#0c1929] border border-[#243044] hover:border-[#334155] transition-colors">
+              <div class="w-10 h-10 gradient-emerald rounded-lg flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-white mb-1">Intervento completato</p>
+                <p class="text-xs text-slate-400 mb-2">Soccorso stradale - Targa AB123CD - Via Roma, Milano</p>
+                <span class="text-xs text-slate-500">15 minuti fa</span>
+              </div>
+              <span class="px-2 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-400 rounded-full">Successo</span>
+            </div>
+
+            <!-- Activity Item -->
+            <div class="flex items-start gap-4 p-4 rounded-lg bg-[#0c1929] border border-[#243044] hover:border-[#334155] transition-colors">
+              <div class="w-10 h-10 gradient-amber rounded-lg flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-white mb-1">Nuovo intervento assegnato</p>
+                <p class="text-xs text-slate-400 mb-2">Autista: Mario Bianchi - Destinazione: Torino</p>
+                <span class="text-xs text-slate-500">1 ora fa</span>
+              </div>
+              <span class="px-2 py-1 text-xs font-medium bg-amber-500/10 text-amber-400 rounded-full">In corso</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="bg-[#1a2536] border border-[#243044] rounded-xl p-6">
+          <h2 class="text-lg font-semibold text-white mb-6">Azioni Rapide</h2>
+          
+          <div class="space-y-3">
+            <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+              </svg>
+              Nuovo Intervento
+            </button>
+
+            <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0c1929] border border-[#243044] hover:border-[#334155] text-slate-300 font-medium text-sm transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Crea Fattura
+            </button>
+
+            <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0c1929] border border-[#243044] hover:border-[#334155] text-slate-300 font-medium text-sm transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+              Aggiungi Cliente
+            </button>
+
+            <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0c1929] border border-[#243044] hover:border-[#334155] text-slate-300 font-medium text-sm transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+              </svg>
+              Gestisci Piazzale
+            </button>
+          </div>
+
+          <div class="mt-6 pt-6 border-t border-[#243044]">
+            <h3 class="text-sm font-semibold text-slate-400 mb-3">Scadenze Imminenti</h3>
+            <div class="space-y-2">
+              <div class="flex items-center gap-2 text-xs">
+                <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                <span class="text-slate-400">3 scadenze veicoli</span>
+              </div>
+              <div class="flex items-center gap-2 text-xs">
+                <div class="w-2 h-2 bg-amber-500 rounded-full"></div>
+                <span class="text-slate-400">2 fatture da inviare</span>
+              </div>
+              <div class="flex items-center gap-2 text-xs">
+                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span class="text-slate-400">5 appuntamenti oggi</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Example Form Card -->
+      <div class="bg-[#1a2536] border border-[#243044] rounded-xl p-6">
+        <h2 class="text-lg font-semibold text-white mb-6">Esempio Form - Nuovo Cliente</h2>
+        
+        <form class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Input Field -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">Ragione Sociale</label>
+              <input 
+                type="text" 
+                placeholder="Es. Autofficina Rossi S.r.l."
+                class="w-full px-3 py-2.5 bg-[#0c1929] border border-[#243044] rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <!-- Input Field -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">Partita IVA</label>
+              <input 
+                type="text" 
+                placeholder="IT12345678901"
+                class="w-full px-3 py-2.5 bg-[#0c1929] border border-[#243044] rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <!-- Input Field -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">Email</label>
+              <input 
+                type="email" 
+                placeholder="info@esempio.it"
+                class="w-full px-3 py-2.5 bg-[#0c1929] border border-[#243044] rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <!-- Input Field -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">Telefono</label>
+              <input 
+                type="tel" 
+                placeholder="+39 123 456 7890"
+                class="w-full px-3 py-2.5 bg-[#0c1929] border border-[#243044] rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <!-- Select Field -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">Tipo Cliente</label>
+              <select class="w-full px-3 py-2.5 bg-[#0c1929] border border-[#243044] rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <option>Privato</option>
+                <option>Azienda</option>
+                <option>Assicurazione</option>
+              </select>
+            </div>
+
+            <!-- Select Field -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">Provincia</label>
+              <select class="w-full px-3 py-2.5 bg-[#0c1929] border border-[#243044] rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <option>Milano (MI)</option>
+                <option>Roma (RM)</option>
+                <option>Torino (TO)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Textarea -->
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1.5">Note</label>
+            <textarea 
+              rows="3"
+              placeholder="Aggiungi eventuali note sul cliente..."
+              class="w-full px-3 py-2.5 bg-[#0c1929] border border-[#243044] rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+            ></textarea>
+          </div>
+
+          <!-- Form Actions -->
+          <div class="flex items-center gap-3 pt-4">
+            <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm rounded-lg transition-colors">
+              Salva Cliente
+            </button>
+            <button type="button" class="px-6 py-2.5 bg-[#0c1929] border border-[#243044] hover:border-[#334155] text-slate-300 font-medium text-sm rounded-lg transition-colors">
+              Annulla
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Toast Notification Example (hidden by default) -->
+  <div class="fixed bottom-6 right-6 bg-[#1a2536] border border-emerald-500/20 rounded-xl p-4 shadow-2xl max-w-sm hidden" id="toast">
+    <div class="flex items-start gap-3">
+      <div class="w-10 h-10 gradient-emerald rounded-lg flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+      <div class="flex-1">
+        <p class="text-sm font-semibold text-white mb-1">Operazione completata</p>
+        <p class="text-xs text-slate-400">Il cliente è stato salvato con successo</p>
+      </div>
+      <button class="text-slate-500 hover:text-slate-300">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+</body>
+</html>

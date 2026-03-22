@@ -1,0 +1,403 @@
+{
+  "diagrams": {
+    "Fiat": {
+      "Panda": {
+        "2003-2012": {
+          "diagrams": {
+            "motore": {
+              "title": "Motore 1.2 8V",
+              "image": "/images/diagrams/fiat-panda-motore.jpg",
+              "parts": [
+                {
+                  "id": "motore-001",
+                  "name": "Motore Completo",
+                  "category": "Motore",
+                  "position": {"x": 50, "y": 50},
+                  "description": "Motore 1.2 8V completo con accessori"
+                },
+                {
+                  "id": "motore-002",
+                  "name": "Filtro Olio",
+                  "category": "Motore",
+                  "position": {"x": 30, "y": 70},
+                  "description": "Filtro olio motore"
+                },
+                {
+                  "id": "motore-003",
+                  "name": "Filtro Aria",
+                  "category": "Motore",
+                  "position": {"x": 70, "y": 30},
+                  "description": "Filtro aria motore"
+                },
+                {
+                  "id": "motore-004",
+                  "name": "Pompa Acqua",
+                  "category": "Motore",
+                  "position": {"x": 20, "y": 40},
+                  "description": "Pompa acqua sistema raffreddamento"
+                },
+                {
+                  "id": "motore-005",
+                  "name": "Termostato",
+                  "category": "Motore",
+                  "position": {"x": 40, "y": 20},
+                  "description": "Termostato sistema raffreddamento"
+                }
+              ]
+            },
+            "freni": {
+              "title": "Sistema Freni",
+              "image": "/images/diagrams/fiat-panda-freni.jpg",
+              "parts": [
+                {
+                  "id": "freni-001",
+                  "name": "Pastiglie Anteriori",
+                  "category": "Freni",
+                  "position": {"x": 30, "y": 50},
+                  "description": "Pastiglie freni anteriori"
+                },
+                {
+                  "id": "freni-002",
+                  "name": "Pastiglie Posteriori",
+                  "category": "Freni",
+                  "position": {"x": 70, "y": 50},
+                  "description": "Pastiglie freni posteriori"
+                },
+                {
+                  "id": "freni-003",
+                  "name": "Dischi Anteriori",
+                  "category": "Freni",
+                  "position": {"x": 30, "y": 70},
+                  "description": "Dischi freni anteriori"
+                },
+                {
+                  "id": "freni-004",
+                  "name": "Dischi Posteriori",
+                  "category": "Freni",
+                  "position": {"x": 70, "y": 70},
+                  "description": "Dischi freni posteriori"
+                },
+                {
+                  "id": "freni-005",
+                  "name": "Pinze Anteriori",
+                  "category": "Freni",
+                  "position": {"x": 30, "y": 30},
+                  "description": "Pinze freni anteriori"
+                },
+                {
+                  "id": "freni-006",
+                  "name": "Pinze Posteriori",
+                  "category": "Freni",
+                  "position": {"x": 70, "y": 30},
+                  "description": "Pinze freni posteriori"
+                }
+              ]
+            },
+            "sospensioni": {
+              "title": "Sistema Sospensioni",
+              "image": "/images/diagrams/fiat-panda-sospensioni.jpg",
+              "parts": [
+                {
+                  "id": "sosp-001",
+                  "name": "Ammortizzatore Anteriore",
+                  "category": "Sospensioni",
+                  "position": {"x": 30, "y": 50},
+                  "description": "Ammortizzatore anteriore sinistro"
+                },
+                {
+                  "id": "sosp-002",
+                  "name": "Ammortizzatore Anteriore",
+                  "category": "Sospensioni",
+                  "position": {"x": 70, "y": 50},
+                  "description": "Ammortizzatore anteriore destro"
+                },
+                {
+                  "id": "sosp-003",
+                  "name": "Ammortizzatore Posteriore",
+                  "category": "Sospensioni",
+                  "position": {"x": 30, "y": 70},
+                  "description": "Ammortizzatore posteriore sinistro"
+                },
+                {
+                  "id": "sosp-004",
+                  "name": "Ammortizzatore Posteriore",
+                  "category": "Sospensioni",
+                  "position": {"x": 70, "y": 70},
+                  "description": "Ammortizzatore posteriore destro"
+                },
+                {
+                  "id": "sosp-005",
+                  "name": "Molla Anteriore",
+                  "category": "Sospensioni",
+                  "position": {"x": 30, "y": 30},
+                  "description": "Molla anteriore sinistra"
+                },
+                {
+                  "id": "sosp-006",
+                  "name": "Molla Anteriore",
+                  "category": "Sospensioni",
+                  "position": {"x": 70, "y": 30},
+                  "description": "Molla anteriore destra"
+                }
+              ]
+            },
+            "carrozzeria": {
+              "title": "Carrozzeria",
+              "image": "/images/diagrams/fiat-panda-carrozzeria.jpg",
+              "parts": [
+                {
+                  "id": "carrozzeria-001",
+                  "name": "Specchietto Retrovisore",
+                  "category": "Carrozzeria",
+                  "position": {"x": 20, "y": 30},
+                  "description": "Specchietto retrovisore sinistro"
+                },
+                {
+                  "id": "carrozzeria-002",
+                  "name": "Specchietto Retrovisore",
+                  "category": "Carrozzeria",
+                  "position": {"x": 80, "y": 30},
+                  "description": "Specchietto retrovisore destro"
+                },
+                {
+                  "id": "carrozzeria-003",
+                  "name": "Fanale Anteriore",
+                  "category": "Carrozzeria",
+                  "position": {"x": 30, "y": 20},
+                  "description": "Fanale anteriore sinistro"
+                },
+                {
+                  "id": "carrozzeria-004",
+                  "name": "Fanale Anteriore",
+                  "category": "Carrozzeria",
+                  "position": {"x": 70, "y": 20},
+                  "description": "Fanale anteriore destro"
+                },
+                {
+                  "id": "carrozzeria-005",
+                  "name": "Fanale Posteriore",
+                  "category": "Carrozzeria",
+                  "position": {"x": 30, "y": 80},
+                  "description": "Fanale posteriore sinistro"
+                },
+                {
+                  "id": "carrozzeria-006",
+                  "name": "Fanale Posteriore",
+                  "category": "Carrozzeria",
+                  "position": {"x": 70, "y": 80},
+                  "description": "Fanale posteriore destro"
+                },
+                {
+                  "id": "carrozzeria-007",
+                  "name": "Paraurti Anteriore",
+                  "category": "Carrozzeria",
+                  "position": {"x": 50, "y": 10},
+                  "description": "Paraurti anteriore"
+                },
+                {
+                  "id": "carrozzeria-008",
+                  "name": "Paraurti Posteriore",
+                  "category": "Carrozzeria",
+                  "position": {"x": 50, "y": 90},
+                  "description": "Paraurti posteriore"
+                }
+              ]
+            },
+            "interni": {
+              "title": "Interni",
+              "image": "/images/diagrams/fiat-panda-interni.jpg",
+              "parts": [
+                {
+                  "id": "interni-001",
+                  "name": "Volante",
+                  "category": "Interni",
+                  "position": {"x": 50, "y": 30},
+                  "description": "Volante con airbag"
+                },
+                {
+                  "id": "interni-002",
+                  "name": "Sedile Anteriore",
+                  "category": "Interni",
+                  "position": {"x": 30, "y": 50},
+                  "description": "Sedile anteriore sinistro"
+                },
+                {
+                  "id": "interni-003",
+                  "name": "Sedile Anteriore",
+                  "category": "Interni",
+                  "position": {"x": 70, "y": 50},
+                  "description": "Sedile anteriore destro"
+                },
+                {
+                  "id": "interni-004",
+                  "name": "Sedile Posteriore",
+                  "category": "Interni",
+                  "position": {"x": 50, "y": 70},
+                  "description": "Sedile posteriore"
+                },
+                {
+                  "id": "interni-005",
+                  "name": "Console Centrale",
+                  "category": "Interni",
+                  "position": {"x": 50, "y": 50},
+                  "description": "Console centrale"
+                },
+                {
+                  "id": "interni-006",
+                  "name": "Cruscotto",
+                  "category": "Interni",
+                  "position": {"x": 50, "y": 20},
+                  "description": "Cruscotto strumenti"
+                }
+              ]
+            },
+            "elettronica": {
+              "title": "Elettronica",
+              "image": "/images/diagrams/fiat-panda-elettronica.jpg",
+              "parts": [
+                {
+                  "id": "elettronica-001",
+                  "name": "Centralina Motore",
+                  "category": "Elettronica",
+                  "position": {"x": 30, "y": 30},
+                  "description": "Centralina controllo motore"
+                },
+                {
+                  "id": "elettronica-002",
+                  "name": "Centralina ABS",
+                  "category": "Elettronica",
+                  "position": {"x": 70, "y": 30},
+                  "description": "Centralina sistema ABS"
+                },
+                {
+                  "id": "elettronica-003",
+                  "name": "Centralina Airbag",
+                  "category": "Elettronica",
+                  "position": {"x": 50, "y": 50},
+                  "description": "Centralina sistema airbag"
+                },
+                {
+                  "id": "elettronica-004",
+                  "name": "Sensore Temperatura",
+                  "category": "Elettronica",
+                  "position": {"x": 20, "y": 70},
+                  "description": "Sensore temperatura motore"
+                },
+                {
+                  "id": "elettronica-005",
+                  "name": "Sensore Pressione",
+                  "category": "Elettronica",
+                  "position": {"x": 80, "y": 70},
+                  "description": "Sensore pressione olio"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "Punto": {
+        "2005-2018": {
+          "diagrams": {
+            "motore": {
+              "title": "Motore 1.4 16V",
+              "image": "/images/diagrams/fiat-punto-motore.jpg",
+              "parts": [
+                {
+                  "id": "motore-001",
+                  "name": "Motore Completo",
+                  "category": "Motore",
+                  "position": {"x": 50, "y": 50},
+                  "description": "Motore 1.4 16V completo con accessori"
+                },
+                {
+                  "id": "motore-002",
+                  "name": "Filtro Olio",
+                  "category": "Motore",
+                  "position": {"x": 30, "y": 70},
+                  "description": "Filtro olio motore"
+                },
+                {
+                  "id": "motore-003",
+                  "name": "Filtro Aria",
+                  "category": "Motore",
+                  "position": {"x": 70, "y": 30},
+                  "description": "Filtro aria motore"
+                },
+                {
+                  "id": "motore-004",
+                  "name": "Pompa Acqua",
+                  "category": "Motore",
+                  "position": {"x": 20, "y": 40},
+                  "description": "Pompa acqua sistema raffreddamento"
+                },
+                {
+                  "id": "motore-005",
+                  "name": "Termostato",
+                  "category": "Motore",
+                  "position": {"x": 40, "y": 20},
+                  "description": "Termostato sistema raffreddamento"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "Volkswagen": {
+      "Golf": {
+        "2008-2019": {
+          "diagrams": {
+            "motore": {
+              "title": "Motore 1.6 TDI",
+              "image": "/images/diagrams/vw-golf-motore.jpg",
+              "parts": [
+                {
+                  "id": "motore-001",
+                  "name": "Motore Completo",
+                  "category": "Motore",
+                  "position": {"x": 50, "y": 50},
+                  "description": "Motore 1.6 TDI completo con accessori"
+                },
+                {
+                  "id": "motore-002",
+                  "name": "Filtro Olio",
+                  "category": "Motore",
+                  "position": {"x": 30, "y": 70},
+                  "description": "Filtro olio motore"
+                },
+                {
+                  "id": "motore-003",
+                  "name": "Filtro Aria",
+                  "category": "Motore",
+                  "position": {"x": 70, "y": 30},
+                  "description": "Filtro aria motore"
+                },
+                {
+                  "id": "motore-004",
+                  "name": "Pompa Acqua",
+                  "category": "Motore",
+                  "position": {"x": 20, "y": 40},
+                  "description": "Pompa acqua sistema raffreddamento"
+                },
+                {
+                  "id": "motore-005",
+                  "name": "Termostato",
+                  "category": "Motore",
+                  "position": {"x": 40, "y": 20},
+                  "description": "Termostato sistema raffreddamento"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2024-01-16",
+    "source": "Official Vehicle Diagrams",
+    "notes": "Diagrammi ufficiali veicoli per identificazione ricambi"
+  }
+}
+

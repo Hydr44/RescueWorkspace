@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<p:FatturaElettronica versione="FPR12"
+  xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2"
+  xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <FatturaElettronicaHeader>
+    <DatiTrasmissione>
+      <IdTrasmittente>
+        <IdPaese>IT</IdPaese>
+        <IdCodice>02166430856</IdCodice>
+      </IdTrasmittente>
+      <ProgressivoInvio>WST01</ProgressivoInvio>
+      <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+      <!-- Codice destinatario intenzionalmente errato (solo 3 caratteri) -->
+      <CodiceDestinatario>AAA</CodiceDestinatario>
+    </DatiTrasmissione>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA>
+          <IdPaese>IT</IdPaese>
+          <IdCodice>02166430856</IdCodice>
+        </IdFiscaleIVA>
+        <CodiceFiscale>02166430856</CodiceFiscale>
+        <Anagrafica>
+          <Denominazione>Rescue Manager Srl</Denominazione>
+        </Anagrafica>
+        <RegimeFiscale>RF19</RegimeFiscale>
+      </DatiAnagrafici>
+      <Sede>
+        <Indirizzo>Via Roma 1</Indirizzo>
+        <CAP>00100</CAP>
+        <Comune>Roma</Comune>
+        <Provincia>RM</Provincia>
+        <Nazione>IT</Nazione>
+      </Sede>
+    </CedentePrestatore>
+    <CessionarioCommittente>
+      <DatiAnagrafici>
+        <CodiceFiscale>RSSMRA80A01H501U</CodiceFiscale>
+        <Anagrafica>
+          <Denominazione>Cliente Test WST01</Denominazione>
+        </Anagrafica>
+      </DatiAnagrafici>
+      <Sede>
+        <Indirizzo>Via Milano 10</Indirizzo>
+        <CAP>20100</CAP>
+        <Comune>Milano</Comune>
+        <Provincia>MI</Provincia>
+        <Nazione>IT</Nazione>
+      </Sede>
+    </CessionarioCommittente>
+  </FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+    <DatiGenerali>
+      <DatiGeneraliDocumento>
+        <TipoDocumento>TD01</TipoDocumento>
+        <Divisa>EUR</Divisa>
+        <Data>2025-11-08</Data>
+        <Numero>WST01-ERR</Numero>
+        <ImportoTotaleDocumento>122.00</ImportoTotaleDocumento>
+      </DatiGeneraliDocumento>
+    </DatiGenerali>
+    <DatiBeniServizi>
+      <DettaglioLinee>
+        <NumeroLinea>1</NumeroLinea>
+        <Descrizione>Servizio test interoperabilità WST01</Descrizione>
+        <Quantita>1.00</Quantita>
+        <PrezzoUnitario>100.00</PrezzoUnitario>
+        <PrezzoTotale>100.00</PrezzoTotale>
+        <AliquotaIVA>22.00</AliquotaIVA>
+      </DettaglioLinee>
+      <DatiRiepilogo>
+        <AliquotaIVA>22.00</AliquotaIVA>
+        <ImponibileImporto>100.00</ImponibileImporto>
+        <Imposta>22.00</Imposta>
+        <EsigibilitaIVA>I</EsigibilitaIVA>
+      </DatiRiepilogo>
+    </DatiBeniServizi>
+    <DatiPagamento>
+      <CondizioniPagamento>TP02</CondizioniPagamento>
+      <DettaglioPagamento>
+        <ModalitaPagamento>MP01</ModalitaPagamento>
+        <DataScadenzaPagamento>2025-12-08</DataScadenzaPagamento>
+        <ImportoPagamento>122.00</ImportoPagamento>
+      </DettaglioPagamento>
+    </DatiPagamento>
+  </FatturaElettronicaBody>
+</p:FatturaElettronica>

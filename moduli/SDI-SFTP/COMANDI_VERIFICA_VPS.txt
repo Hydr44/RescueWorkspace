@@ -1,0 +1,36 @@
+# Comandi per verificare che il deploy sia OK
+
+# Esegui questi comandi uno alla volta nel terminale:
+
+cd /Users/sign.rascozzarini/Projects/rescuemanager-workspace/moduli/SDI-SFTP
+
+# 1. Status PM2
+ssh -i id_ed25519 -o StrictHostKeyChecking=no root@217.154.118.37 "pm2 status sdi-sftp-server"
+
+# 2. Health Check
+ssh -i id_ed25519 -o StrictHostKeyChecking=no root@217.154.118.37 "curl -s http://localhost:3004/health"
+
+# 3. Verifica file presente
+ssh -i id_ed25519 -o StrictHostKeyChecking=no root@217.154.118.37 "ls -lh /opt/sdi-sftp-server/xml-generator.js"
+
+# 4. Verifica contenuto (prime 5 righe)
+ssh -i id_ed25519 -o StrictHostKeyChecking=no root@217.154.118.37 "head -5 /opt/sdi-sftp-server/xml-generator.js"
+
+# 5. Verifica validazioni presenti
+ssh -i id_ed25519 -o StrictHostKeyChecking=no root@217.154.118.37 "grep -c 'ERRORE 004' /opt/sdi-sftp-server/xml-generator.js"
+# Dovrebbe essere >= 10
+
+# 6. Verifica righe totali
+ssh -i id_ed25519 -o StrictHostKeyChecking=no root@217.154.118.37 "wc -l /opt/sdi-sftp-server/xml-generator.js"
+# Dovrebbe essere ~400 righe
+
+# 7. Verifica log server
+ssh -i id_ed25519 -o StrictHostKeyChecking=no root@217.154.118.37 "pm2 logs sdi-sftp-server --lines 20 --nostream"
+
+# 8. Verifica funzioni critiche
+ssh -i id_ed25519 -o StrictHostKeyChecking=no root@217.154.118.37 "grep -c 'items.length === 0' /opt/sdi-sftp-server/xml-generator.js"
+ssh -i id_ed25519 -o StrictHostKeyChecking=no root@217.154.118.37 "grep -c 'Math.round' /opt/sdi-sftp-server/xml-generator.js"
+
+# OPPURE esegui direttamente lo script di verifica:
+./VERIFICA_VPS.sh
+

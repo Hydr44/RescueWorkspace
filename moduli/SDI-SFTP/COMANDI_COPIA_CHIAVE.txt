@@ -1,0 +1,52 @@
+# Comandi per Copiare Chiave SSH sulla VPS
+
+## Metodo 1: Manuale (più semplice)
+
+# 1. Mostra la tua chiave pubblica
+cat ~/.ssh/id_ed25519.pub
+# OPPURE se hai id_rsa:
+# cat ~/.ssh/id_rsa.pub
+
+# 2. Copia l'output (tutto il testo che inizia con ssh-ed25519 o ssh-rsa)
+
+# 3. Connettiti alla VPS
+ssh root@217.154.118.37
+# Password: 1x9Wa2eW
+
+# 4. Incolla questi comandi sulla VPS:
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+echo "INCOLLA_QUI_LA_TUA_CHIAVE_PUBBLICA" >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+exit
+
+# 5. Testa connessione
+ssh root@217.154.118.37
+# Dovresti entrare senza password!
+
+
+## Metodo 2: ssh-copy-id (automatico)
+
+# Se hai già una chiave SSH:
+ssh-copy-id root@217.154.118.37
+# Password: 1x9Wa2eW
+
+# Testa
+ssh root@217.154.118.37
+
+
+## Metodo 3: Genera Nuova Chiave Specifica
+
+# Genera nuova chiave
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_rescuemanager -N ""
+
+# Mostra chiave pubblica
+cat ~/.ssh/id_ed25519_rescuemanager.pub
+
+# Copia manualmente (vedi Metodo 1)
+# O usa ssh-copy-id:
+ssh-copy-id -i ~/.ssh/id_ed25519_rescuemanager.pub root@217.154.118.37
+
+# Testa
+ssh -i ~/.ssh/id_ed25519_rescuemanager root@217.154.118.37
+

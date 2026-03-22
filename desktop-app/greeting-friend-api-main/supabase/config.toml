@@ -1,0 +1,4 @@
+project_id = "ienzdgrqalltvkdkuamp"
+
+[functions.recognize-spare-part]
+verify_jwt = false

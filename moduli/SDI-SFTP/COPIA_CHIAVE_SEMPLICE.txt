@@ -1,0 +1,27 @@
+# Copia Chiave SSH sulla VPS - METODO SEMPLICE
+
+## Opzione 1: Usa ssh-copy-id (RACCOMANDATO)
+
+# Usa la chiave VPS esistente
+
+
+# Ti chiederà la password UNA VOLTA: 1x9Wa2eW
+# Poi copierà automaticamente la chiave
+
+# Testa (dovresti entrare senza password)
+ssh -i ~/.ssh/id_ed25519_vps root@217.154.118.37
+
+
+## Opzione 2: Usa chiave principale (se id_ed25519_vps non funziona)
+
+ssh-copy-id -i ~/.ssh/id_ed25519.pub root@217.154.118.37
+# Password: 1x9Wa2eW
+
+# Testa
+ssh root@217.154.118.37
+
+
+## Dopo aver copiato la chiave
+
+Una volta che funziona (entri senza password), dimmi e procedo con il deploy del server!
+

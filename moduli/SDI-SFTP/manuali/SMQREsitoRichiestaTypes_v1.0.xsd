@@ -1,0 +1,136 @@
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:types="http://www.fatturapa.gov.it/sdi/smqr/esiti/v1/0" targetNamespace="http://www.fatturapa.gov.it/sdi/smqr/esiti/v1/0" version="1.0">
+
+	<!--  ===================================================================  -->
+	<!--  ELEMENTO ROOT									  -->
+	<!--  ===================================================================  -->
+	<xsd:element name="EsitoRichiesta" type="types:EsitoRichiesta_Type" />
+
+	<!--  ===================================================================  -->
+	<!--  TIPI COMPLESSI														  -->
+	<!--  ===================================================================  -->
+	<xsd:complexType name="EsitoRichiesta_Type">
+		<xsd:sequence>
+			<xsd:element name="IdRichiesta" type="types:IdRichiesta_Type"/>
+			<xsd:element name="Esito" type="types:Esito_Type"/>
+			<xsd:element name="NomeArchivio" type="types:NomeFile_Type"/>
+			<xsd:element name="ListaErrori" type="types:ListaErrori_Type" minOccurs="0"/>
+			<xsd:choice>
+				<xsd:element name="InfoRichiestaQuadratura" type="types:InfoRichiestaQuadratura_Type"/>
+				<xsd:element name="InfoRichiestaReinoltro" type="types:InfoRichiestaReinoltro_Type"/>
+			</xsd:choice>
+		</xsd:sequence>
+		<xsd:attribute name="versione" type="types:Versione_Type" use="required" fixed="1.0"/>
+	</xsd:complexType>
+
+	<xsd:complexType name="InfoRichiestaQuadratura_Type">
+		<xsd:sequence>
+			<xsd:element name="DataOraRicezione" type="xsd:dateTime"/>
+			<xsd:element name="NomeSupporto" type="types:NomeFile_Type"/>
+			<xsd:element name="NomeRichiesta" type="types:NomeFile_Type"/>
+			<xsd:element name="TipoFlusso" type="types:TipoFlusso_Type" minOccurs="0"/>
+			<xsd:element name="DataDa" type="xsd:date" minOccurs="0"/>
+			<xsd:element name="DataA" type="xsd:date" minOccurs="0"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="InfoRichiestaReinoltro_Type">
+		<xsd:sequence>
+			<xsd:element name="DataOraRicezione" type="xsd:dateTime"/>
+			<xsd:element name="NomeSupporto" type="types:NomeFile_Type"/>
+			<xsd:element name="NomeElencoIdFile" type="types:NomeFile_Type"/>
+			<xsd:element name="TipoIdFile" type="types:TipoIdFile_Type"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="Errore_Type">
+		<xsd:sequence>
+			<xsd:element name="Codice" type="types:Codice_Type"/>
+			<xsd:element name="Descrizione" type="types:Descrizione_Type"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="ListaErrori_Type">
+		<xsd:sequence>
+			<xsd:element name="Errore" type="types:Errore_Type" minOccurs="1" maxOccurs="200"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+
+	<!--  ===================================================================  -->
+	<!--  TIPI BASE														  -->
+	<!--  ===================================================================  -->
+	<xsd:simpleType name="IdRichiesta_Type">
+		<xsd:restriction base="xsd:integer">
+			<xsd:totalDigits value="12"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<xsd:simpleType name="Esito_Type">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="ES00">
+				<xsd:annotation>
+					<xsd:documentation> ES00 = ELABORATA </xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="ES01">
+				<xsd:annotation>
+					<xsd:documentation> ES01 = SCARTATA </xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<xsd:simpleType name="NomeFile_Type">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="50"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<xsd:simpleType name="TipoFlusso_Type">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="SFTP">
+				<xsd:annotation>
+					<xsd:documentation> SFTP = Flusso B2B/C </xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="SFTP_FPA">
+				<xsd:annotation>
+					<xsd:documentation> SFTP_FPA = Flusso B2G </xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+		<xsd:simpleType name="TipoIdFile_Type">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="F">
+				<xsd:annotation>
+					<xsd:documentation> F = Fattura </xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="N">
+				<xsd:annotation>
+					<xsd:documentation> N = Notifica </xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+
+	<xsd:simpleType name="Codice_Type">
+		<xsd:restriction base="xsd:string">
+			<xsd:length value="4"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="Descrizione_Type">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="255"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<xsd:simpleType name="Versione_Type">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="5"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+</xsd:schema>

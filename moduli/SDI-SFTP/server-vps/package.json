@@ -1,0 +1,20 @@
+{
+  "name": "sdi-sftp-server",
+  "version": "1.0.0",
+  "description": "Server Node.js per gestione SFTP SDI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "adm-zip": "^0.5.16",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-forge": "^1.3.1",
+    "ssh2-sftp-client": "^10.0.3"
+  }
+}
+

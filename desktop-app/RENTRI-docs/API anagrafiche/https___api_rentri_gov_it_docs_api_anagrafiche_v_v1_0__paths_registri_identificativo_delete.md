@@ -1,0 +1,1144 @@
+<div id="stoplight">
+
+<div style="height: 100%;">
+
+<div id="mosaic-provider-react-aria-0-1" style="height: 100%;">
+
+<div overlay-container="true" style="height: 100%;">
+
+<div class="sl-elements sl-antialiased sl-h-full sl-text-base sl-font-ui sl-text-body">
+
+<div class="sl-elements-api sl-flex sl-inset-0 sl-h-full">
+
+<div class="sl-flex" style="max-width: 450px;">
+
+<div class="sl-flex sl-overflow-y-auto sl-flex-col sl-sticky sl-inset-y-0 sl-pt-8 sl-bg-canvas-100 sl-border-r"
+style="padding-left: calc(50% - 900px); width: 300px; min-width: 300px;">
+
+<div class="sl-flex sl-items-center sl-mb-5 sl-ml-4">
+
+#### anagrafiche
+
+</div>
+
+<div class="sl-flex sl-overflow-y-auto sl-flex-col sl-flex-grow sl-flex-shrink">
+
+<div class="sl-overflow-y-auto sl-w-full sl-bg-canvas-100">
+
+<div class="sl-my-3">
+
+<a href="#/"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-4 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Overview">
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate">
+
+Overview
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+</div>
+
+</div>
+
+<div class="sl-text-sm sl-leading-relaxed sl-tracking-wide sl-font-bold sl-uppercase sl-mt-6 sl-mb-2 sl-pl-4">
+
+Endpoints
+
+</div>
+
+<a href="#/paths/status/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/status/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-4 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Stato API">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Stato API
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<div class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-4 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Operatore">
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5">
+
+Operatore
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-flex sl-items-center">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJjaGV2cm9uLWRvd24iIGNsYXNzPSJzdmctaW5saW5lLS1mYSBmYS1jaGV2cm9uLWRvd24gZmEtZncgc2wtaWNvbiBzbC10ZXh0LW11dGVkIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdib3g9IjAgMCA0NDggNTEyIj48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yMjQgNDE2Yy04LjE4OCAwLTE2LjM4LTMuMTI1LTIyLjYyLTkuMzc1bC0xOTItMTkyYy0xMi41LTEyLjUtMTIuNS0zMi43NSAwLTQ1LjI1czMyLjc1LTEyLjUgNDUuMjUgMEwyMjQgMzM4LjhsMTY5LjQtMTY5LjRjMTIuNS0xMi41IDMyLjc1LTEyLjUgNDUuMjUgMHMxMi41IDMyLjc1IDAgNDUuMjVsLTE5MiAxOTJDMjQwLjQgNDEyLjkgMjMyLjIgNDE2IDIyNCA0MTZ6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-chevron-down fa-fw sl-icon sl-text-muted"
+style="width:1em" />
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/operatore/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Elenco degli operatori">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Elenco degli operatori
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a
+href="#/paths/operatore-identificativo--controllo-autorizzazione-albo/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-identificativo--controllo-autorizzazione-albo/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Consultazione autorizzazioni Albo">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Consultazione autorizzazioni Albo
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/operatore-identificativo--controllo-iscrizione/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-identificativo--controllo-iscrizione/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Consultazione iscrizioni">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Consultazione iscrizioni
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a
+href="#/paths/operatore-identificativo--siti--comune_id--controllo-autorizzazioni/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-identificativo--siti--comune_id--controllo-autorizzazioni/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Consultazione autorizzazioni unità locali">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Consultazione autorizzazioni unità locali
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/operatore-num_iscr--autorizzazione-albo/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-num_iscr--autorizzazione-albo/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Informazioni autorizzazione Albo">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Informazioni autorizzazione Albo
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/operatore-num_iscr--siti/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-num_iscr--siti/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Elenco unità locali">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Elenco unità locali
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/operatore-num_iscr--siti--num_iscr_sito/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-num_iscr--siti--num_iscr_sito/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Dati dell'unità locale">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Dati dell'unità locale
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a
+href="#/paths/operatore-num_iscr--siti--num_iscr_sito--autorizzazioni/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-num_iscr--siti--num_iscr_sito--autorizzazioni/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Informazioni sulle autorizzazioni dell'unità locale">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Informazioni sulle autorizzazioni dell'unità locale
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/operatore-num_iscr--siti--num_iscr_sito--registri/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-num_iscr--siti--num_iscr_sito--registri/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Elenco registri">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Elenco registri
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/operatore-registri/post"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-registri/post"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Apertura nuovo registro">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Apertura nuovo registro
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-primary">
+
+post
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/operatore-registri-identificativo/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-registri-identificativo/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Dati registro">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Dati registro
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/operatore-registri-identificativo/put"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-registri-identificativo/put"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Modifica registro">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Modifica registro
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-warning">
+
+put
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/operatore-registri-identificativo/delete"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-registri-identificativo/delete"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Chiudi registro">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Chiudi registro
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-danger">
+
+delete
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/operatore-registri-identificativo--xml/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/operatore-registri-identificativo--xml/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Vidimazione virtuale registro in formato XML">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+Vidimazione virtuale registro in formato XML
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/registri/post"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/registri/post"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="⚠️[DEPRECATO] - utilizzare /operatore/registri - Apertura nuovo registro">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+⚠️\[DEPRECATO\] - utilizzare /operatore/registri - Apertura nuovo
+registro
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-primary">
+
+post
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/registri-identificativo/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/registri-identificativo/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="⚠️[DEPRECATO] - utilizzare /operatore/registri/{identificativo} - Dati registro">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+⚠️\[DEPRECATO\] - utilizzare /operatore/registri/{identificativo} - Dati
+registro
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/registri-identificativo/put"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/registri-identificativo/put"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="⚠️[DEPRECATO] - utilizzare /operatore/registri/{identificativo} - Modifica registro">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+⚠️\[DEPRECATO\] - utilizzare /operatore/registri/{identificativo} -
+Modifica registro
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-warning">
+
+put
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/registri-identificativo/delete"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/registri-identificativo/delete"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-primary-tint sl-cursor-pointer sl-select-none"
+title="⚠️[DEPRECATO] - utilizzare /operatore/registri/{identificativo} - Chiudi registro">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+⚠️\[DEPRECATO\] - utilizzare /operatore/registri/{identificativo} -
+Chiudi registro
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-danger">
+
+delete
+
+</div>
+
+</div>
+
+</div>
+
+<a href="#/paths/registri-identificativo--xml/get"
+class="ElementsTableOfContentsItem sl-block sl-no-underline"></a>
+
+<div id="sl-toc-/paths/registri-identificativo--xml/get"
+class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-8 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="⚠️[DEPRECATO] - utilizzare /operatore/registri/{identificativo}/xml - Vidimazione virtuale registro in formato XML">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJidWxsc2V5ZSIgY2xhc3M9InN2Zy1pbmxpbmUtLWZhIGZhLWJ1bGxzZXllIHNsLWljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE1MSwgNzEsIDI1NSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yODggMjU2QzI4OCAyNzMuNyAyNzMuNyAyODggMjU2IDI4OEMyMzguMyAyODggMjI0IDI3My43IDIyNCAyNTZDMjI0IDIzOC4zIDIzOC4zIDIyNCAyNTYgMjI0QzI3My43IDIyNCAyODggMjM4LjMgMjg4IDI1NnpNMTEyIDI1NkMxMTIgMTc2LjUgMTc2LjUgMTEyIDI1NiAxMTJDMzM1LjUgMTEyIDQwMCAxNzYuNSA0MDAgMjU2QzQwMCAzMzUuNSAzMzUuNSA0MDAgMjU2IDQwMEMxNzYuNSA0MDAgMTEyIDMzNS41IDExMiAyNTZ6TTI1NiAzMzZDMzAwLjIgMzM2IDMzNiAzMDAuMiAzMzYgMjU2QzMzNiAyMTEuOCAzMDAuMiAxNzYgMjU2IDE3NkMyMTEuOCAxNzYgMTc2IDIxMS44IDE3NiAyNTZDMTc2IDMwMC4yIDIxMS44IDMzNiAyNTYgMzM2ek01MTIgMjU2QzUxMiAzOTcuNCAzOTcuNCA1MTIgMjU2IDUxMkMxMTQuNiA1MTIgMCAzOTcuNCAwIDI1NkMwIDExNC42IDExNC42IDAgMjU2IDBDMzk3LjQgMCA1MTIgMTE0LjYgNTEyIDI1NnpNMjU2IDY0QzE0OS4xIDY0IDY0IDE0OS4xIDY0IDI1NkM2NCAzNjIgMTQ5LjEgNDQ4IDI1NiA0NDhDMzYyIDQ0OCA0NDggMzYyIDQ0OCAyNTZDNDQ4IDE0OS4xIDM2MiA2NCAyNTYgNjR6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-bullseye sl-icon" />
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5 sl-ml-1.5">
+
+⚠️\[DEPRECATO\] - utilizzare /operatore/registri/{identificativo}/xml -
+Vidimazione virtuale registro in formato XML
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-font-medium sl-uppercase sl-text-success">
+
+get
+
+</div>
+
+</div>
+
+</div>
+
+<div class="sl-flex sl-items-center sl-h-md sl-pr-4 sl-pl-4 sl-bg-canvas-100 hover:sl-bg-canvas-200 sl-cursor-pointer sl-select-none"
+title="Soggetto delegato">
+
+<div class="sl-flex-1 sl-items-center sl-text-base sl-truncate sl-mr-1.5">
+
+Soggetto delegato
+
+</div>
+
+<div class="sl-flex sl-items-center sl-text-xs">
+
+<div class="sl-flex sl-items-center">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJjaGV2cm9uLXJpZ2h0IiBjbGFzcz0ic3ZnLWlubGluZS0tZmEgZmEtY2hldnJvbi1yaWdodCBmYS1mdyBzbC1pY29uIHNsLXRleHQtbXV0ZWQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDMyMCA1MTIiPjxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgZD0iTTk2IDQ4MGMtOC4xODggMC0xNi4zOC0zLjEyNS0yMi42Mi05LjM3NWMtMTIuNS0xMi41LTEyLjUtMzIuNzUgMC00NS4yNUwyNDIuOCAyNTZMNzMuMzggODYuNjNjLTEyLjUtMTIuNS0xMi41LTMyLjc1IDAtNDUuMjVzMzIuNzUtMTIuNSA0NS4yNSAwbDE5MiAxOTJjMTIuNSAxMi41IDEyLjUgMzIuNzUgMCA0NS4yNWwtMTkyIDE5MkMxMTIuNCA0NzYuOSAxMDQuMiA0ODAgOTYgNDgweiIgLz48L3N2Zz4="
+class="svg-inline--fa fa-chevron-right fa-fw sl-icon sl-text-muted"
+style="width:1em" />
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<a
+href="https://stoplight.io/?utm_source=elements&amp;utm_medium=anagrafiche&amp;utm_campaign=powered_by&amp;utm_content=/paths/registri-identificativo/delete"
+class="sl-flex sl-items-center sl-px-4 sl-py-3 sl-border-t"
+target="_blank" rel="noopener noreferrer"><img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJib2x0IiBjbGFzcz0ic3ZnLWlubGluZS0tZmEgZmEtYm9sdCBzbC1pY29uIGZhLWZ3IHNsLW1yLTEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDM4NCA1MTIiIHN0eWxlPSJjb2xvcjogcmdiKDE0NCwgOTcsIDI0OSk7Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yNDAuNSAyMjRIMzUyQzM2NS4zIDIyNCAzNzcuMyAyMzIuMyAzODEuMSAyNDQuN0MzODYuNiAyNTcuMiAzODMuMSAyNzEuMyAzNzMuMSAyODAuMUwxMTcuMSA1MDQuMUMxMDUuOCA1MTMuOSA4OS4yNyA1MTQuNyA3Ny4xOSA1MDUuOUM2NS4xIDQ5Ny4xIDYwLjcgNDgxLjEgNjYuNTkgNDY3LjRMMTQzLjUgMjg4SDMxLjFDMTguNjcgMjg4IDYuNzMzIDI3OS43IDIuMDQ0IDI2Ny4zQy0yLjY0NSAyNTQuOCAuODk0NCAyNDAuNyAxMC45MyAyMzEuOUwyNjYuOSA3LjkxOEMyNzguMi0xLjkyIDI5NC43LTIuNjY5IDMwNi44IDYuMTE0QzMxOC45IDE0LjkgMzIzLjMgMzAuODcgMzE3LjQgNDQuNjFMMjQwLjUgMjI0eiIgLz48L3N2Zz4="
+class="svg-inline--fa fa-bolt sl-icon fa-fw sl-mr-1"
+style="width:1em" /></a>
+
+<div>
+
+powered by **Stoplight**
+
+</div>
+
+</div>
+
+<div class="sl-flex sl-flex-grow-0 sl-flex-shrink-0 sl-justify-self-end sl-resize-x"
+style="width: 1em; flex-basis: 6px; cursor: ew-resize;">
+
+</div>
+
+</div>
+
+<div class="sl-overflow-y-auto sl-flex-1 sl-w-full sl-px-24 sl-bg-canvas">
+
+<div class="sl-py-16" style="max-width: 1500px;">
+
+<div class="sl-stack sl-stack--vertical sl-stack--8 HttpOperation sl-flex sl-flex-col sl-items-stretch sl-w-full">
+
+<div class="sl-stack sl-stack--vertical sl-stack--5 sl-flex sl-flex-col sl-items-stretch">
+
+<div class="sl-relative">
+
+<div class="sl-stack sl-stack--horizontal sl-stack--5 sl-flex sl-flex-row sl-items-center">
+
+# ⚠️\[DEPRECATO\] - utilizzare /operatore/registri/{identificativo} - Chiudi registro
+
+<div class="sl-stack sl-stack--horizontal sl-stack--2 sl-flex sl-flex-row sl-items-center">
+
+<span class="sl-badge sl-max-w-full sl-h-sm sl-text-paragraph-tiny sl-whitespace-nowrap sl-px-2 sl-py-0.5 sl-bg-warning sl-text-on-warning sl-rounded-full sl-border-warning sl-border-0"
+testid="badge-deprecated"></span>
+
+<div class="sl-flex sl-justify-items-start sl-items-center sl-w-full">
+
+<div class="sl-mr-1.5" testid="icon">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJjaXJjbGUtZXhjbGFtYXRpb24iIGNsYXNzPSJzdmctaW5saW5lLS1mYSBmYS1jaXJjbGUtZXhjbGFtYXRpb24gZmEtZncgc2wtaWNvbiIgcm9sZT0iaW1nIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdib3g9IjAgMCA1MTIgNTEyIiBzdHlsZT0iZm9udC1zaXplOiAxM3B4OyI+PHBhdGggZmlsbD0iY3VycmVudENvbG9yIiBkPSJNMjU2IDBDMTE0LjYgMCAwIDExNC42IDAgMjU2czExNC42IDI1NiAyNTYgMjU2czI1Ni0xMTQuNiAyNTYtMjU2UzM5Ny40IDAgMjU2IDB6TTIzMiAxNTJDMjMyIDEzOC44IDI0Mi44IDEyOCAyNTYgMTI4czI0IDEwLjc1IDI0IDI0djEyOGMwIDEzLjI1LTEwLjc1IDI0LTI0IDI0UzIzMiAyOTMuMyAyMzIgMjgwVjE1MnpNMjU2IDQwMGMtMTcuMzYgMC0zMS40NC0xNC4wOC0zMS40NC0zMS40NGMwLTE3LjM2IDE0LjA3LTMxLjQ0IDMxLjQ0LTMxLjQ0czMxLjQ0IDE0LjA4IDMxLjQ0IDMxLjQ0QzI4Ny40IDM4NS45IDI3My40IDQwMCAyNTYgNDAweiIgLz48L3N2Zz4="
+class="svg-inline--fa fa-circle-exclamation fa-fw sl-icon"
+style="width:1em" />
+
+</div>
+
+<div class="sl-flex sl-overflow-x-hidden sl-flex-shrink">
+
+<div class="sl-overflow-x-hidden sl-w-auto sl-truncate sl-whitespace-nowrap">
+
+Deprecated
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="sl-relative">
+
+<div>
+
+<div class="sl-stack sl-stack--horizontal sl-stack--3 sl-inline-flex sl-flex-row sl-items-center sl-max-w-full sl-font-mono sl-py-2 sl-pr-4 sl-pl-2.5 sl-bg-canvas-50 sl-rounded-lg"
+title="https://api.rentri.gov.it/anagrafiche/v1.0/registri/{identificativo}">
+
+<div class="sl-text-lg sl-font-semibold sl-uppercase sl-px-2.5 sl-py-1 sl-bg-danger sl-text-on-primary sl-rounded-lg">
+
+delete
+
+</div>
+
+<div class="sl-flex sl-overflow-x-hidden sl-text-lg sl-select-all">
+
+<div class="sl-overflow-x-hidden sl-truncate" dir="ltr">
+
+<span class="sl-text-muted" dir="ltr"
+style="unicode-bidi: bidi-override;">https://api.rentri.gov.it/anagrafiche/v1.0</span><span class="sl-flex-1 sl-font-semibold">/registri/{identificativo}</span>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="sl-flex">
+
+<div class="sl-flex-1 sl-w-0" testid="two-column-left">
+
+<div class="sl-stack sl-stack--vertical sl-stack--10 sl-flex sl-flex-col sl-items-stretch">
+
+<div class="sl-relative">
+
+<div class="sl-prose sl-markdown-viewer HttpOperation__Description">
+
+Chiude un registro identificato da identificativo.
+
+Attenzione! Chiudendo il registro non sarà più possibile trasmettere al
+RENTRI i dati delle registrazioni annotate su tale registro.
+L'operazione è irreversibile.
+
+</div>
+
+</div>
+
+<div class="sl-stack sl-stack--vertical sl-stack--8 sl-flex sl-flex-col sl-items-stretch">
+
+<div class="sl-flex sl-w-full">
+
+## <a href="#/paths/registri-identificativo/delete#Request"
+class="sl-link sl-link-heading__link sl-inline-flex sl-items-center sl-text-current"></a>
+
+<div>
+
+Request
+
+</div>
+
+<div class="sl-link-heading__icon sl-text-base sl-ml-4 sl-text-muted">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJsaW5rIiBjbGFzcz0ic3ZnLWlubGluZS0tZmEgZmEtbGluayBzbC1pY29uIiByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDY0MCA1MTIiPjxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgZD0iTTE3Mi41IDEzMS4xQzIyOC4xIDc1LjUxIDMyMC41IDc1LjUxIDM3Ni4xIDEzMS4xQzQyNi4xIDE4MS4xIDQzMy41IDI2MC44IDM5Mi40IDMxOC4zTDM5MS4zIDMxOS45QzM4MSAzMzQuMiAzNjEgMzM3LjYgMzQ2LjcgMzI3LjNDMzMyLjMgMzE3IDMyOC45IDI5NyAzMzkuMiAyODIuN0wzNDAuMyAyODEuMUMzNjMuMiAyNDkgMzU5LjYgMjA1LjEgMzMxLjcgMTc3LjJDMzAwLjMgMTQ1LjggMjQ5LjIgMTQ1LjggMjE3LjcgMTc3LjJMMTA1LjUgMjg5LjVDNzMuOTkgMzIwLjEgNzMuOTkgMzcyIDEwNS41IDQwMy41QzEzMy4zIDQzMS40IDE3Ny4zIDQzNSAyMDkuMyA0MTIuMUwyMTAuOSA0MTAuMUMyMjUuMyA0MDAuNyAyNDUuMyA0MDQgMjU1LjUgNDE4LjRDMjY1LjggNDMyLjggMjYyLjUgNDUyLjggMjQ4LjEgNDYzLjFMMjQ2LjUgNDY0LjJDMTg4LjEgNTA1LjMgMTEwLjIgNDk4LjcgNjAuMjEgNDQ4LjhDMy43NDEgMzkyLjMgMy43NDEgMzAwLjcgNjAuMjEgMjQ0LjNMMTcyLjUgMTMxLjF6TTQ2Ny41IDM4MEM0MTEgNDM2LjUgMzE5LjUgNDM2LjUgMjYzIDM4MEMyMTMgMzMwIDIwNi41IDI1MS4yIDI0Ny42IDE5My43TDI0OC43IDE5Mi4xQzI1OC4xIDE3Ny44IDI3OC4xIDE3NC40IDI5My4zIDE4NC43QzMwNy43IDE5NC4xIDMxMS4xIDIxNC4xIDMwMC44IDIyOS4zTDI5OS43IDIzMC45QzI3Ni44IDI2Mi4xIDI4MC40IDMwNi45IDMwOC4zIDMzNC44QzMzOS43IDM2Ni4yIDM5MC44IDM2Ni4yIDQyMi4zIDMzNC44TDUzNC41IDIyMi41QzU2NiAxOTEgNTY2IDEzOS4xIDUzNC41IDEwOC41QzUwNi43IDgwLjYzIDQ2Mi43IDc2Ljk5IDQzMC43IDk5LjlMNDI5LjEgMTAxQzQxNC43IDExMS4zIDM5NC43IDEwNy4xIDM4NC41IDkzLjU4QzM3NC4yIDc5LjIgMzc3LjUgNTkuMjEgMzkxLjkgNDguOTRMMzkzLjUgNDcuODJDNDUxIDYuNzMxIDUyOS44IDEzLjI1IDU3OS44IDYzLjI0QzYzNi4zIDExOS43IDYzNi4zIDIxMS4zIDU3OS44IDI2Ny43TDQ2Ny41IDM4MHoiIC8+PC9zdmc+"
+class="svg-inline--fa fa-link sl-icon" />
+
+</div>
+
+<div class="sl-flex sl-flex-grow sl-self-center sl-py-1"
+style="min-width: 0px;">
+
+</div>
+
+</div>
+
+<div class="sl-stack sl-stack--vertical sl-stack--5 sl-flex sl-flex-col sl-items-stretch">
+
+<div class="sl-flex sl-w-full">
+
+### <a href="#/paths/registri-identificativo/delete#Path-Parameters"
+class="sl-link sl-link-heading__link sl-inline-flex sl-items-center sl-text-current"></a>
+
+<div>
+
+Path Parameters
+
+</div>
+
+<div class="sl-link-heading__icon sl-text-base sl-ml-4 sl-text-muted">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJsaW5rIiBjbGFzcz0ic3ZnLWlubGluZS0tZmEgZmEtbGluayBzbC1pY29uIiByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDY0MCA1MTIiPjxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgZD0iTTE3Mi41IDEzMS4xQzIyOC4xIDc1LjUxIDMyMC41IDc1LjUxIDM3Ni4xIDEzMS4xQzQyNi4xIDE4MS4xIDQzMy41IDI2MC44IDM5Mi40IDMxOC4zTDM5MS4zIDMxOS45QzM4MSAzMzQuMiAzNjEgMzM3LjYgMzQ2LjcgMzI3LjNDMzMyLjMgMzE3IDMyOC45IDI5NyAzMzkuMiAyODIuN0wzNDAuMyAyODEuMUMzNjMuMiAyNDkgMzU5LjYgMjA1LjEgMzMxLjcgMTc3LjJDMzAwLjMgMTQ1LjggMjQ5LjIgMTQ1LjggMjE3LjcgMTc3LjJMMTA1LjUgMjg5LjVDNzMuOTkgMzIwLjEgNzMuOTkgMzcyIDEwNS41IDQwMy41QzEzMy4zIDQzMS40IDE3Ny4zIDQzNSAyMDkuMyA0MTIuMUwyMTAuOSA0MTAuMUMyMjUuMyA0MDAuNyAyNDUuMyA0MDQgMjU1LjUgNDE4LjRDMjY1LjggNDMyLjggMjYyLjUgNDUyLjggMjQ4LjEgNDYzLjFMMjQ2LjUgNDY0LjJDMTg4LjEgNTA1LjMgMTEwLjIgNDk4LjcgNjAuMjEgNDQ4LjhDMy43NDEgMzkyLjMgMy43NDEgMzAwLjcgNjAuMjEgMjQ0LjNMMTcyLjUgMTMxLjF6TTQ2Ny41IDM4MEM0MTEgNDM2LjUgMzE5LjUgNDM2LjUgMjYzIDM4MEMyMTMgMzMwIDIwNi41IDI1MS4yIDI0Ny42IDE5My43TDI0OC43IDE5Mi4xQzI1OC4xIDE3Ny44IDI3OC4xIDE3NC40IDI5My4zIDE4NC43QzMwNy43IDE5NC4xIDMxMS4xIDIxNC4xIDMwMC44IDIyOS4zTDI5OS43IDIzMC45QzI3Ni44IDI2Mi4xIDI4MC40IDMwNi45IDMwOC4zIDMzNC44QzMzOS43IDM2Ni4yIDM5MC44IDM2Ni4yIDQyMi4zIDMzNC44TDUzNC41IDIyMi41QzU2NiAxOTEgNTY2IDEzOS4xIDUzNC41IDEwOC41QzUwNi43IDgwLjYzIDQ2Mi43IDc2Ljk5IDQzMC43IDk5LjlMNDI5LjEgMTAxQzQxNC43IDExMS4zIDM5NC43IDEwNy4xIDM4NC41IDkzLjU4QzM3NC4yIDc5LjIgMzc3LjUgNTkuMjEgMzkxLjkgNDguOTRMMzkzLjUgNDcuODJDNDUxIDYuNzMxIDUyOS44IDEzLjI1IDU3OS44IDYzLjI0QzYzNi4zIDExOS43IDYzNi4zIDIxMS4zIDU3OS44IDI2Ny43TDQ2Ny41IDM4MHoiIC8+PC9zdmc+"
+class="svg-inline--fa fa-link sl-icon" />
+
+</div>
+
+<div class="sl-flex sl-flex-grow sl-self-center sl-py-1"
+style="min-width: 0px;">
+
+</div>
+
+</div>
+
+<div id="mosaic-provider-react-aria-44-1">
+
+<div overlay-container="true">
+
+<div class="JsonSchemaViewer">
+
+<div>
+
+</div>
+
+<div class="sl-text-sm" level="0">
+
+<div class="sl-flex sl-relative sl-max-w-full sl-py-2"
+data-id="32a6f4dd3a253" test="schema-row">
+
+<div class="sl-stack sl-stack--vertical sl-stack--1 sl-flex sl-flex-1 sl-flex-col sl-items-stretch sl-max-w-full">
+
+<div class="sl-flex sl-items-center sl-max-w-full">
+
+<div class="sl-flex sl-items-baseline sl-text-base">
+
+<div class="sl-font-mono sl-font-semibold sl-mr-2"
+test="property-name-identificativo">
+
+identificativo
+
+</div>
+
+<span class="sl-truncate sl-text-muted"
+test="property-type">string</span>
+
+</div>
+
+<div class="sl-flex-1 sl-h-px sl-mx-3">
+
+</div>
+
+<span class="sl-ml-2 sl-text-warning"
+test="property-required">required</span>
+
+</div>
+
+<div class="sl-prose sl-markdown-viewer" test="property-description"
+style="font-size: 12px;">
+
+Identificativo del registro.
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="sl-stack sl-stack--vertical sl-stack--1 sl-flex sl-flex-col sl-w-full sl-h-auto">
+
+<div class="sl-flex sl-w-full">
+
+## <a href="#/paths/registri-identificativo/delete#Responses"
+class="sl-link sl-link-heading__link sl-inline-flex sl-items-center sl-text-current"></a>
+
+<div>
+
+Responses
+
+</div>
+
+<div class="sl-link-heading__icon sl-text-base sl-ml-4 sl-text-muted">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJsaW5rIiBjbGFzcz0ic3ZnLWlubGluZS0tZmEgZmEtbGluayBzbC1pY29uIiByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDY0MCA1MTIiPjxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgZD0iTTE3Mi41IDEzMS4xQzIyOC4xIDc1LjUxIDMyMC41IDc1LjUxIDM3Ni4xIDEzMS4xQzQyNi4xIDE4MS4xIDQzMy41IDI2MC44IDM5Mi40IDMxOC4zTDM5MS4zIDMxOS45QzM4MSAzMzQuMiAzNjEgMzM3LjYgMzQ2LjcgMzI3LjNDMzMyLjMgMzE3IDMyOC45IDI5NyAzMzkuMiAyODIuN0wzNDAuMyAyODEuMUMzNjMuMiAyNDkgMzU5LjYgMjA1LjEgMzMxLjcgMTc3LjJDMzAwLjMgMTQ1LjggMjQ5LjIgMTQ1LjggMjE3LjcgMTc3LjJMMTA1LjUgMjg5LjVDNzMuOTkgMzIwLjEgNzMuOTkgMzcyIDEwNS41IDQwMy41QzEzMy4zIDQzMS40IDE3Ny4zIDQzNSAyMDkuMyA0MTIuMUwyMTAuOSA0MTAuMUMyMjUuMyA0MDAuNyAyNDUuMyA0MDQgMjU1LjUgNDE4LjRDMjY1LjggNDMyLjggMjYyLjUgNDUyLjggMjQ4LjEgNDYzLjFMMjQ2LjUgNDY0LjJDMTg4LjEgNTA1LjMgMTEwLjIgNDk4LjcgNjAuMjEgNDQ4LjhDMy43NDEgMzkyLjMgMy43NDEgMzAwLjcgNjAuMjEgMjQ0LjNMMTcyLjUgMTMxLjF6TTQ2Ny41IDM4MEM0MTEgNDM2LjUgMzE5LjUgNDM2LjUgMjYzIDM4MEMyMTMgMzMwIDIwNi41IDI1MS4yIDI0Ny42IDE5My43TDI0OC43IDE5Mi4xQzI1OC4xIDE3Ny44IDI3OC4xIDE3NC40IDI5My4zIDE4NC43QzMwNy43IDE5NC4xIDMxMS4xIDIxNC4xIDMwMC44IDIyOS4zTDI5OS43IDIzMC45QzI3Ni44IDI2Mi4xIDI4MC40IDMwNi45IDMwOC4zIDMzNC44QzMzOS43IDM2Ni4yIDM5MC44IDM2Ni4yIDQyMi4zIDMzNC44TDUzNC41IDIyMi41QzU2NiAxOTEgNTY2IDEzOS4xIDUzNC41IDEwOC41QzUwNi43IDgwLjYzIDQ2Mi43IDc2Ljk5IDQzMC43IDk5LjlMNDI5LjEgMTAxQzQxNC43IDExMS4zIDM5NC43IDEwNy4xIDM4NC41IDkzLjU4QzM3NC4yIDc5LjIgMzc3LjUgNTkuMjEgMzkxLjkgNDguOTRMMzkzLjUgNDcuODJDNDUxIDYuNzMxIDUyOS44IDEzLjI1IDU3OS44IDYzLjI0QzYzNi4zIDExOS43IDYzNi4zIDIxMS4zIDU3OS44IDI2Ny43TDQ2Ny41IDM4MHoiIC8+PC9zdmc+"
+class="svg-inline--fa fa-link sl-icon" />
+
+</div>
+
+<div class="sl-flex sl-flex-grow sl-self-center sl-py-1"
+style="min-width: 0px;">
+
+<div id="react-aria-44-281"
+class="sl-stack sl-stack--horizontal sl-stack--2 sl-flex sl-overflow-x-auto sl-overflow-y-hidden sl-flex-row sl-h-auto sl-text-lg"
+aria-orientation="horizontal" role="tablist">
+
+<div id="react-aria-44-281-tab-200"
+class="sl-font-medium sl-p-1 sl-px-2 sl-py-1 sl-bg-success sl-text-on-primary sl-rounded-lg sl-border-light sl-cursor"
+tabindex="0" key="200" aria-selected="true"
+aria-controls="react-aria-44-281-tabpanel-200" role="tab">
+
+200
+
+</div>
+
+<div id="react-aria-44-281-tab-400"
+class="sl-font-medium sl-p-1 sl-px-2 sl-py-1 hover:sl-bg-warning-tint sl-text-warning hover:sl-text-body sl-rounded-lg sl-border-light sl-cursor-pointer"
+tabindex="-1" key="400" aria-selected="false" role="tab">
+
+400
+
+</div>
+
+<div id="react-aria-44-281-tab-403"
+class="sl-font-medium sl-p-1 sl-px-2 sl-py-1 hover:sl-bg-warning-tint sl-text-warning hover:sl-text-body sl-rounded-lg sl-border-light sl-cursor-pointer"
+tabindex="-1" key="403" aria-selected="false" role="tab">
+
+403
+
+</div>
+
+<div id="react-aria-44-281-tab-404"
+class="sl-font-medium sl-p-1 sl-px-2 sl-py-1 hover:sl-bg-warning-tint sl-text-warning hover:sl-text-body sl-rounded-lg sl-border-light sl-cursor-pointer"
+tabindex="-1" key="404" aria-selected="false" role="tab">
+
+404
+
+</div>
+
+<div id="react-aria-44-281-tab-423"
+class="sl-font-medium sl-p-1 sl-px-2 sl-py-1 hover:sl-bg-warning-tint sl-text-warning hover:sl-text-body sl-rounded-lg sl-border-light sl-cursor-pointer"
+tabindex="-1" key="423" aria-selected="false" role="tab">
+
+423
+
+</div>
+
+<div id="react-aria-44-281-tab-429"
+class="sl-font-medium sl-p-1 sl-px-2 sl-py-1 hover:sl-bg-warning-tint sl-text-warning hover:sl-text-body sl-rounded-lg sl-border-light sl-cursor-pointer"
+tabindex="-1" key="429" aria-selected="false" role="tab">
+
+429
+
+</div>
+
+<div id="react-aria-44-281-tab-500"
+class="sl-font-medium sl-p-1 sl-px-2 sl-py-1 hover:sl-bg-danger-tint sl-text-danger hover:sl-text-body sl-rounded-lg sl-border-light sl-cursor-pointer"
+tabindex="-1" key="500" aria-selected="false" role="tab">
+
+500
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div id="undefined-tabpanel-undefined" class="sl-flex-1 sl-py-0"
+aria-labelledby="react-aria-44-281-tab-200" tabindex="0"
+role="tabpanel">
+
+<div class="sl-stack sl-stack--vertical sl-stack--8 sl-flex sl-flex-col sl-items-stretch sl-pt-8">
+
+<div class="sl-relative">
+
+<div class="sl-prose sl-markdown-viewer">
+
+Registro chiuso correttamente.
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="sl-relative sl-w-2/5 sl-ml-16" testid="two-column-right"
+style="max-width: 500px;">
+
+<div class="sl-stack sl-stack--vertical sl-stack--6 sl-flex sl-flex-col sl-items-stretch">
+
+<div class="sl-panel sl-outline-none sl-w-full sl-rounded-lg">
+
+<div class="sl-panel__titlebar sl-flex sl-items-center sl-relative focus:sl-z-10 sl-text-base sl-leading-none sl-pr-3 sl-pl-4 sl-bg-canvas-200 sl-text-body sl-border-input focus:sl-border-primary sl-select-none">
+
+<div class="sl-flex sl-flex-1 sl-items-center sl-h-lg">
+
+<div class="sl--ml-2">
+
+Request Sample: Shell / cURL
+
+<div class="sl-text-xs sl--mr-0.5 sl-ml-1">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJjaGV2cm9uLWRvd24iIGNsYXNzPSJzdmctaW5saW5lLS1mYSBmYS1jaGV2cm9uLWRvd24gZmEtZncgc2wtaWNvbiIgcm9sZT0iaW1nIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdib3g9IjAgMCA0NDggNTEyIj48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0yMjQgNDE2Yy04LjE4OCAwLTE2LjM4LTMuMTI1LTIyLjYyLTkuMzc1bC0xOTItMTkyYy0xMi41LTEyLjUtMTIuNS0zMi43NSAwLTQ1LjI1czMyLjc1LTEyLjUgNDUuMjUgMEwyMjQgMzM4LjhsMTY5LjQtMTY5LjRjMTIuNS0xMi41IDMyLjc1LTEyLjUgNDUuMjUgMHMxMi41IDMyLjc1IDAgNDUuMjVsLTE5MiAxOTJDMjQwLjQgNDEyLjkgMjMyLjIgNDE2IDIyNCA0MTZ6IiAvPjwvc3ZnPg=="
+class="svg-inline--fa fa-chevron-down fa-fw sl-icon"
+style="width:1em" />
+
+</div>
+
+</div>
+
+</div>
+
+<div class="sl-mx-0">
+
+<img
+src="data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZm9jdXNhYmxlPSJmYWxzZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJjb3B5IiBjbGFzcz0ic3ZnLWlubGluZS0tZmEgZmEtY29weSBmYS1mdyBmYS1zbSBzbC1pY29uIiByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld2JveD0iMCAwIDUxMiA1MTIiPjxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgZD0iTTM4NCA5NkwzODQgMGgtMTEyYy0yNi41MSAwLTQ4IDIxLjQ5LTQ4IDQ4djI4OGMwIDI2LjUxIDIxLjQ5IDQ4IDQ4IDQ4SDQ2NGMyNi41MSAwIDQ4LTIxLjQ5IDQ4LTQ4VjEyOGgtOTUuMUMzOTguNCAxMjggMzg0IDExMy42IDM4NCA5NnpNNDE2IDB2OTZoOTZMNDE2IDB6TTE5MiAzNTJWMTI4aC0xNDRjLTI2LjUxIDAtNDggMjEuNDktNDggNDh2Mjg4YzAgMjYuNTEgMjEuNDkgNDggNDggNDhoMTkyYzI2LjUxIDAgNDgtMjEuNDkgNDgtNDhMMjg4IDQxNmgtMzJDMjIwLjcgNDE2IDE5MiAzODcuMyAxOTIgMzUyeiIgLz48L3N2Zz4="
+class="svg-inline--fa fa-copy fa-fw fa-sm sl-icon" style="width:1em" />
+
+</div>
+
+</div>
+
+<div class="sl-panel__content-wrapper sl-bg-canvas-100">
+
+<div class="sl-panel__content sl-p-0">
+
+``` sl-code-viewer
+curl --request DELETE \  --url https://api.rentri.gov.it/anagrafiche/v1.0/registri/{identificativo} \  --header 'Accept: application/problem+json' \  --header 'Authorization: Bearer 123'
+```
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div id="swagger" style="display: none;">
+
+</div>
+
+<div id="md-container">
+
+</div>
+
+<div id="ecoassist">
+
+</div>

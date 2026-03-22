@@ -1,0 +1,83 @@
+<h2
+    style="margin:0 0 8px; font-size:22px; font-weight:700; color:#111827; text-align:center; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    Conferma la tua email
+</h2>
+<p
+    style="margin:0 0 24px; font-size:14px; line-height:1.6; color:#6b7280; text-align:center; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    Il tuo account è quasi pronto.
+</p>
+
+<!-- Info card -->
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+    style="background-color:#f0f4ff; border:1px solid #dbeafe; border-radius:10px; margin-bottom:24px;">
+    <tr>
+        <td style="padding:18px 22px;">
+            <p
+                style="margin:0; font-size:14px; line-height:1.8; color:#374151; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                Ciao,<br />
+                grazie per esserti registrato a <strong style="color:#2563EB;">RescueManager</strong> con l'indirizzo
+                <strong style="color:#111827;">{{ .Email }}</strong>.<br /><br />
+                Per completare la registrazione e iniziare a utilizzare la piattaforma, conferma il tuo indirizzo email
+                cliccando il pulsante qui sotto.
+            </p>
+        </td>
+    </tr>
+</table>
+
+<!-- CTA Button -->
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:24px;">
+    <tr>
+        <td align="center">
+            <a href="{{ .ConfirmationURL }}" style="display:inline-block; padding:14px 40px; background-color:#2563EB; color:#ffffff;
+                text-decoration:none; border-radius:10px; font-size:15px; font-weight:700;
+                font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+                letter-spacing:0.3px; text-align:center;">
+                Conferma email
+            </a>
+        </td>
+    </tr>
+</table>
+
+<!-- Cosa puoi fare -->
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+    style="background-color:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:24px;">
+    <tr>
+        <td style="padding:18px 22px;">
+            <p
+                style="margin:0 0 10px; font-size:12px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.5px; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                Con RescueManager potrai
+            </p>
+            <p
+                style="margin:0; font-size:13px; line-height:2; color:#374151; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                Gestire trasporti e recuperi in tempo reale<br />
+                Creare preventivi e fatture in pochi click<br />
+                Tracciare demolizioni e ricambi nel piazzale<br />
+                Monitorare la compliance RENTRI e RVFU
+            </p>
+        </td>
+    </tr>
+</table>
+
+<!-- Link fallback -->
+<p
+    style="margin:0 0 6px; font-size:12px; line-height:1.6; color:#9ca3af; text-align:center; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    Il pulsante non funziona? Copia e incolla questo link nel browser:
+</p>
+<p
+    style="margin:0 0 20px; font-size:11px; line-height:1.5; text-align:center; word-break:break-all; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <a href="{{ .ConfirmationURL }}" style="color:#2563EB; text-decoration:underline;">{{ .ConfirmationURL }}</a>
+</p>
+
+<!-- Divider -->
+<div style="height:1px; background:#e5e7eb; margin-bottom:16px;"></div>
+
+<!-- Footer -->
+<p
+    style="margin:0 0 4px; font-size:11px; color:#9ca3af; text-align:center; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    Se non hai richiesto la registrazione, puoi ignorare questa email in sicurezza.
+</p>
+<p
+    style="margin:0; font-size:11px; color:#d1d5db; text-align:center; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    &copy; 2025 RescueManager &middot; <a href="https://rescuemanager.eu"
+        style="color:#9ca3af; text-decoration:none;">rescuemanager.eu</a>
+</p>

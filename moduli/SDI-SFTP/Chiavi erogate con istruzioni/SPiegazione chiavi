@@ -1,0 +1,57 @@
+Salve,
+i certificati in oggetto sono stati consegnati via PEC, in formato protetto .p12.
+I dettagli della consegna e la password di protezione sono stati comunicati alla casella info@rescuemanager.eu.
+
+In allegato alla presente, si trasmettono i certificati pubblici del servizio:
+- sogeiunicocifra.pem, da utilizzare per la cifratura dei supporti FI da inviare allo SDI.
+- CAEntrate.pem, da utilizzare per la verifica firma dei supporti FO inviati dallo SDI.
+
+Vi preghiamo di segnalarci quanto prima l'eventuale mancata ricezione di quanto ci risulta fornito.
+
+Nel manuale pdf precedentemente inviato trovate tutte le indicazioni utili all'estrazioni delle chiavi ed al loro utilizzo.
+
+Nei prossimi giorni vi confermeremo l'attivazione dei flussi trasmissivi e l'avvio dei Test d'Interoperabilita'.
+
+
+Cordiali saluti
+
+ServiziCrittograficiFTP
+------------------------
+
+
+email2
+
+Salve,
+
+i seguenti file, contenenti i nuovi certificati in oggetto applicati sul canale, sono stati consegnati alla casella rescuemanager@legalmail.it in data 05/01/2026 alle ore 16:11:27, dalla casella mittente servizicrittograficiftp@pec.sogei.it:
+
+EMMAT002.SCZMNL05L21D960T.firma.p12 contenente la chiave con cui firmare i file da trasmettere a Sogei.
+
+EMMAT002.SCZMNL05L21D960T.cifra.p12 contenente la chiave con cui decifrare i file trasmessi da Sogei.
+
+
+
+Questa la password di protezione, necessaria per l'estrazione delle chiavi dai suddetti file .p12:
+
+IBVvOZqq
+
+
+
+Nei prossimi giorni comunicheremo ulteriori dettagli utili al prosieguo dell'attivita' in corso.
+
+
+
+Si prega di rispondere alla presente solo in caso di mancata ricezione di quanto ci risulta fornito via PEC.
+
+
+
+
+
+Cordiali saluti
+
+
+
+Servizicrittograficiftp
+
+
+

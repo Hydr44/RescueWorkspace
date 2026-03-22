@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RescueManager AI Team Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0c1929 0%, #1a2536 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    
+    .header p {
+      color: #94a3b8;
+      font-size: 1.1rem;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .agent-card {
+      background: #1a2536;
+      border: 1px solid #243044;
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .agent-card:hover {
+      border-color: #3b82f6;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(59, 130, 246, 0.2);
+    }
+    
+    .agent-card.busy::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: linear-gradient(180deg, #3b82f6, #10b981);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .agent-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    
+    .agent-name {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+    
+    .agent-status {
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .agent-status.idle {
+      background: #1e293b;
+      color: #94a3b8;
+    }
+    
+    .agent-status.busy {
+      background: rgba(59, 130, 246, 0.2);
+      color: #3b82f6;
+      animation: blink 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    
+    .agent-role {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .agent-goal {
+      color: #cbd5e1;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    
+    .tasks-section {
+      background: #1a2536;
+      border: 1px solid #243044;
+      border-radius: 12px;
+      padding: 2rem;
+    }
+    
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .task-item {
+      background: #0c1929;
+      border-left: 4px solid #3b82f6;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+    }
+    
+    .task-item:hover {
+      background: #141c27;
+    }
+    
+    .task-item.completed {
+      border-left-color: #10b981;
+      opacity: 0.7;
+    }
+    
+    .task-item.failed {
+      border-left-color: #ef4444;
+    }
+    
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 0.5rem;
+    }
+    
+    .task-agent {
+      font-weight: 600;
+      color: #3b82f6;
+    }
+    
+    .task-time {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    
+    .task-description {
+      color: #cbd5e1;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .task-result {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      font-family: 'Courier New', monospace;
+      background: #0c1929;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+    
+    .stats {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    
+    .stat-card {
+      background: #1a2536;
+      border: 1px solid #243044;
+      border-radius: 12px;
+      padding: 1.5rem;
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    
+    .stat-value.active { color: #3b82f6; }
+    .stat-value.completed { color: #10b981; }
+    .stat-value.errors { color: #ef4444; }
+    
+    .stat-label {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #64748b;
+    }
+    
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    
+    .controls {
+      background: #1a2536;
+      border: 1px solid #243044;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .control-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    
+    select, button {
+      background: #0c1929;
+      border: 1px solid #243044;
+      color: #e2e8f0;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    select:hover, button:hover {
+      border-color: #3b82f6;
+    }
+    
+    button {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      border: none;
+      font-weight: 600;
+      color: white;
+    }
+    
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    input[type="text"] {
+      background: #0c1929;
+      border: 1px solid #243044;
+      color: #e2e8f0;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      flex: 1;
+      min-width: 300px;
+    }
+    
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+    
+    .connection-status {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .connection-status.connected {
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+    }
+    
+    .connection-status.disconnected {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+    
+    .connection-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <div class="connection-status" id="connectionStatus">
+    <div class="connection-dot"></div>
+    <span>Connecting...</span>
+  </div>
+
+  <div class="header">
+    <h1>🤖 AI Team Dashboard</h1>
+    <p>RescueManager Multi-Agent Development Team</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-value active" id="activeTasks">0</div>
+      <div class="stat-label">Active Tasks</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value completed" id="completedTasks">0</div>
+      <div class="stat-label">Completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value errors" id="errorTasks">0</div>
+      <div class="stat-label">Errors</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <h3 style="margin-bottom: 1rem; color: #f1f5f9;">Assign New Task</h3>
+    <div class="control-group">
+      <select id="agentSelect">
+        <option value="">Select Agent...</option>
+        <option value="backend">Backend Developer</option>
+        <option value="desktop">Desktop App Developer</option>
+        <option value="web">Web Developer</option>
+        <option value="mobile">Mobile App Developer</option>
+        <option value="qa">QA Engineer</option>
+      </select>
+      <select id="taskSelect">
+        <option value="">Select Task...</option>
+      </select>
+      <input type="text" id="customDescription" placeholder="Custom description (optional)">
+      <button onclick="assignTask()">Assign Task</button>
+    </div>
+  </div>
+
+  <h2 class="section-title" style="margin-bottom: 1.5rem;">👥 Team Members</h2>
+  <div class="grid" id="agentsGrid"></div>
+
+  <div class="tasks-section">
+    <h2 class="section-title">📋 Active Tasks</h2>
+    <div id="activeTasks"></div>
+  </div>
+
+  <div class="tasks-section" style="margin-top: 2rem;">
+    <h2 class="section-title">✅ Completed Tasks</h2>
+    <div id="completedTasksList"></div>
+  </div>
+
+  <script>
+    let ws = null;
+    let agents = [];
+    let tasks = {};
+
+    // WebSocket connection
+    function connectWebSocket() {
+      ws = new WebSocket('ws://localhost:3333');
+      
+      ws.onopen = () => {
+        updateConnectionStatus(true);
+        console.log('Connected to AI Team');
+      };
+      
+      ws.onclose = () => {
+        updateConnectionStatus(false);
+        setTimeout(connectWebSocket, 3000);
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        updateConnectionStatus(false);
+      };
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        handleUpdate(data);
+      };
+    }
+
+    function updateConnectionStatus(connected) {
+      const status = document.getElementById('connectionStatus');
+      status.className = `connection-status ${connected ? 'connected' : 'disconnected'}`;
+      status.querySelector('span').textContent = connected ? 'Connected' : 'Disconnected';
+    }
+
+    function handleUpdate(data) {
+      console.log('Update:', data);
+      fetchStatus();
+    }
+
+    // Fetch initial data
+    async function fetchAgents() {
+      const res = await fetch('http://localhost:3333/api/agents');
+      agents = await res.json();
+      renderAgents();
+    }
+
+    async function fetchStatus() {
+      const res = await fetch('http://localhost:3333/api/status');
+      const status = await res.json();
+      renderStatus(status);
+    }
+
+    function renderAgents() {
+      const grid = document.getElementById('agentsGrid');
+      grid.innerHTML = agents.map(agent => `
+        <div class="agent-card" id="agent-${agent.name}">
+          <div class="agent-header">
+            <div class="agent-name">${agent.role}</div>
+            <div class="agent-status idle">Idle</div>
+          </div>
+          <div class="agent-role">${agent.name}</div>
+          <div class="agent-goal">${agent.goal}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderStatus(status) {
+      document.getElementById('activeTasks').textContent = status.active.length;
+      document.getElementById('completedTasks').textContent = status.completed.length;
+      document.getElementById('errorTasks').textContent = status.errors.length;
+
+      // Update agent status
+      status.agents.forEach(agent => {
+        const card = document.getElementById(`agent-${agent.name}`);
+        if (card) {
+          const statusEl = card.querySelector('.agent-status');
+          statusEl.textContent = agent.status;
+          statusEl.className = `agent-status ${agent.status}`;
+          card.className = `agent-card ${agent.status}`;
+        }
+      });
+
+      // Render active tasks
+      const activeEl = document.getElementById('activeTasks');
+      if (status.active.length === 0) {
+        activeEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💤</div><p>No active tasks</p></div>';
+      } else {
+        activeEl.innerHTML = status.active.map(task => renderTask(task)).join('');
+      }
+
+      // Render completed tasks
+      const completedEl = document.getElementById('completedTasksList');
+      if (status.completed.length === 0) {
+        completedEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No completed tasks yet</p></div>';
+      } else {
+        completedEl.innerHTML = status.completed.slice(-10).reverse().map(task => renderTask(task)).join('');
+      }
+    }
+
+    function renderTask(task) {
+      const duration = task.duration ? `${Math.round(task.duration / 1000)}s` : '';
+      return `
+        <div class="task-item ${task.status}">
+          <div class="task-header">
+            <div class="task-agent">${task.agent?.role || 'Unknown'}</div>
+            <div class="task-time">${duration}</div>
+          </div>
+          <div class="task-description">${task.description}</div>
+          ${task.result ? `<div class="task-result">${task.result.substring(0, 200)}...</div>` : ''}
+          ${task.error ? `<div class="task-result" style="color: #ef4444;">${task.error}</div>` : ''}
+        </div>
+      `;
+    }
+
+    // Agent selection handler
+    document.getElementById('agentSelect').addEventListener('change', async (e) => {
+      const agent = e.target.value;
+      if (!agent) return;
+      
+      const res = await fetch(`http://localhost:3333/api/tasks/${agent}`);
+      const agentTasks = await res.json();
+      
+      const taskSelect = document.getElementById('taskSelect');
+      taskSelect.innerHTML = '<option value="">Select Task...</option>' + 
+        agentTasks.map(t => `<option value="${t.name}">${t.name}: ${t.description}</option>`).join('');
+    });
+
+    async function assignTask() {
+      const agent = document.getElementById('agentSelect').value;
+      const task = document.getElementById('taskSelect').value;
+      const description = document.getElementById('customDescription').value;
+      
+      if (!agent || !task) {
+        alert('Please select agent and task');
+        return;
+      }
+      
+      try {
+        const res = await fetch('http://localhost:3333/api/task/assign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent, task, description: description || undefined })
+        });
+        
+        const result = await res.json();
+        if (result.success) {
+          document.getElementById('customDescription').value = '';
+          fetchStatus();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      } catch (error) {
+        alert('Error assigning task: ' + error.message);
+      }
+    }
+
+    // Initialize
+    connectWebSocket();
+    fetchAgents();
+    fetchStatus();
+    setInterval(fetchStatus, 5000);
+  </script>
+</body>
+</html>

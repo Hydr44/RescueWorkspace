@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design C — Vercel / GitHub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .border-dashed-subtle { border-style: dashed; border-color: #27272a; }
+    .glow-blue { box-shadow: 0 0 0 1px rgba(59,130,246,0.5); }
+  </style>
+</head>
+<body class="bg-black text-zinc-100 m-0 p-0">
+
+<div class="flex h-screen overflow-hidden">
+
+  <!-- SIDEBAR: nero puro, bordi netti, compatta -->
+  <aside class="w-[240px] flex flex-col border-r border-zinc-800 bg-black flex-shrink-0">
+
+    <!-- Logo: testo mono -->
+    <div class="px-4 h-12 flex items-center border-b border-zinc-800">
+      <span class="mono text-sm font-semibold">
+        <span class="text-blue-500">rescue</span><span class="text-zinc-500">manager</span>
+      </span>
+    </div>
+
+    <!-- Org selector -->
+    <div class="px-3 py-3 border-b border-zinc-800">
+      <button class="w-full flex items-center gap-2 px-2.5 py-2 rounded-md border border-zinc-800 hover:border-zinc-700 transition text-left">
+        <div class="w-5 h-5 rounded bg-blue-600 flex items-center justify-center text-[9px] font-bold text-white mono">AD</div>
+        <span class="text-xs text-zinc-300 flex-1 truncate">AutoDemo Rossi</span>
+        <svg class="w-3 h-3 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
+      </button>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 overflow-y-auto py-2 px-2">
+      <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-100 border border-zinc-800 mb-0.5">
+        <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+        Dashboard
+      </a>
+      <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition mb-0.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+        Trasporti
+        <span class="ml-auto mono text-[10px] text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">12</span>
+      </a>
+      <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition mb-0.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        Demolizioni
+      </a>
+      <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition mb-0.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Calendario
+      </a>
+
+      <div class="mt-4 mb-1.5 px-2.5 text-[9px] text-zinc-600 uppercase tracking-widest font-semibold">Anagrafiche</div>
+      <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition mb-0.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        Clienti
+      </a>
+      <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition mb-0.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+        Piazzale
+      </a>
+      <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition mb-0.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Autisti
+      </a>
+      <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition mb-0.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        Ricambi
+      </a>
+
+      <div class="mt-4 mb-1.5 px-2.5 text-[9px] text-zinc-600 uppercase tracking-widest font-semibold">Analisi</div>
+      <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition mb-0.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Report
+      </a>
+      <a href="#" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition mb-0.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Impostazioni
+      </a>
+    </nav>
+
+    <!-- User -->
+    <div class="px-3 py-3 border-t border-zinc-800">
+      <div class="flex items-center gap-2.5 px-2">
+        <div class="w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[9px] font-bold text-zinc-400 mono">MR</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs text-zinc-300 truncate">Marco Rossi</div>
+        </div>
+        <svg class="w-3.5 h-3.5 text-zinc-600 hover:text-zinc-400 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+
+    <!-- Top bar -->
+    <header class="h-12 flex items-center justify-between px-6 border-b border-zinc-800 bg-black flex-shrink-0">
+      <div class="flex items-center gap-2 text-xs">
+        <span class="text-zinc-600">/</span>
+        <span class="text-zinc-300 font-medium">dashboard</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 text-xs text-zinc-600 border border-zinc-800 rounded-md px-2.5 py-1 cursor-pointer hover:border-zinc-700 transition">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <span>Search...</span>
+          <kbd class="mono text-[9px] text-zinc-700 ml-4 border border-zinc-800 px-1 rounded">⌘K</kbd>
+        </div>
+        <div class="relative">
+          <svg class="w-4 h-4 text-zinc-600 cursor-pointer hover:text-zinc-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <div class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto bg-zinc-950 p-6 space-y-6">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-xl font-semibold text-zinc-100">Dashboard</h1>
+          <p class="text-xs text-zinc-500 mt-1 mono">11 feb 2026 · buonasera, marco</p>
+        </div>
+        <button class="flex items-center gap-2 h-8 px-3 text-xs font-medium text-zinc-100 bg-zinc-100 text-zinc-900 rounded-md hover:bg-white transition">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Nuovo Trasporto
+        </button>
+      </div>
+
+      <!-- KPI: stile terminale, numeri mono -->
+      <div class="grid grid-cols-4 gap-3">
+        <div class="border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
+          <div class="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Trasporti</div>
+          <div class="mono text-3xl font-semibold text-zinc-100">247</div>
+          <div class="flex items-center gap-1.5 mt-2">
+            <span class="mono text-[10px] text-emerald-500">↑ 12%</span>
+            <span class="text-[10px] text-zinc-600">vs prev</span>
+          </div>
+        </div>
+        <div class="border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
+          <div class="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Da fare</div>
+          <div class="mono text-3xl font-semibold text-amber-400">18</div>
+          <div class="flex items-center gap-1.5 mt-2">
+            <span class="mono text-[10px] text-red-400">3 urgenti</span>
+          </div>
+        </div>
+        <div class="border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
+          <div class="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">In corso</div>
+          <div class="mono text-3xl font-semibold text-blue-400">6</div>
+          <div class="flex items-center gap-1.5 mt-2">
+            <span class="text-[10px] text-zinc-600">2 autisti attivi</span>
+          </div>
+        </div>
+        <div class="border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
+          <div class="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Completati</div>
+          <div class="mono text-3xl font-semibold text-emerald-400">223</div>
+          <div class="flex items-center gap-1.5 mt-2">
+            <span class="mono text-[10px] text-emerald-500">↑ 8%</span>
+            <span class="text-[10px] text-zinc-600">vs prev</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid -->
+      <div class="grid grid-cols-3 gap-3">
+
+        <!-- Trasporti: tabella densa -->
+        <div class="col-span-2 border border-zinc-800 rounded-lg overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+            <h2 class="text-sm font-semibold text-zinc-200">Trasporti recenti</h2>
+            <a href="#" class="text-xs text-blue-500 hover:text-blue-400 mono">view all →</a>
+          </div>
+          <!-- Table -->
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-zinc-800/50">
+                <th class="text-left px-4 py-2 text-[10px] text-zinc-600 uppercase tracking-wider font-medium mono">ID</th>
+                <th class="text-left px-4 py-2 text-[10px] text-zinc-600 uppercase tracking-wider font-medium">Cliente</th>
+                <th class="text-left px-4 py-2 text-[10px] text-zinc-600 uppercase tracking-wider font-medium">Partenza</th>
+                <th class="text-left px-4 py-2 text-[10px] text-zinc-600 uppercase tracking-wider font-medium">Stato</th>
+                <th class="text-right px-4 py-2 text-[10px] text-zinc-600 uppercase tracking-wider font-medium mono">Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-zinc-800/30 hover:bg-zinc-900/50 transition cursor-pointer">
+                <td class="px-4 py-2.5 mono text-xs text-zinc-500">T-2847</td>
+                <td class="px-4 py-2.5 text-xs text-zinc-200 font-medium">AutoDemo Rossi Srl</td>
+                <td class="px-4 py-2.5 text-xs text-zinc-500">Milano, Via Roma 15</td>
+                <td class="px-4 py-2.5"><span class="mono text-[10px] font-medium text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">IN_CORSO</span></td>
+                <td class="px-4 py-2.5 mono text-[10px] text-zinc-600 text-right">14:30</td>
+              </tr>
+              <tr class="border-b border-zinc-800/30 hover:bg-zinc-900/50 transition cursor-pointer">
+                <td class="px-4 py-2.5 mono text-xs text-zinc-500">T-2846</td>
+                <td class="px-4 py-2.5 text-xs text-zinc-200 font-medium">Carrozzeria Bianchi</td>
+                <td class="px-4 py-2.5 text-xs text-zinc-500">Torino, Corso Francia 8</td>
+                <td class="px-4 py-2.5"><span class="mono text-[10px] font-medium text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">DA_FARE</span></td>
+                <td class="px-4 py-2.5 mono text-[10px] text-zinc-600 text-right">10:00</td>
+              </tr>
+              <tr class="border-b border-zinc-800/30 hover:bg-zinc-900/50 transition cursor-pointer">
+                <td class="px-4 py-2.5 mono text-xs text-zinc-500">T-2845</td>
+                <td class="px-4 py-2.5 text-xs text-zinc-200 font-medium">Demolizioni Verdi SpA</td>
+                <td class="px-4 py-2.5 text-xs text-zinc-500">Bologna, Via Emilia 22</td>
+                <td class="px-4 py-2.5"><span class="mono text-[10px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">COMPLETATO</span></td>
+                <td class="px-4 py-2.5 mono text-[10px] text-zinc-600 text-right">ieri</td>
+              </tr>
+              <tr class="border-b border-zinc-800/30 hover:bg-zinc-900/50 transition cursor-pointer">
+                <td class="px-4 py-2.5 mono text-xs text-zinc-500">T-2844</td>
+                <td class="px-4 py-2.5 text-xs text-zinc-200 font-medium">Auto Recupero Nord</td>
+                <td class="px-4 py-2.5 text-xs text-zinc-500">Genova, Via XX Settembre</td>
+                <td class="px-4 py-2.5"><span class="mono text-[10px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">COMPLETATO</span></td>
+                <td class="px-4 py-2.5 mono text-[10px] text-zinc-600 text-right">ieri</td>
+              </tr>
+              <tr class="hover:bg-zinc-900/50 transition cursor-pointer">
+                <td class="px-4 py-2.5 mono text-xs text-zinc-500">T-2843</td>
+                <td class="px-4 py-2.5 text-xs text-zinc-200 font-medium">Eco Demolizioni Srl</td>
+                <td class="px-4 py-2.5 text-xs text-zinc-500">Firenze, Viale Europa 5</td>
+                <td class="px-4 py-2.5"><span class="mono text-[10px] font-medium text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">IN_ATTESA</span></td>
+                <td class="px-4 py-2.5 mono text-[10px] text-zinc-600 text-right">10 feb</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Right col -->
+        <div class="space-y-3">
+
+          <!-- Azioni: command palette style -->
+          <div class="border border-zinc-800 rounded-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-zinc-800">
+              <h2 class="text-sm font-semibold text-zinc-200">Azioni</h2>
+            </div>
+            <div>
+              <button class="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/50 transition text-left border-b border-zinc-800/30">
+                <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                <span class="flex-1">Nuovo Trasporto</span>
+                <kbd class="mono text-[9px] text-zinc-700 border border-zinc-800 px-1 rounded">T</kbd>
+              </button>
+              <button class="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/50 transition text-left border-b border-zinc-800/30">
+                <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                <span class="flex-1">Nuovo Cliente</span>
+                <kbd class="mono text-[9px] text-zinc-700 border border-zinc-800 px-1 rounded">C</kbd>
+              </button>
+              <button class="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/50 transition text-left border-b border-zinc-800/30">
+                <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span class="flex-1">Nuovo Preventivo</span>
+                <kbd class="mono text-[9px] text-zinc-700 border border-zinc-800 px-1 rounded">P</kbd>
+              </button>
+              <button class="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/50 transition text-left">
+                <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+                <span class="flex-1">Richiedi Posizione</span>
+                <kbd class="mono text-[9px] text-zinc-700 border border-zinc-800 px-1 rounded">L</kbd>
+              </button>
+            </div>
+          </div>
+
+          <!-- Status: terminale -->
+          <div class="border border-zinc-800 rounded-lg p-4">
+            <h2 class="text-sm font-semibold text-zinc-200 mb-3">Stato sistema</h2>
+            <div class="space-y-2.5 mono text-[11px]">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                  <span class="text-zinc-400">autisti_online</span>
+                </div>
+                <span class="text-emerald-400">4</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                  <span class="text-zinc-400">clienti_totali</span>
+                </div>
+                <span class="text-zinc-300">156</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                  <span class="text-zinc-400">pos_requests</span>
+                </div>
+                <span class="text-amber-400">2</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-1.5 h-1.5 rounded-full bg-zinc-600"></div>
+                  <span class="text-zinc-400">sync_status</span>
+                </div>
+                <span class="text-emerald-400">ok</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alert -->
+          <div class="border border-amber-500/20 bg-amber-500/5 rounded-lg p-4">
+            <div class="flex items-start gap-2.5">
+              <svg class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+              <div>
+                <div class="text-xs font-medium text-amber-400">2 trasporti stalled</div>
+                <div class="text-[10px] text-zinc-500 mt-1">In attesa da >48h. Verifica stato autisti.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="fixed bottom-4 right-4 bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-md font-medium mono">
+  C — Vercel / GitHub
+</div>
+
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Connettività RVFU - Browser/Electron</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h1 {
+            color: #4f9cf9;
+        }
+        .test-section {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #3a3a3a;
+        }
+        button {
+            background: #4f9cf9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #3a8ce8;
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .success {
+            background: #1a4a1a;
+            border: 1px solid #2a7a2a;
+            color: #90ee90;
+        }
+        .error {
+            background: #4a1a1a;
+            border: 1px solid #7a2a2a;
+            color: #ff6b6b;
+        }
+        .info {
+            background: #1a1a4a;
+            border: 1px solid #2a2a7a;
+            color: #6b9fff;
+        }
+        .warning {
+            background: #4a4a1a;
+            border: 1px solid #7a7a2a;
+            color: #ffeb3b;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px 0;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            max-width: 500px;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #3a3a3a;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        .credential-info {
+            background: #2a2a2a;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Connettività RVFU</h1>
+    <p><strong>⚠️ Assicurati di essere connesso alla VPN ACI</strong></p>
+    <p>Gateway VPN: <code>ilportaledellautomobilista.it/utentiMCTC</code></p>
+
+    <div class="test-section">
+        <h2>1. Test Base URL</h2>
+        <label>URL Base API REST (Formation):</label>
+        <input type="text" id="baseUrl" value="http://gestione-veicolo-fuoriuso-tst.serviziaci.it:80" />
+        <p style="font-size: 12px; color: #888; margin-top: 5px;">
+            SSO URL: https://ssoformazione.ilportaledeltrasporto.it/sso<br>
+            API URL: http://gestione-veicolo-fuoriuso-tst.serviziaci.it:80
+        </p>
+        <button onclick="testBaseUrl()">Test Base URL</button>
+        <div id="baseUrlResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Endpoint Monitoraggio</h2>
+        <p>Endpoint che non richiede autenticazione</p>
+        <button onclick="testStatusEndpoint()">Test Status /mon/status/up</button>
+        <div id="statusResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Test Autenticazione SSO</h2>
+        <div class="credential-info">
+            <strong>Credenziali Agenzia (dal file Leggimi):</strong><br>
+            Matricola: DETO003001<br>
+            Password: TEST.030<br><br>
+            <strong>Nota:</strong> Usa le credenziali di AGENZIA, non quelle VPN!
+        </div>
+        <label>Username (Matricola Agenzia):</label>
+        <input type="text" id="username" value="DETO003001" />
+        <label>Password:</label>
+        <input type="password" id="password" value="TEST.030" placeholder="Password agenzia" />
+        <button onclick="testSSOAuth()">Test SSO Authenticate</button>
+        <div id="ssoResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Test OAuth2</h2>
+        <button onclick="testOAuth2()">Test OAuth2 Authorize</button>
+        <div id="oauth2Result" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        // URL SSO per autenticazione
+        const SSO_BASE_URL = 'https://ssoformazione.ilportaledeltrasporto.it/sso';
+        // URL API REST per chiamate RVFU
+        const API_BASE_URL = 'http://gestione-veicolo-fuoriuso-tst.serviziaci.it:80';
+
+        function showResult(elementId, message, type = 'info') {
+            const resultDiv = document.getElementById(elementId);
+            resultDiv.style.display = 'block';
+            resultDiv.className = `result ${type}`;
+            resultDiv.textContent = message;
+        }
+
+        async function testBaseUrl() {
+            const baseUrl = document.getElementById('baseUrl').value;
+            showResult('baseUrlResult', 'Testing...', 'info');
+            
+            try {
+                const response = await fetch(baseUrl, {
+                    method: 'GET',
+                    mode: 'cors',
+                });
+                
+                const text = await response.text();
+                showResult('baseUrlResult', 
+                    `Status: ${response.status} ${response.statusText}\n` +
+                    `Headers: ${JSON.stringify([...response.headers.entries()], null, 2)}\n` +
+                    `Response (first 500 chars):\n${text.substring(0, 500)}`,
+                    response.ok ? 'success' : 'warning'
+                );
+            } catch (error) {
+                showResult('baseUrlResult', 
+                    `ERRORE: ${error.message}\n` +
+                    `⚠️ Se vedi errori CORS, è normale: prova a testare l'endpoint status invece`,
+                    'error'
+                );
+            }
+        }
+
+        async function testStatusEndpoint() {
+            showResult('statusResult', 'Testing...', 'info');
+            
+            try {
+                const url = `${API_BASE_URL}/demolitori-aci-ws/mon/status/up`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                });
+                
+                const text = await response.text();
+                let jsonData;
+                try {
+                    jsonData = JSON.parse(text);
+                } catch (e) {
+                    jsonData = text;
+                }
+                
+                showResult('statusResult', 
+                    `Status: ${response.status} ${response.statusText}\n` +
+                    `Response:\n${JSON.stringify(jsonData, null, 2)}`,
+                    response.ok ? 'success' : 'warning'
+                );
+            } catch (error) {
+                showResult('statusResult', 
+                    `ERRORE: ${error.message}\n` +
+                    `Se vedi errori CORS, prova a disabilitare CORS nel browser o usa l'app Electron`,
+                    'error'
+                );
+            }
+        }
+
+        async function testSSOAuth() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!password) {
+                showResult('ssoResult', '⚠️ Inserisci la password per testare l\'autenticazione', 'warning');
+                return;
+            }
+            
+            showResult('ssoResult', 'Testing...', 'info');
+            
+            try {
+                // URL corretto secondo specifiche: https://ssoformazione.ilportaledeltrasporto.it/sso/json/authenticate
+                const url = `${SSO_BASE_URL}/json/authenticate`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-OpenAM-Username': username,
+                        'X-OpenAM-Password': password,
+                        'Accept-API-Version': 'resource=2.0, protocol=1.0',
+                    },
+                    body: JSON.stringify({}),
+                    mode: 'cors',
+                    credentials: 'include',
+                });
+                
+                const text = await response.text();
+                let jsonData;
+                try {
+                    jsonData = JSON.parse(text);
+                } catch (e) {
+                    jsonData = text;
+                }
+                
+                showResult('ssoResult', 
+                    `Status: ${response.status} ${response.statusText}\n` +
+                    `Response:\n${JSON.stringify(jsonData, null, 2)}\n\n` +
+                    `ℹ️ Se vedi tokenId nella risposta, l'autenticazione è riuscita!`,
+                    response.ok ? 'success' : 'error'
+                );
+            } catch (error) {
+                showResult('ssoResult', 
+                    `ERRORE: ${error.message}\n` +
+                    `Verifica che la VPN sia attiva e le credenziali siano corrette\n` +
+                    `Credenziali da usare: DETO003001 / TEST.030 (matricola/password agenzia)`,
+                    'error'
+                );
+            }
+        }
+
+        async function testOAuth2() {
+            showResult('oauth2Result', 'Testing...', 'info');
+            
+            try {
+                // URL corretto: https://ssoformazione.ilportaledeltrasporto.it/sso/oauth2/authorize
+                // Nota: secondo specifiche, questo endpoint richiede POST (non GET) e il cookie iPlanetDirectoryPro
+                // Per test completo, prima esegui test SSO Auth per ottenere il tokenId
+                const url = `${SSO_BASE_URL}/oauth2/authorize`;
+                showResult('oauth2Result', 
+                    `ℹ️ Questo test richiede prima di eseguire il test SSO Auth per ottenere il tokenId.\n` +
+                    `L'endpoint /authorize richiede POST con parametri nel body e cookie iPlanetDirectoryPro.\n` +
+                    `URL: ${url}`,
+                    'info'
+                );
+            } catch (error) {
+                showResult('oauth2Result', 
+                    `ERRORE: ${error.message}`,
+                    'error'
+                );
+            }
+        }
+    </script>
+</body>
+</html>
+

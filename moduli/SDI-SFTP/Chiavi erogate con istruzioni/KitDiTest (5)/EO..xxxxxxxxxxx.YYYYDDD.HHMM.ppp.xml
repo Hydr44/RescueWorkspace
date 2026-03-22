@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:FileEsitoFTP xmlns:ns2="http://www.fatturapa.it/sdi/ftp/v1.0" versione="1.0">
+    <IdentificativoNodo>xxxxxxxxxxx</IdentificativoNodo>
+    <DataOraRicezione>YYYY-MM-DDTHH:MI:SS.000Z</DataOraRicezione>
+    <DataOraEsito>YYYY-MM-DDThh:mi:ss.nnnZ</DataOraEsito>
+    <NomeSupporto>FY.xxxxxxxxxxx.YYYYDDD.HHMM.ppp.zip</NomeSupporto>
+    <Esito>ET0X</Esito>
+</ns2:FileEsitoFTP>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>RVFU API Proxy</title>
+</head>
+<body>
+  <script>
+    // Riceve comandi dal processo principale via postMessage
+    window.addEventListener('message', async (event) => {
+      // Ignora messaggi che non sono da noi
+      if (!event.data || typeof event.data !== 'object') return;
+      
+      const { id, method, url, headers, body } = event.data;
+      
+      if (!id || !method || !url) return;
+      
+      try {
+        console.log('[RVFU API Proxy] Ricevuta richiesta:', { id, method, url });
+        
+        // Log dettagliato della richiesta
+        console.log('[RVFU API Proxy] Dettagli richiesta:', {
+          method,
+          url,
+          headers: headers || {},
+          hasBody: !!body,
+          bodyLength: body ? body.length : 0,
+          cookiesAvailable: document.cookie ? 'Sì' : 'No',
+          cookieCount: document.cookie.split(';').filter(c => c.trim()).length
+        });
+        
+        // Mostra i cookie disponibili (per debug)
+        if (document.cookie) {
+          console.log('[RVFU API Proxy] 🔍 Cookie disponibili:', document.cookie);
+          // Cerca specificamente il cookie iPlanetDirectoryPro
+          const cookies = document.cookie.split(';');
+          const iPlanetCookie = cookies.find(c => c.trim().startsWith('iPlanetDirectoryPro'));
+          if (iPlanetCookie) {
+            console.log('[RVFU API Proxy] ✅ Cookie iPlanetDirectoryPro trovato:', iPlanetCookie.substring(0, 50) + '...');
+          } else {
+            console.warn('[RVFU API Proxy] ⚠️ Cookie iPlanetDirectoryPro NON TROVATO nei cookie della pagina!');
+          }
+        } else {
+          console.error('[RVFU API Proxy] ❌ NESSUN COOKIE DISPONIBILE NELLA PAGINA!');
+        }
+        
+        const response = await fetch(url, {
+          method,
+          headers: headers || {},
+          body: body || undefined,
+          credentials: 'include' // IMPORTANTE: Invia cookie automaticamente
+        });
+        
+        // Log della risposta
+        console.log('[RVFU API Proxy] Risposta ricevuta:', {
+          status: response.status,
+          statusText: response.statusText,
+          contentType: response.headers.get('content-type'),
+          headers: Object.fromEntries(response.headers.entries())
+        });
+        
+        const contentType = response.headers.get('content-type') || '';
+        const isJSON = contentType.includes('application/json');
+        
+        let data;
+        if (isJSON) {
+          data = await response.json();
+        } else {
+          const text = await response.text();
+          // Se è HTML, prova a parsare info utili
+          if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+            data = { _html: true, _text: text.substring(0, 1000) };
+          } else {
+            data = text;
+          }
+        }
+        
+        // Invia risultato via console.log (intercettato da Electron)
+        console.log('API Response:', JSON.stringify({
+          id,
+          success: true,
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          headers: Object.fromEntries(response.headers.entries()),
+          data
+        }));
+      } catch (error) {
+        console.error('[RVFU API Proxy] Errore:', error);
+        console.log('API Response:', JSON.stringify({
+          id,
+          success: false,
+          error: error.message,
+          stack: error.stack
+        }));
+      }
+    });
+    
+    // Notifica che è pronto
+    console.log('[RVFU API Proxy] ✅ Pronto per ricevere richieste');
+    console.log('[RVFU API Proxy] 🔍 Cookie disponibili in questa finestra:', document.cookie);
+    console.log('[RVFU API Proxy] 📍 URL corrente:', window.location.href);
+    
+    // Mostra un messaggio visibile nella pagina
+    document.body.innerHTML = `
+      <div style="padding: 20px; font-family: monospace; background: #1a1a1a; color: #0f0; min-height: 100vh;">
+        <h2 style="color: #0f0;">✅ RVFU API Proxy - Finestra Persistente</h2>
+        <p>Questa finestra rimane aperta per mantenere la sessione SSO attiva.</p>
+        <p><strong>Cookie:</strong> ${document.cookie || 'Nessun cookie disponibile'}</p>
+        <p><strong>Status:</strong> Pronto per ricevere richieste API</p>
+        <p style="color: #888; margin-top: 20px;">Apri la Console (F12) per vedere i log dettagliati</p>
+      </div>
+    `;
+  </script>
+</body>
+</html>
+

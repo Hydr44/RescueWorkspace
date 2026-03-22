@@ -1,0 +1,32 @@
+RVFU.html                        
+File html ultima versione attualmente rilasciata in ambiente di produzione
+ 
+RVFU.json                         
+File Json ultima versione attualmente rilasciata in ambiente di produzione
+ 
+SpecificheWS-GestioneDemolitori1.25.docx
+Documento di specifica per l’implementazione delle chiamate ai WS esposti per l’applicazione RVFU per i demolitori
+ 
+Registro Veicoli Fuori Uso-ManualeUtente Centro di Raccolta-1.6.docx
+Manuale per gli utenti Demolitori che accedono all’applicazione tramite PdT
+ 
+RVFU - Sequence Diagram 1.1.docx
+Sequence diagram
+
+
+
+Credenziali
+
+- Credenziali per la connessione VPN:
+Matricola = swh.scorazzini
+Password = Vpn-2011 (da cambiare al primo accesso)
+
+- Credenziali Software House:
+Codice Software House: AUTODEM.RESCUEMANAGER
+Codice di Sicurezza: R2Y2L9T2
+
+- Credenziali di Agenzia (da posizionare nell’Header della Request)
+
+• Matricola = DETO003001
+• Password = TEST.030
+ 

@@ -1,0 +1,241 @@
+MODULO PER SCAMBIO  DATI  TELEMATICO
+VIA “SECURE FILE TRANSFER” 
+
+
+
+ 
+INDICE
+
+1.	PREMESSA	3
+2.	MODALITÀ TRASMISSIVE	4
+3.	COLLEGAMENTO  RETE	4
+4.	PREDISPOSIZIONE SERVER SFTP	6
+5.	CRITTOGRAFIA	7
+6.	UTILIZZO DI OPEN-SSL PER IL TRATTAMENTO DEI FLUSSI	8
+
+ 
+1.	PREMESSA
+Il presente documento ha lo scopo di descrivere i requisiti e le modalità per l’allestimento di scambi telematici bidirezionali via SFTP fra la Società generale d’informatica (di seguito Sogei) e gli Enti esterni all’Anagrafe Tributaria (di seguito Ente).
+
+L'utilizzo di tale modalità presuppone una struttura a supporto delle attività informatiche e la capacità di gestire sistemi informativi e un centro elaborazione dati con continuità e con disponibilità di personale di presidio; si adatta pertanto a soggetti che movimentano elevati volumi di fatture.
+
+Qualora, invece, la richiesta di accreditamento su tale canale non sia finalizzata a configurarsi come intermediario di trasmissione e di colloquio SFTP con il Sistema di Interscambio, bensì alla semplice assegnazione del codice destinatario per la ricezione delle fatture, si ricorda che a tale scopo potrebbe non essere necessario alcun accreditamento in quanto le fatture possono essere ricevute anche via PEC con codice convenzionale “0000000”, secondo le disposizioni dell’Agenzia.
+
+L’accreditamento invece è necessario qualora si desideri l’assegnazione di un codice destinatario B2B per un canale in ricezione, SFTP o Web-service, indicato per soggetti in grado di gestire un centro di elaborazioni dati disponibile HH24 dialogante con il Sistema di Interscambio, attraverso la funzionalità Strumenti -> Gestire il canale del sito www.fatturapa.gov.it
+
+Per qualsiasi chiarimento in merito  potete rivolgervi ai canali di assistenza messi a disposizione sul sito www.fatturapa.gov.it o contattare il numero verde 800 299 940.
+
+
+
+
+
+
+
+
+
+
+
+
+
+2.	MODALITÀ TRASMISSIVE
+Lo scambio dati con i soggetti esterni all’Anagrafe Tributaria avverrà con la seguente modalità:
+	Sogei  invia in periferia i flussi di dati in uscita e come certificazione del corretto invio dei dati provvederà al Rename del file spedito;
+	Sogei prende in carico i flussi di dati provenienti dalla periferia, provvedendo alla loro cancellazione dal server come certificazione della corretta acquisizione dei dati.
+L’Ente Esterno dovrà esporre un SFTP Server e comunicare le sue credenziali d’accesso.
+3.	COLLEGAMENTO  RETE
+
+Per consentire lo scambio massivo di dati è stata predisposta una infrastruttura di accoglienza che utilizza il protocollo SFTP su dorsali pubbliche (Internet e SPC Infranet) per realizzare lo scambio dati in oggetto.
+
+In particolare, è disponibile un client SFTP in grado di connettersi a server SFTP esposti su Internet o su SPC Infranet, utilizzando le porte classiche 22.
+
+Per realizzare la connessione l’Ente deve quindi attestare ed esporre su dorsale pubblica un server SFTP, in grado di essere raggiunto dal client SFTP di Sogei. In base a considerazioni proprie dell’Ente circa le policy di sicurezza da implementare sullo specifico scambio di dati massivo, l’Ente può decidere di utilizzare sia server condivisi con altre applicazioni, sia server dedicati a tale scambio. 
+
+Autenticazione, integrità, e non-ripudio dei dati sono garantiti in ogni caso da cifratura e firma digitale dei file.
+
+I parametri necessari alla configurazione degli apparati interessati allo scambio dati nonché degli apparati di rete (router, switch L3, bilanciatori) e di sicurezza (sonde e firewall) attraversati, si riducono quindi agli IP pubblici utilizzati da client e server, in quanto le porte usate restano quelle standard.
+
+L’Ente deve quindi indicare, nella tabella che segue, le informazioni ed i riferimenti necessari per le successive fasi di attivazione, collaudo e produzione.
+
+
+  
+Denominazione dell’Ente Esterno o Pubblica Amministrazione	
+Indirizzo postale del CED	
+Indirizzo PEC	
+Referenti (per la connettività di rete e per il server SFTP) 	Nome	e-mail	telefono
+			
+			
+			
+			
+ Società I.T.            (Information Tecnology)	Nome	e-mail PEC	telefono
+			 
+
+Id Nodo	
+dorsale utilizzata (Internet o SPC Infranet)	
+Fornitore di connettività (Internet o SPC Infranet)	
+IP pubblico esposto dal server SFTP	
+sistema operativo del server SFTP	
+
+IP pubblico utilizzato dal client SFTP (per raggiungere server SFTP esposti su dorsale pubblica Internet)	217.175.54.31
+IP pubblico utilizzato dal client SFTP (per raggiungere server SFTP esposti su dorsale SPC Infranet)	217.175.48.25
+IP pubblico utilizzato dal client SFTP Disaster Recovery (per raggiungere server SFTP esposti su dorsale pubblica Internet)	217.175.56.129
+IP pubblico utilizzato dal client SFTP Disaster Recovery (per raggiungere server SFTP esposti su dorsale SPC Infranet)	217.175.56.25
+
+Infine, per gli Enti con la doppia esposizione (sia su SPC Infranet che su Internet), ferme restando le indicazioni vincolanti di DigitPa sull’utilizzo di SPC per le connessioni tra Pubbliche Amministrazioni, si sottolinea la necessità dell’utilizzo di piani di indirizzamento pubblici congruenti con le assegnazioni su SPC Infranet.
+
+Infatti, proprio perché l’infrastruttura consente l’utilizzo di entrambe le dorsali (Internet e SPC Infranet), occorre che, qualora si impieghi la dorsale Internet, si usino esclusivamente IP esterni al range SPC assegnato all’Ente stesso, onde evitare il routing asimmetrico (le risposte a pacchetti arrivati da Internet verrebbero inoltrate su SPC Infranet, con conseguente malfunzionamento dello scambio dati).
+4.	PREDISPOSIZIONE SERVER SFTP
+
+
+L’Ente dovrà compilare il presente modulo, sia nella precedente tabella con le informazioni necessarie all’attivazione del collegamento, sia nell’allegato1 con le informazioni richieste per l’emissione dei certificati, che verranno utilizzati per la firma e cifratura dei file scambiati.
+Il modulo compilato, quindi, dovrà essere firmato in modalità cades e caricato sul portale http://www.fatturapa.gov.it attraverso la funzione “Upload” della sezione “Gestire il canale\Test Interoperabilità”.
+
+Conseguentemente, sarà cura di Sogei contattare l’Ente per la predisposizione del server SFTP e le necessarie verifiche preliminari sull’infrastruttura. Sogei fornirà le chiavi pubbliche necessarie al collegamento SFTP. L’Ente dovrà inserire tali chiavi nel suo file locale contenente le chiavi autorizzate all’accesso (es. se server unix <home utente>/.ssh/ authorized_keys).
+
+Il server SFTP predisposto dall’Ente, dovrà prevedere la raggiungibilità tramite le credenziali fornite a Sogei delle seguenti directory e relative autorizzazioni:
+Per la Produzione 
+•             /DatiDaSdI               con permessi di  put e rename
+•             /DatiVersoSdI          con permessi di get e delete
+Per il Test
+•             /DatiDaSdITest        con permessi di put e rename
+•             /DatiVersoSdITest   con permessi di get, delete e sovrascrittura
+
+Sogei attiverà un polling permanente che prevede l’accesso al server SFTP per controllare la presenza nelle directory dedicate di eventuali forniture da acquisire ed effettua il posizionamento in sovrascrittura di un file semaforodaSogei.log, a verifica del funzionamento del collegamento. 
+In particolare, perciò, dovrà essere garantita l’esecuzione delle seguenti operazioni, effettuate ad ogni connessione nell’ordine riportato:
+
+cd /DatiVersoSdI
+ls -la
+cd /DatiVersoSdITest
+put semaforodaSogei.log
+ls -la
+
+La risposta ai suddetti comandi SFTP deve essere UNIX MODE.
+
+5.	CRITTOGRAFIA
+I dati trasmessi via SFTP saranno crittografati e firmati digitalmente allo scopo di assicurarne la provenienza e la riservatezza. I dati saranno prima firmati, con il formato PKCS7 e quindi cifrati. I formati utilizzati per imbustare i dati firmati e cifrati saranno conformi allo standard PKCS#7; in particolare verranno utilizzati i formati “signed data” per i dati firmati ed  “enveloped data” per quelli cifrati.
+Più dettagliatamente lo standard previsto per la firma e cifratura dei dati è quello misto S/MIME, con busta di firma e cifratura conforme allo standard PKCS#7 v1.5, con codifica in formato DER. 
+In fase di cifratura i dati sono criptati utilizzando un algoritmo a chiave simmetrica, generata randomicamente di volta in volta.
+La chiave utilizzata è poi inserita nella busta, cifrata con la chiave RSA pubblica del destinatario.
+L’algoritmo di cifratura asimmetrica, basato sulla coppia chiave privata - chiave pubblica è RSA; la lunghezza delle chiavi è prevista a 4096 bit.
+L’ algoritmo di cifratura simmetrica previsto: AES-256
+L’algoritmo di HASH previsto è: SHA-256
+L’uso di formati standard permette all’Ente di realizzare le procedure per il trattamento dei dati con la più grande libertà nella scelta delle tecnologie.
+I certificati X.509 delle chiavi di firma e crittografia dell’Ente e dell’Agenzia saranno emessi dalla Certification Authority dell’Agenzia interessata.
+•	L’Ente provvede autonomamente alla generazione delle chiavi e all’invio delle richieste di certificato; Sogei emette i certificati che vengono inviati all’Ente. Tramite canale sicuro, vengono inviati all’Ente anche il certificato di cifra del servizio di Trasmissione Dati e il certificato della Certification Authority.
+•	La generazione delle chiavi viene effettuata in Sogei. In questo caso all’Ente vengono forniti su canale sicuro, insieme al certificato di cifra del servizio di Trasmissione Dati e a quello della Certification Authority due file in formato PKCS#12 che contengono rispettivamente la coppia di chiavi e il certificato di firma e la coppia di chiavi e il certificato di cifra. I file PKCS#12 saranno protetti da password che verranno comunicate ai responsabili dell’Ente.
+Per l’implementazione di procedure che implementino le operazioni di cifratura, decifratura, firma e verifica da parte dell’Ente, possono essere utilizzati strumenti software diversi, grazie all’uso di formati standard tanto per la distribuzione di chiavi e certificati, quanto per la rappresentazione dei dati firmati e dei dati cifrati.
+Uno di tali strumenti, rilasciato sotto la GNU Public License (GPL) è OpenSSL, disponibile per tutte le piattaforme HW/SW più diffuse; OpenSSL presenta un’interfaccia a linea di comando che permette di includere facilmente operazioni di decifratura all’interno di procedure batch per il trattamento delle forniture.
+Nel paragrafo successivo si espongono, solo a titolo esemplificativo, delle linee guida per l’uso di questo strumento per le operazioni necessarie. Viene assunto che sia stato seguito il modello 2 per la distribuzione dei certificati. 
+6.	UTILIZZO DI OPEN-SSL PER IL TRATTAMENTO DEI FLUSSI
+Installazione
+Le procedure di installazione di OpenSSL dipendono ovviamente dalla piattaforma prescelta, pertanto in questo paragrafo verranno date unicamente indicazioni e suggerimenti di carattere generale.
+Il sito di riferimento, tanto per lo scaricamento dei pacchetti di installazione che per documentazione generale è www.openssl.org.
+Il pacchetto è disponibile sia in formato sorgente che come package pronto per l’installazione sui diversi ambienti. Si suggerisce di installare le versioni più recenti e supportate. Si consiglia, ove possibile, di utilizzare i package, che permettono una più stretta integrazione con l’ambiente operativo.
+Al termine della procedura di installazione è opportuno assicurarsi che la directory ove risiede l’eseguibile Openssl (il cui percorso dipende dalle opzioni scelte in fase di installazione) sia incluso nella variabile di ambiente PATH. Gli esempi di comandi dati nel seguito assumono che questo sia vero.
+Predisposizione dell’ambiente
+Si consiglia di predisporre l’ambiente operativo in modo che sia formato da due directory dedicate, una per la conservazione del materiale crittografico (chiavi e certificati), che chiameremo CERTS, ed una di lavoro, che chiameremo DATA, con controlli di accesso in lettura e scrittura ristretti alle utenze sotto le quali gireranno le procedure per il trattamento dei dati.
+Inizialmente occorre copiare in CERTS il contenuto del CD ricevuto dall’Agenzia, contenente i seguenti file:
+•	(CF Responsabile)_firma.p12, che contiene chiave e certificato di firma dell’Ente
+•	(CF Responsabile)_cifra.p12, che contiene chiave e certificato di cifra dell’Ente
+•	sogeiunicocifra.pem, che contiene il certificato di cifra 
+•	CA.pem, che contiene il certificato della Certification Authority 
+Nei paragrafi seguenti assumeremo che CERTS rappresenti il path completo della directory di conservazione del materiale crittografico e DATA il path completo della directory di lavoro. Il carattere ‘/’ rappresenta il separatore delle directory; se si sta lavorando su un sistema Microsoft va sostituito con ‘\’ 
+Importazione delle coppie di chiavi
+Come detto sopra, coppie di chiavi e certificati saranno forniti agli Enti in forma di file PKCS#12. Tali file vanno copiati nella cartella CERTS, destinata alla conservazione delle coppie di chiavi. Possono essere cancellati dopo aver completato le operazioni descritte nel presente paragrafo.
+I seguenti comandi convertono chiavi e certificati contenuti nei file PKCS#12 in un formato utilizzabile direttamente da OpenSSL per la decifratura o la firma:
+openssl pkcs12 –in CERTS/(CF Responsabile)_cifra.p12 –out CERTS/CIFRA.PEM
+openssl pkcs12 –in CERTS/(CF Responsabile)_firma.p12 –out CERTS/FIRMA.PEM
+In seguito ai comandi openssl pkcs12…. verranno richieste le seguenti informazioni:
+Enter Import Password:
+Digitare la password di protezione del PKCS#12 comunicata al responsabile dell’Ente.
+Enter PEM pass phrase:
+Digitare una password, diversa dalla precedente, che proteggerà la chiave privata da usi non autorizzati. OpenSSL non accetta password più corte di 4 caratteri, ma si consiglia di utilizzarne almeno 8.
+Verifying - Enter PEM pass phrase:
+Digitare di nuovo la stessa password inserita nel passo precedente.
+Firma 
+Il comando per firmare un file è il seguente:
+openssl smime -sign -in DATA/dati -outform der -binary -nodetach -out DATA/dati.p7m -signer CERTS/FIRMA.PEM -passin pass:password
+Dove:
+dati è il nome del file da firmare;
+dati.p7m è il nome del file di output che conterrà  i dati firmati
+password è la password impostata durante l’importazione delle chiavi di firma
+Cifratura 
+Il comando per cifrare un file è il seguente:
+openssl smime -encrypt -in DATA/dati -outform der -binary -aes256 -out DATA/dati.enc CERTS/ sogeiunicocifra.pem
+Dove:
+dati è il nome del file da cifrare;
+dati.enc è il nome del file di output che conterrà  i dati cifrati
+Il file cifrato è da inviare tassativamente in modalità binaria (es. FTP binario) in modo che non venga applicata alcuna trasformazione dei dati (code-page o altro) durante la fase di trasferimento. 
+Decifratura 
+Il file cifrato è da scaricare tassativamente in modalità binaria (es. FTP binario) in modo che non venga applicata alcuna trasformazione dei dati (code-page o altro) durante la fase di trasferimento.
+Il comando per decifrare il file scaricato è il seguente:
+openssl smime -decrypt -in DATA/dati.enc -inform der -binary -out DATA/dati -recip CERTS/CIFRA.PEM -passin pass:password
+Dove:
+dati.enc è il nome del file cifrato;
+dati è il nome del file di output che conterrà  i dati decifrati
+password è la password impostata durante l’importazione delle chiavi di cifra
+Verifica Firma 
+Il comando per verificare la firma su un file è il seguente:
+openssl smime -verify -in DATA/dati.p7m -inform der -binary -out DATA/dati -CAfile CA.pem
+Dove:
+dati.p7m è il nome del file da verificare;
+dati è il nome del file di output che conterrà  i dati firmati
+Fasi operative
+La sequenza delle operazioni da applicare, in fase di predisposizione all’invio, è : 
+1)	Firma
+2)	Cifratura
+La sequenza delle operazioni da applicare in fase di ricezione di un file firmato e cifrato è : 
+1)	Decifratura
+2)   Verifica Firma
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ALLEGATO 1
+
+ 
+RICHIESTA DI ATTIVAZIONE DI FORNITURA DATI CIFRATA
+
+
+Data……………..
+
+Si richiede l’attivazione di una fornitura  di dati cifrata con:
+
+
+______________________________________________________________________
+(Indicare la denominazione dell’Ente destinatario del flusso,C.F. o P.I.)
+
+
+Il referente per lo scambio dati è:
+
+Nome:  _____________________ Codice fiscale :  ________________________
+(Indicare il nome del Responsabile di riferimento)
+
+_______________________________________________________________________
+(Indicare l’indirizzo dell’Ufficio/Responsabile di riferimento)
+
+E-mail: ________________________________________________
+(Indicare l’indirizzo di posta elettronica del Responsabile di riferimento)
+
+E-mail PEC : ________________________________________________
+(Indicare la casella di posta elettronica Certificata del Responsabile di riferimento)
+
+Rif. Telefonico: ________________________________________________
+(Indicare un riferimento telefonico del Responsabile di riferimento)
+
+
+

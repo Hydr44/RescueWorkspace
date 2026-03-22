@@ -1,0 +1,27 @@
+Descrizione dei file di esempio presenti
+file di quadratura.
+FY.xxxxxxxxxxx.YYYYDDD.HHMM.ppp.xml è un file xml che descrive il supporto e va modificato con le istruzioni seguenti:
+
+1)	FY --> vale FI per i supporti preparati dalla societa con PIVA xxxxxxxxxxx ed inviati allo SDI, 
+	vale FO per i supporti preparati allo SDI e destinati alla società con PIVA xxxxxxxxxxx.
+2)	xxxxxxxxxxx rappresenta l'identificativo del nodo Sftp e di solito coincide con la PIVA della 
+	società detentrice del nodo.
+3)	YYYYDDD rappresenta la data Giuliana con YYYY anno, DDD è il giorno giuliano 
+	(numero di giorni dall'inizio dell'anno es per il 9 febbraio corrisponde a 040)
+4)	HHMM ore e minuti orario di produzione del supporto nel formato H24 
+5)	ppp progressivo del supporto all' interno dello stesso orario (vale da 001 a 899 per produzione
+	e da 900 a 999 per il test).
+6)	<NumeroFile>
+        <File>
+            <Tipo>XYZ</tipo>
+            <Numero>ffff</Numero>
+XYZ 	assume uno dei valori definiti nel file FtpTypes_v2.0.xsd e riassunti nella tabella di tipi del documento:
+	https://www.fatturapa.gov.it/export/documenti/ftp/v4.0/Specifiche_tecniche_FTP_v4.1.1.pdf
+
+	ffff , nnnn o mmmm rappresentano il valore numerico di occorrenze del tipo di file nel supporto.
+File di esito e di scarto
+EO.xxxxxxxxxxx.YYYYDDD.HHMM.ppp.xml e il file di esito in formato xml (uno per ogni supporto ricevuto) dove	xxxxxxxxxxx.YYYYDDD.HHMM.ppp rappresenta il nome del FI (a cui viene tolto FI) cui si riferisce.
+ER.xxxxxxxxxxx.YYYYDDD.HHMM.ppp.run file di scarto per problemi di verifica firma o cifratura.  
+Note
+per esempi di fatture da utilizzare sono presenti sul sito istituzionale www.fatturapa.gov.it, 
+oppure prepararle tramite il portale Fatture & Corrispettivi e salvarle senza inviarle al fine di utilizzarle con i supporti.

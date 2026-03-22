@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<nomeapriacere:FileQuadraturaFTP xmlns:nomeapriacere="http://www.fatturapa.it/sdi/ftp/v2.0" versione="2.0">
+    <IdentificativoNodo>xxxxxxxxxxx</IdentificativoNodo>
+    <DataOraCreazione>2019-05-13T08:41:31.771Z</DataOraCreazione>
+    <NomeSupporto>FY.xxxxxxxxxxx.YYYYDDD.HHMM.ppp.zip</NomeSupporto>
+    <NumeroFile>
+        <File>
+            <Tipo>FA</Tipo>
+            <Numero>ffff</Numero>
+        </File>
+        <File>
+            <Tipo>NE</Tipo>
+            <Numero>nnnn</Numero>
+        </File>
+        <File>
+            <Tipo>MT</Tipo>
+            <Numero>mmmm</Numero>
+        </File>
+    </NumeroFile>
+</nomeapriacere:FileQuadraturaFTP>

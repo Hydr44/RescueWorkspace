@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor SDI-SFTP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .status-bar {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        .status-item {
+            flex: 1;
+            min-width: 150px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .status-item .label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .status-item .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .file-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .file-item.pending {
+            border-left-color: #ffc107;
+        }
+        .file-item.eo {
+            border-left-color: #28a745;
+        }
+        .file-item.error {
+            border-left-color: #dc3545;
+        }
+        .file-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .file-name {
+            font-weight: bold;
+            color: #333;
+            word-break: break-all;
+        }
+        .file-time {
+            font-size: 12px;
+            color: #666;
+        }
+        .file-size {
+            font-size: 12px;
+            color: #999;
+        }
+        .file-content {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .refresh-btn:hover {
+            background: #5568d3;
+        }
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Monitor SDI-SFTP</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="label">File in Attesa</div>
+                    <div class="value" id="pending-count">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">File EO</div>
+                    <div class="value" id="eo-count">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Modalità</div>
+                    <div class="value" id="test-mode">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Ultimo Aggiornamento</div>
+                    <div class="value" id="last-update" style="font-size: 14px;">-</div>
+                </div>
+            </div>
+            <div style="margin-top: 15px;">
+                <button class="refresh-btn" onclick="loadStatus()">🔄 Aggiorna</button>
+                <div class="auto-refresh">
+                    <label class="switch">
+                        <input type="checkbox" id="auto-refresh" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span>Auto-aggiornamento (30s)</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="error-container"></div>
+
+        <div class="card" id="pending-card" style="display: none;">
+            <h2>⏳ File in Attesa di Prelevamento</h2>
+            <div id="pending-list" class="file-list"></div>
+        </div>
+
+        <div class="card" id="eo-card" style="display: none;">
+            <h2>✅ File Esito (EO)</h2>
+            <div id="eo-list" class="file-list"></div>
+        </div>
+
+        <div id="loading" class="loading">Caricamento...</div>
+    </div>
+
+    <script>
+        const VPS_URL = 'http://217.154.118.37:3004/api/sdi-sftp/status';
+        let autoRefreshInterval = null;
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            
+            if (diffMins < 1) return 'Appena ora';
+            if (diffMins < 60) return `${diffMins} min fa`;
+            if (diffHours < 24) return `${diffHours} ore fa`;
+            return date.toLocaleString('it-IT');
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function parseEOContent(content) {
+            if (!content) return null;
+            try {
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(content, 'text/xml');
+                const esito = xml.querySelector('Esito')?.textContent;
+                const nomeSupporto = xml.querySelector('NomeSupporto')?.textContent;
+                const dataOraEsito = xml.querySelector('DataOraEsito')?.textContent;
+                return { esito, nomeSupporto, dataOraEsito };
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function loadStatus() {
+            const loadingEl = document.getElementById('loading');
+            const errorContainer = document.getElementById('error-container');
+            errorContainer.innerHTML = '';
+
+            try {
+                loadingEl.style.display = 'block';
+                const response = await fetch(VPS_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                // Aggiorna summary
+                document.getElementById('pending-count').textContent = data.summary.pending_count;
+                document.getElementById('eo-count').textContent = data.summary.eo_count;
+                document.getElementById('test-mode').textContent = data.test_mode ? 'TEST' : 'PROD';
+                document.getElementById('last-update').textContent = new Date(data.timestamp).toLocaleTimeString('it-IT');
+
+                // File in attesa
+                const pendingCard = document.getElementById('pending-card');
+                const pendingList = document.getElementById('pending-list');
+                if (data.files_pending && data.files_pending.length > 0) {
+                    pendingCard.style.display = 'block';
+                    pendingList.innerHTML = data.files_pending.map(file => `
+                        <div class="file-item pending">
+                            <div class="file-header">
+                                <div>
+                                    <div class="file-name">${file.filename}</div>
+                                    <div class="file-time">Caricato: ${formatDate(file.uploaded_at)}</div>
+                                </div>
+                                <div class="file-size">${formatSize(file.size)}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    pendingCard.style.display = 'none';
+                }
+
+                // File EO
+                const eoCard = document.getElementById('eo-card');
+                const eoList = document.getElementById('eo-list');
+                if (data.files_eo && data.files_eo.length > 0) {
+                    eoCard.style.display = 'block';
+                    eoList.innerHTML = data.files_eo.map(file => {
+                        const parsed = parseEOContent(file.content);
+                        const esitoClass = parsed?.esito === 'ET01' ? 'eo' : 'error';
+                        return `
+                            <div class="file-item ${esitoClass}">
+                                <div class="file-header">
+                                    <div>
+                                        <div class="file-name">${file.filename}</div>
+                                        <div class="file-time">Generato: ${formatDate(file.generated_at)}</div>
+                                        ${parsed ? `<div style="margin-top: 5px;"><strong>Esito:</strong> ${parsed.esito} | <strong>Supporto:</strong> ${parsed.nomeSupporto}</div>` : ''}
+                                    </div>
+                                    <div class="file-size">${formatSize(file.size)}</div>
+                                </div>
+                                ${file.content ? `<div class="file-content">${file.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    eoCard.style.display = 'none';
+                }
+
+                loadingEl.style.display = 'none';
+
+            } catch (error) {
+                loadingEl.style.display = 'none';
+                errorContainer.innerHTML = `<div class="error">❌ Errore: ${error.message}</div>`;
+                console.error('Error:', error);
+            }
+        }
+
+        // Auto-refresh
+        document.getElementById('auto-refresh').addEventListener('change', function(e) {
+            if (e.target.checked) {
+                autoRefreshInterval = setInterval(loadStatus, 30000); // 30 secondi
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        });
+
+        // Carica iniziale
+        loadStatus();
+        if (document.getElementById('auto-refresh').checked) {
+            autoRefreshInterval = setInterval(loadStatus, 30000);
+        }
+    </script>
+</body>
+</html>

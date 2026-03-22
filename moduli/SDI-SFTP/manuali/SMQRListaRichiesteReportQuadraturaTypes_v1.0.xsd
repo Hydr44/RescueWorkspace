@@ -1,0 +1,24 @@
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:types="http://www.fatturapa.gov.it/sdi/smqr/quadratura/richieste/v1/0" targetNamespace="http://www.fatturapa.gov.it/sdi/smqr/quadratura/richieste/v1/0" version="1.0">
+  <xsd:element name="ListaRichiesteQuadratura">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="RichiestaQuadratura" maxOccurs="10" >
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element type="xsd:string" name="TipoFlusso"/>
+              <xsd:element type="xsd:date" name="DataDa"/>
+              <xsd:element type="xsd:date" name="DataA"/>
+            </xsd:sequence>
+          </xsd:complexType>
+        </xsd:element>
+      </xsd:sequence>
+	  <xsd:attribute name="versione" type="types:Versione_Type" use="required" fixed="1.0"/>
+    </xsd:complexType>
+  </xsd:element>
+  
+  	<xsd:simpleType name="Versione_Type">
+		<xsd:restriction base="xsd:string">
+			<xsd:maxLength value="5"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+</xsd:schema>

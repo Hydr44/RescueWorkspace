@@ -1,0 +1,31 @@
+# Comandi da eseguire MANUALMENTE uno per uno
+# Copia e incolla ogni comando nel terminale
+# Password VPS: 1x9Wa2eW
+
+# 1. Vai nella directory
+cd /Users/sign.rascozzarini/Projects/rescuemanager-workspace/moduli/SDI-SFTP
+
+# 2. Crea directory sulla VPS
+ssh root@217.154.118.37 "mkdir -p /opt/sdi-certs && chmod 700 /opt/sdi-certs"
+
+# 3. Carica certificato FIRMA (ti chiederà password)
+scp "Chiavi erogate con istruzioni/EMMAT002.SCZMNL05L21D960T.firma.p12" root@217.154.118.37:/opt/sdi-certs/
+
+# 4. Carica certificato CIFRA
+scp "Chiavi erogate con istruzioni/EMMAT002.SCZMNL05L21D960T.cifra.p12" root@217.154.118.37:/opt/sdi-certs/
+
+# 5. Carica certificato pubblico Sogei
+scp "Chiavi erogate con istruzioni/sogeiunicocifra.pem" root@217.154.118.37:/opt/sdi-certs/
+
+# 6. Carica certificato CA Entrate
+scp "Chiavi erogate con istruzioni/CAEntrate.pem" root@217.154.118.37:/opt/sdi-certs/
+
+# 7. Imposta permessi
+ssh root@217.154.118.37 "chmod 600 /opt/sdi-certs/* && chown root:root /opt/sdi-certs/*"
+
+# 8. Verifica
+ssh root@217.154.118.37 "ls -la /opt/sdi-certs/"
+
+# ✅ Fatto! Dovresti vedere 4 file con permessi -rw-------
+
+

@@ -1,0 +1,163 @@
+﻿[
+  {
+    "title": "Home",
+    "page": "home"
+  },
+  {
+    "title": "Introduzione e modalità di accesso",
+    "children": [
+      {
+        "title": "Introduzione",
+        "page": "accesso-intro"
+      },
+      {
+        "title": "Indicazioni preliminari",
+        "page": "accesso-preliminari"
+      },
+      {
+        "title": "Autenticazione e integrità",
+        "page": "accesso-auth"
+      },
+      {
+        "title": "-"
+      },
+      {
+        "title": "Accreditamento e certificati",
+        "page": "accesso-certificati"
+      }
+    ]
+  },
+  {
+    "title": "Flussi operativi",
+    "children": [
+      {
+        "title": "Introduzione",
+        "page": "api-flussi-operativi-introduzione"
+      },
+      {
+        "title": "Registri e movimenti",
+        "page": "api-flussi-operativi-registri"
+      },
+      {
+        "title": "-"
+      },
+      {
+        "title": "Formulari",
+        "page": "api-flussi-operativi-formulari"
+      },
+      {
+        "title": "Formulari digitali",
+        "page": "api-flussi-operativi-formulari-digitali",
+        "environments": [ "Development", "Dev", "Test", "Perf", "Demo" ]
+      },
+      {
+        "title": "-",
+        "environments": [ "Development", "Dev", "Test", "Perf", "Demo" ]
+      },
+      {
+        "title": "API per App Mobile – Firma remota RENTRI",
+        "page": "api-flussi-operativi-mobile",
+        "environments": [ "Development", "Dev", "Test", "Perf", "Demo" ]
+      }
+    ]
+  },
+  {
+    "title": "Risorse",
+    "children": [
+      {
+        "title": "Schemi di validazione XSD (XML Schema Definition)",
+        "page": "schemi-xsd",
+        "environments": [ "Production" ]
+      },
+      {
+        "title": "Schemi di validazione XSD (XML Schema Definition)",
+        "page": "schemi-xsd-demo",
+        "environments": [ "Development", "Dev", "Test", "Perf", "Demo" ]
+      },
+      {
+        "title": "Schemi di validazione XSD (XML Schema Definition) - PROD",
+        "page": "schemi-xsd",
+        "environments": [ "Development", "Dev", "Test", "Perf" ]
+      },
+      {
+        "title": "Guida tecnica alla struttura del registro cronologico di C/S",
+        "page": "registro-digitale"
+      },
+      {
+        "title": "Guida tecnica alla struttura del FIR digitale",
+        "page": "guida-tecnica-struttura-fir-digitale",
+        "environments": [ "Development", "Dev", "Test", "Perf", "Demo" ]
+      },
+      {
+        "title": "Controlli di validazione del file xFIR",
+        "page": "controlli-validazione-xfir",
+        "environments": [ "Development", "Dev", "Test", "Perf", "Demo" ]
+      },
+      {
+        "title": "-"
+      },
+      {
+        "title": "Changelog",
+        "page": "changelog-demo",
+        "environments": [ "Development", "Dev", "Test", "Perf", "Demo" ]
+      },
+      {
+        "title": "Changelog",
+        "page": "changelog-prod",
+        "environments": [ "Production" ]
+      },
+      {
+        "title": "Changelog - Rilasci precedenti",
+        "page": "changelog-archivio-demo",
+        "environments": [ "Development", "Dev", "Test", "Perf", "Demo" ],
+        "hidden": true
+      },
+      {
+        "title": "Changelog - Rilasci precedenti",
+        "page": "changelog-archivio-prod",
+        "environments": [ "Production" ],
+        "hidden": true
+      },
+      {
+        "title": "Changelog - PROD",
+        "page": "changelog-prod",
+        "environments": [ "Development", "Dev", "Test", "Perf" ]
+      },
+      {
+        "title": "Changelog PROD - Rilasci precedenti",
+        "page": "changelog-archivio-prod",
+        "environments": [ "Development", "Dev", "Test", "Perf" ],
+        "hidden": true
+      },
+      {
+        "title": "-"
+      },
+      {
+        "title": "Esempi",
+        "page": "esempi"
+      }
+    ]
+  },
+  {
+    "title": "Supporto",
+    "children": [
+      {
+        "title": "Modalità di ingaggio",
+        "page": "supporto-ingaggio"
+      },
+      {
+        "title": "Calendario eventi",
+        "page": "supporto-eventi"
+      },
+      {
+        "title": "Domande frequenti",
+        "page": "supporto-faq"
+      },
+      {
+        "title": "Calendario manutenzioni",
+        "page": "supporto-manutenzioni",
+        "environments": [ "Development", "Dev", "Production" ]
+      }
+    ]
+  }
+]

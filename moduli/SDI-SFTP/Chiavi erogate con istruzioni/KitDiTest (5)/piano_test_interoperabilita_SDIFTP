@@ -1,0 +1,65 @@
+Test interoperabilità
+Canale FTP
+I seguenti casi di test rappresentano il set minimo ritenuto indispensabile per garantire che il colloquio tra il vostro nodo FTP e il Sistema di
+Interscambio (SdI) avvenga in maniera corretta. I seguenti casi vengono rilevati in fase di valutazione dell'avanzamento dei test nel tab
+“Avanzamento” [sezione Strumenti->Gestire il canale-> Test di interoperabilità del sito www.fatturapa.gov.it] e, in base al loro esito, pregiudicano
+o meno il passaggio in produzione del vostro nodo FTP.
+Caso di test Valore/i di input Valore/i atteso/i
+FTP01 Predisposizione di un supporto in
+ingresso FI formalmente corretto
+Predisposizione da parte del Nodo (utente) di un
+supporto FI da spedire allo SdI.
+Verificare la corretta ricezione del supporto in
+ingresso.
+Verificare la corretta predisposizione del
+supporto in ingresso.
+FTP02 Per questo test è propedeutico
+effettuare il test FTP01.
+Predisposizione di un esito in
+uscita EO
+Predisposizione da parte di SdI di un esito in uscita
+EO.
+Verificare la corretta trasmissione di un file di
+esito in uscita EO (valore ET01: Ricezione del
+supporto avvenuta con successo).
+FTP03 Predisposizione di un supporto
+in uscita FO
+Predisposizione da parte di SdI di un supporto in uscita
+FO da spedire al Nodo.
+Verificare la corretta trasmissione di un supporto
+in uscita FO.
+FTP04 Predisposizione di un supporto in
+ingresso FI formalmente scorretto
+Predisposizione da parte del Nodo (utente) di un
+supporto FI con file di quadratura errato da spedire allo
+SdI.
+verificare la corretta ricezione del supporto in
+ingresso;
+verificare la sospensione del supporto in ingresso;
+verificare la corretta trasmissione di un file di
+esito in uscita EO con valore ET02.
+All'interno del supporto in ingresso dovranno preferibilmente essere inseriti:
+1) un file Fattura corretto (B2G, B2B e B2C) indirizzato al codice destinatario fittizio [sezione Gestire il canale -> Test di interoperabilità del
+sito www.fatturapa.gov.it], per il quale verrà recapitata una RC (ricevuta consegna) e, per la Fattura B2G, una NE (notifica esito).
+Eventualmente avvalendosi del “Simulatore notifiche” disponibile per ciascun file inviato;
+2) un file Fattura B2G corretto indirizzato al codice destinatario fittizio di cui sopra per il quale verrà recapitata una RC (ricevuta di consegna)
+e una DT (notifica di decorrenza termini);
+3) un file Fattura NON corretto (B2G, B2B e B2C) indirizzato al codice destinatario fittizio di cui sopra per il quale verrà recapitata una NS
+(notifica di scarto);
+4) un file Fattura B2G corretto indirizzato al codice destinatario fittizio di default XS0001 per il quale verrà recapitata una MC (notifica di
+mancata consegna) e successivamente un’attestazione AT per impossibilità di recapito;
+5) un file Fattura corretto (B2B, B2C) indirizzato al codice destinatario fittizio di default XS00001 per il quale verrà recapitata una ricevuta di
+impossibilità di recapito;
+6) per i file fattura B2G, una EC (notifica di esito committente) riportante esito TOTALE per un file inesistente per la quale verrà recapitata
+una SE (notifica di scarto esito committente) riportante esito EN01;
+7) per i file fattura B2G, una EC (notifica di esito committente) riportante esito PARZIALE per un file inesistente per la quale verrà recapitata
+una SE (notifica di scarto esito committente) riportante esito EN01;
+8) per i file fattura B2G, una EC (notifica di esito committente) con formato sbagliato per la quale verrà recapitata una SE (notifica di scarto
+esito committente) riportante esito EN00;
+9) per i file fattura B2G, una EC (notifica di esito committente) riportante esito TOTALE per un file inviato al proprio nodo FTP con l'ausilio del
+“Simulatore invio” disponibile nella sezione [Gestire il canale -> Test di interoperabilità del sito www.fatturapa.gov.it] e per il quale non è
+previsto l'invio di alcuna notifica aggiuntiva da parte del SdI;
+10) per i file fattura B2G, una EC (notifica di esito committente) riportante esito PARZIALE per un file inviato al proprio nodo FTP con l'ausilio
+del “Simulatore invio” disponibile nella sezione [Gestire il canale -> Test di interoperabilità del sito www.fatturapa.gov.it] e per il quale non
+è previsto l'invio di alcuna notifica aggiuntiva da parte del SdI.
+I file potranno essere inviati direttamente dal titolare del nodo sia in veste di trasmittente che di ricevente.

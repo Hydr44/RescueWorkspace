@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sdicoop="http://www.fatturapa.gov.it/sdi/ws/ricevi_file/v1.0">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <sdicoop:RiceviFileRequest>
+      <sdicoop:fileName>IT02166430856_000501.xml.p7m</sdicoop:fileName>
+      <sdicoop:file>
+        <xop:Include xmlns:xop="http://www.w3.org/2004/08/xop/include" href="cid:allegato-p7m@rescuemanager"/>
+      </sdicoop:file>
+    </sdicoop:RiceviFileRequest>
+  </soapenv:Body>
+</soapenv:Envelope>

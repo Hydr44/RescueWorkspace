@@ -1,0 +1,86 @@
+{
+  "name": "rescuemanager",
+  "version": "0.1.0",
+  "private": true,
+  "author": "haxies",
+  "description": "RescueManager - Sistema di gestione trasporti e logistica per demolizioni e recuperi",
+  "main": "electron/main.js",
+  "build": {
+    "appId": "eu.rescuemanager.app",
+    "productName": "RescueManager",
+    "asar": true,
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "concurrently -k -n WEB,ELC -c green,blue \"npm:dev:react\" \"npm:dev:electron\"",
+    "dev:web": "npm run dev:react",
+    "dev:react": "vite --port 8080",
+    "dev:electron": "wait-on tcp:8080 && cross-env NODE_ENV=development VITE_DEV_SERVER_URL=http://localhost:8080 electron .",
+    "electron": "cross-env NODE_ENV=development electron .",
+    "build": "vite build && cross-env NODE_ENV=production electron-builder",
+    "build:react": "vite build",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:dev": "vite build --mode development",
+    "preview": "vite preview --port 8080",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
+    "@tailwindcss/postcss": "^4.1.12",
+    "@types/node": "^24.5.2",
+    "@types/react": "^19.1.15",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^9.0.0",
+    "cross-env": "^7.0.3",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.12",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@sentry/electron": "^7.10.0",
+    "@sentry/react": "^10.44.0",
+    "@supabase/auth-ui-react": "^0.4.7",
+    "@supabase/auth-ui-shared": "^0.1.8",
+    "@supabase/ssr": "^0.7.0",
+    "@supabase/supabase-js": "^2.75.0",
+    "better-sqlite3": "^12.2.0",
+    "clsx": "^2.1.1",
+    "jsbarcode": "^3.12.3",
+    "jspdf": "^3.0.4",
+    "leaflet": "^1.9.4",
+    "lovable-tagger": "^1.1.11",
+    "lucide-react": "^0.545.0",
+    "nodemailer": "^8.0.1",
+    "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.5.0",
+    "react-leaflet": "^4.2.1",
+    "react-router-dom": "^7.9.3",
+    "zod": "^4.1.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

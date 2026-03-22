@@ -1,0 +1,18 @@
+# Comandi per aggiornare xml-generator.js sul VPS
+# Esegui questi comandi manualmente se lo script non funziona
+
+# 1. Copia file aggiornato
+cd /Users/sign.rascozzarini/Projects/rescuemanager-workspace/moduli/SDI-SFTP/server-vps
+scp xml-generator.js root@217.154.118.37:/opt/sdi-sftp-server/xml-generator.js
+# Password: 1x9Wa2eW
+
+# 2. Riavvia server
+ssh root@217.154.118.37 "cd /opt/sdi-sftp-server && pm2 restart sdi-sftp-server"
+# Password: 1x9Wa2eW
+
+# 3. Verifica status
+ssh root@217.154.118.37 "pm2 status sdi-sftp-server && curl -s http://localhost:3004/health"
+# Password: 1x9Wa2eW
+
+# ✅ Fatto!
+

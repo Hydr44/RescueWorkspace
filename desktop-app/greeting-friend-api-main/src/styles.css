@@ -1,0 +1,88 @@
+/* ====== Token di tema (light/dark) ====== */
+:root {
+    --bg:        #ffffff;
+    --fg:        #0b1220;
+    --muted:     #6b7280;   /* gray-500 */
+    --border:    #e5e7eb;   /* gray-200 */
+    --panel:     #ffffff;
+    --panel-2:   #f9fafb;   /* gray-50 */
+    --primary:   #4f46e5;   /* indigo-600 */
+    --primary-contrast: #ffffff;
+  
+    /* per icone dei controlli nativi */
+    --picker-indicator-filter: invert(0); /* 0 = dark icona su tema chiaro */
+  }
+  
+  html.dark {
+    --bg:        #0b1220;   /* quasi black */
+    --fg:        #e5e7eb;   /* gray-200 */
+    --muted:     #9ca3af;   /* gray-400 */
+    --border:    #1f2937;   /* gray-800 */
+    --panel:     #0b1220;
+    --panel-2:   #111827;   /* gray-900 */
+    --primary:   #6366f1;   /* indigo-500/600 */
+    --primary-contrast: #111827;
+  
+    --picker-indicator-filter: invert(1); /* 1 = light icona su tema scuro */
+  }
+  
+  /* ====== Base ====== */
+  html { background-color: var(--bg); color: var(--fg); }
+  body { background-color: var(--bg); color: var(--fg); }
+  
+  /* ====== Input/Select/Textarea uniformi ====== */
+  :where(input, select, textarea) {
+    background-color: var(--panel);
+    color: var(--fg);
+    border: 1px solid var(--border);
+  }
+  
+  :where(input, select, textarea)::placeholder {
+    color: var(--muted);
+  }
+  
+  /* Migliora i controlli nativi (date/time) */
+  :where(input[type="date"], input[type="time"], input[type="datetime-local"]) {
+    /* Fa sì che il browser tema i controlli in base al tema */
+    color-scheme: light dark;
+  }
+  
+  /* Forza il colore dell’icona del calendario (Chrome/Edge/Safari) */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: var(--picker-indicator-filter);
+    opacity: .8;
+  }
+  
+  /* Rollover leggibile */
+  input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  input[type="time"]::-webkit-calendar-picker-indicator:hover,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+  
+  /* ====== Bottoni standard (se non già definiti altrove) ====== */
+  .btn { 
+    display:inline-flex; align-items:center; gap:.5rem;
+    border:1px solid var(--border); background:var(--panel); color:var(--fg);
+    padding:.5rem .75rem; border-radius:.5rem; box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  .btn:hover { box-shadow: 0 4px 10px rgba(0,0,0,.12); }
+  
+  .btn-primary { background:var(--primary); color:var(--primary-contrast); border-color: transparent; }
+  .btn-primary:hover { filter: brightness(1.05); }
+  
+  .btn-outline { background:transparent; color:var(--fg); }
+  .btn-danger  { background:#ef4444; color:white; border-color:transparent; }
+  
+  /* ====== Chip (se le usi) ====== */
+  .chip { font-size:.75rem; padding:.125rem .5rem; border-radius:.5rem; border:1px solid var(--border); color:var(--fg); }
+  .chip-amber  { background:#fef3c7; color:#92400e; border-color:#fde68a; }
+  .chip-emerald{ background:#d1fae5; color:#065f46; border-color:#a7f3d0; }
+  .chip-gray   { background:#f3f4f6; color:#374151; border-color:#e5e7eb; }
+  .chip-zinc   { background:#e5e7eb; color:#1f2937; border-color:#d1d5db; }
+  .chip-green  { background:#dcfce7; color:#166534; border-color:#bbf7d0; }
+  
+  html.dark .chip-gray   { background:#111827; color:#9ca3af; border-color:#1f2937; }
+  html.dark .chip-zinc   { background:#0f172a; color:#cbd5e1; border-color:#1f2937; }

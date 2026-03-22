@@ -1,0 +1,133 @@
+Oggetto: Re: URL RVFU Software House - Persistenza 401 Unauthorized
+
+Buongiorno,
+
+come da vostre indicazioni abbiamo aggiornato la chiamata utilizzando l'endpoint RVFU Software House in ambiente di formazione:
+
+GET https://formazione.ilportaledeltrasporto.it/rvfu/sh/cr/veicolo?causale=DEMOLIZIONE&tipoVeicolo=A&targa=VA054AJ
+
+Riportiamo di seguito un esempio completo di request e response con token reali.
+
+═══════════════════════════════════════════════════════════════════════
+REQUEST
+═══════════════════════════════════════════════════════════════════════
+
+GET https://formazione.ilportaledeltrasporto.it/rvfu/sh/cr/veicolo?causale=DEMOLIZIONE&tipoVeicolo=A&targa=VA054AJ
+
+Headers:
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJraWQiOiIxTi9xbkgrUnJSZVk5V29pN00zRW02eDZ1S0E9IiwiYWxnIjoiUlMyNTYifQ.eyJhdF9oYXNoIjoiMmZMUjBjUDdSbGM1SHotamN1SGV2USIsInN1YiI6IkRFVE8wMDMwMDEiLCJhdWRpdFRyYWNraW5nSWQiOiJhYmJjYTE1YS02MDliLTQzZDktOWZhNi0zMzgzN2MzNGI2Y2UtMTE5NzI0OCIsImlzcyI6Imh0dHBzOi8vc3NvZm9ybWF6aW9uZS5pbHBvcnRhbGVkZWx0cmFzcG9ydG8uaXQvc3NvL29hdXRoMiIsInRva2VuTmFtZSI6ImlkX3Rva2VuIiwibm9uY2UiOiIxMjNhYmMiLCJhdWQiOiJBVVRPREVNLlJFU0NVRU1BTkFHRVIiLCJjX2hhc2giOiJBc2pwOUExSk5MQlUxX2pWUVFIaVhnIiwiYWNyIjoiMCIsIm9yZy5mb3JnZXJvY2sub3BlbmlkY29ubmVjdC5vcHMiOiJOVXdDUkJDUjBtcUpOa1E4X2hjODRuTFZzWDAiLCJzX2hhc2giOiJiS0U5VXNwd3lJUGc4THNRSGtKYWlRIiwiYXpwIjoiQVVUT0RFTS5SRVNDVUVNQU5BR0VSIiwiYXV0aF90aW1lIjoxNzcxODUwMTY3LCJuYW1lIjoiREVNT0xJVE9SSSAtIFJFU0NVRU1BTkFHRVIiLCJyZWFsbSI6Ii8iLCJleHAiOjE3NzE4NzUzNjgsInRva2VuVHlwZSI6IkpXVFRva2VuIiwiaWF0IjoxNzcxODUwMTY4LCJmYW1pbHlfbmFtZSI6IkRFVE8wMDMwMDEifQ.RuZIhbGNN877vfMBBKcTAg16NqDVikUOt9HNa4y6rclnbjAeyadqHJBFIgoEczFsZG89p5EQafE0ShfhLDJ7B4qP1mjc1vKwHfE6Ewb4fVjZmT2AobhiDiDBoEpN1_OymMDi1pW21tTFz9B-LMXvMsZ6Z5mLVHBopT2_GdMmx77V-JyP_lkjcgz2jeyL_gNXDoUiOZipIyKmlYvMOHL_eGtCwC5B9Uf-DG6fwr8yJq8XohTF7xV4WB0_w9nW_x1QMur4ODYlLORZg1mcfSgexedlZlCzUHirO9XMw2ng4XBMWDMchpJkeUFn4wiRHy1Em8J0q5ixZv9IFQTAnqOj9Q
+Cookie: iPlanetDirectoryPro=xpcHDLjToTARYLhLSsjYnBZssEo.*AAJTSQACMDIAAlNLABxmUEhHaStvWDlmZXl5T29XMUNWSndqUW1mbVk9AAR0eXBlAANDVFMAAlMxAAIwMQ..*
+Accept: application/json
+Content-Type: application/json
+
+Token JWT decodificato (id_token):
+{
+  "sub": "DETO003001",
+  "aud": "AUTODEM.RESCUEMANAGER",
+  "iss": "https://ssoformazione.ilportaledeltrasporto.it/sso/oauth2",
+  "tokenName": "id_token",
+  "exp": 1771875368,
+  "iat": 1771850168,
+  "name": "DEMOLITORI - RESCUEMANAGER"
+}
+
+═══════════════════════════════════════════════════════════════════════
+RESPONSE
+═══════════════════════════════════════════════════════════════════════
+
+HTTP/1.1 401 Unauthorized
+Server: Apache
+Content-Type: text/html; charset=UTF-8
+Date: Mon, 23 Feb 2026 12:41:28 GMT
+Strict-Transport-Security: max-age=3600
+X-Permitted-Cross-Domain-Policies: none
+Set-Cookie: HTTP_SESSION_ATTR_TOKEN=;Max-Age=0;Expires=Thu, 01-Jan-1970 00:00:01 GMT;Path=/
+Set-Cookie: HTTP_SESSIONITIPOACCESSO=;Max-Age=0;Expires=Thu, 01-Jan-1970 00:00:01 GMT;Path=/
+
+<html>
+<head><title>401 Authorization Required</title></head>
+<body>
+<center><h1>401 Authorization Required</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>
+
+═══════════════════════════════════════════════════════════════════════
+FLUSSO OAUTH2 COMPLETATO CORRETTAMENTE
+═══════════════════════════════════════════════════════════════════════
+
+1. POST https://ssoformazione.ilportaledeltrasporto.it/sso/json/authenticate
+   Headers: X-OpenAM-Username: DETO003001, X-OpenAM-Password: TEST.030
+   Response: 200 OK → tokenId ricevuto
+
+2. POST https://ssoformazione.ilportaledeltrasporto.it/sso/oauth2/authorize
+   Cookie: iPlanetDirectoryPro=<tokenId>
+   Body: client_id=AUTODEM.RESCUEMANAGER, scope=openid profile, response_type=code
+   Response: 302 Redirect → authorization code ricevuto
+
+3. POST https://ssoformazione.ilportaledeltrasporto.it/sso/oauth2/access_token
+   Body: grant_type=authorization_code, code=<auth_code>, client_id=AUTODEM.RESCUEMANAGER, client_secret=R2Y2L9T2
+   Response: 200 OK → id_token (JWT, 1208 char) e access_token (opaque, 55 char) ricevuti
+
+═══════════════════════════════════════════════════════════════════════
+TEST EFFETTUATI
+═══════════════════════════════════════════════════════════════════════
+
+• Test con Bearer = id_token (JWT, aud: AUTODEM.RESCUEMANAGER) → 401 Unauthorized
+• Test con Bearer = access_token (opaque, 55 char) → 401 Unauthorized
+• Test con CDSSO via sessione browser (cookie iPlanetDirectoryPro) → 401 Unauthorized
+
+In tutti i casi, il server Apache cancella i cookie di sessione (Set-Cookie con Max-Age=0) nella risposta.
+
+═══════════════════════════════════════════════════════════════════════
+CREDENZIALI UTILIZZATE
+═══════════════════════════════════════════════════════════════════════
+
+• Codice Software House: AUTODEM.RESCUEMANAGER
+• Codice di Sicurezza: R2Y2L9T2
+• Username: DETO003001
+• Password: TEST.030
+
+═══════════════════════════════════════════════════════════════════════
+DOMANDE
+═══════════════════════════════════════════════════════════════════════
+
+Vi chiediamo cortesemente di confermarci:
+
+1. Se il path /rvfu/sh richiede autenticazione tramite sessione CDSSO (cookie browser) anziché Bearer token diretto;
+
+2. Se per le Software House è prevista una modalità specifica di chiamata REST su tale gateway;
+
+3. Se l'utenza AUTODEM.RESCUEMANAGER è abilitata all'accesso al path /rvfu/sh in ambiente di formazione;
+
+4. Se sono necessari ulteriori header applicativi o configurazioni lato utenza.
+
+═══════════════════════════════════════════════════════════════════════
+NOTA
+═══════════════════════════════════════════════════════════════════════
+
+Il precedente endpoint /demolitori-aci-ws/rest (server interno) accettava correttamente il Bearer token con le stesse credenziali.
+
+Restiamo a disposizione per eventuali ulteriori test o informazioni.
+
+Cordiali saluti,
+
+Emmanuel Scozzarini
+RescueManager – Software House
+P.IVA 02166430856
+info@rescuemanager.eu
+
+
+═══════════════════════════════════════════════════════════════════════
+
+Il giorno 23 feb 2026, alle ore 10:19, Supporto SWHouse <Supporto.Swhouse@informatica.aci.it> ha scritto:
+
+Buongiorno
+La URL di base che stavate chiamando, oltre che essere rivolta alle agenzie, era errata nella radice iniziale, ci scusiamo per l'inconveniente
+
+Questa è la url del consulta VFU per i CR in formazione:
+https://formazione.ilportaledeltrasporto.it/rvfu/sh/cr/consulta
+
+Cordiali Saluti,
+Supporto SWHouse
+ACI Informatica Spa - Direzione PRA e Fiscalità Automobilistica

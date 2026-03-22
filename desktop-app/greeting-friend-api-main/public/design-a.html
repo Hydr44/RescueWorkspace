@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design A — Linear / Notion</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    .nav-item { position: relative; }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: #2563EB; border-radius: 0 4px 4px 0; }
+  </style>
+</head>
+<body class="bg-white text-gray-900 m-0 p-0">
+
+<div class="flex h-screen overflow-hidden">
+
+  <!-- SIDEBAR: ultra-sottile, bianca, solo testo -->
+  <aside class="w-[220px] flex flex-col border-r border-gray-100 bg-white flex-shrink-0">
+    
+    <!-- Logo: solo testo -->
+    <div class="px-5 h-14 flex items-center">
+      <span class="text-[15px] font-extrabold tracking-tight text-gray-900">Rescue<span class="text-blue-600">Manager</span></span>
+    </div>
+
+    <!-- Org: inline, discreto -->
+    <div class="px-5 mb-4">
+      <div class="text-[11px] text-gray-400 font-medium uppercase tracking-widest">Organizzazione</div>
+      <div class="text-sm font-semibold text-gray-700 mt-0.5">AutoDemo Rossi</div>
+    </div>
+
+    <!-- Nav: solo testo, niente icone, niente bg -->
+    <nav class="flex-1 overflow-y-auto">
+      <div class="px-2 space-y-0.5">
+        <a href="#" class="nav-item active block px-4 py-2 text-sm font-semibold text-blue-600">Dashboard</a>
+        <a href="#" class="nav-item block px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">Trasporti <span class="text-xs text-gray-300 ml-1">12</span></a>
+        <a href="#" class="nav-item block px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">Demolizioni</a>
+        <a href="#" class="nav-item block px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">Calendario</a>
+      </div>
+
+      <div class="mt-6 px-5 mb-2 text-[10px] text-gray-300 font-semibold uppercase tracking-widest">Anagrafiche</div>
+      <div class="px-2 space-y-0.5">
+        <a href="#" class="nav-item block px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">Clienti</a>
+        <a href="#" class="nav-item block px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">Piazzale</a>
+        <a href="#" class="nav-item block px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">Autisti</a>
+        <a href="#" class="nav-item block px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">Ricambi</a>
+      </div>
+
+      <div class="mt-6 px-5 mb-2 text-[10px] text-gray-300 font-semibold uppercase tracking-widest">Altro</div>
+      <div class="px-2 space-y-0.5">
+        <a href="#" class="nav-item block px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">Report</a>
+        <a href="#" class="nav-item block px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">Preventivi</a>
+        <a href="#" class="nav-item block px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">Impostazioni</a>
+      </div>
+    </nav>
+
+    <!-- User: minimal -->
+    <div class="px-5 py-4 border-t border-gray-50">
+      <div class="text-sm font-medium text-gray-900">Marco Rossi</div>
+      <div class="text-xs text-gray-400">marco@autodemo.it</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="flex-1 flex flex-col overflow-hidden bg-gray-50/40">
+
+    <!-- Top bar: quasi invisibile -->
+    <header class="h-14 flex items-center justify-between px-8 bg-white border-b border-gray-100">
+      <div class="text-sm text-gray-400">
+        <span class="text-gray-900 font-medium">Dashboard</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 text-sm text-gray-400 bg-gray-50 rounded-md px-3 py-1.5 cursor-pointer hover:bg-gray-100 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          Cerca... <kbd class="text-[10px] text-gray-300 ml-3">⌘K</kbd>
+        </div>
+        <div class="relative">
+          <svg class="w-4 h-4 text-gray-400 cursor-pointer hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <div class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto px-8 py-8">
+
+      <!-- Hero: tipografia grande, niente card -->
+      <div class="mb-10">
+        <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight">Buonasera, Marco</h1>
+        <p class="text-lg text-gray-400 mt-2 font-normal">Ecco cosa succede oggi nella tua attività.</p>
+      </div>
+
+      <!-- KPI: numeri grandi su sfondo bianco, separati da linee -->
+      <div class="grid grid-cols-4 gap-0 bg-white rounded-lg mb-10">
+        <div class="p-6 border-r border-gray-50">
+          <div class="text-xs text-gray-400 uppercase tracking-wider font-medium">Trasporti</div>
+          <div class="text-4xl font-extrabold text-gray-900 mt-2">247</div>
+          <div class="text-xs text-emerald-600 mt-2 font-medium">+12% questo mese</div>
+        </div>
+        <div class="p-6 border-r border-gray-50">
+          <div class="text-xs text-gray-400 uppercase tracking-wider font-medium">Da fare</div>
+          <div class="text-4xl font-extrabold text-gray-900 mt-2">18</div>
+          <div class="text-xs text-amber-600 mt-2 font-medium">3 urgenti</div>
+        </div>
+        <div class="p-6 border-r border-gray-50">
+          <div class="text-xs text-gray-400 uppercase tracking-wider font-medium">In corso</div>
+          <div class="text-4xl font-extrabold text-gray-900 mt-2">6</div>
+          <div class="text-xs text-blue-600 mt-2 font-medium">2 autisti attivi</div>
+        </div>
+        <div class="p-6">
+          <div class="text-xs text-gray-400 uppercase tracking-wider font-medium">Completati</div>
+          <div class="text-4xl font-extrabold text-gray-900 mt-2">223</div>
+          <div class="text-xs text-emerald-600 mt-2 font-medium">+8% vs scorso</div>
+        </div>
+      </div>
+
+      <!-- Two columns -->
+      <div class="grid grid-cols-5 gap-8">
+
+        <!-- Left: 3/5 — Trasporti come lista pura -->
+        <div class="col-span-3">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-gray-900">Trasporti recenti</h2>
+            <a href="#" class="text-sm text-blue-600 hover:text-blue-700 font-medium">Vedi tutti →</a>
+          </div>
+
+          <div class="bg-white rounded-lg">
+            <!-- Table header -->
+            <div class="grid grid-cols-12 gap-4 px-5 py-3 text-[11px] text-gray-400 uppercase tracking-wider font-medium border-b border-gray-50">
+              <div class="col-span-1">#</div>
+              <div class="col-span-4">Cliente</div>
+              <div class="col-span-3">Partenza</div>
+              <div class="col-span-2">Stato</div>
+              <div class="col-span-2 text-right">Data</div>
+            </div>
+            <!-- Rows -->
+            <div class="grid grid-cols-12 gap-4 px-5 py-3.5 items-center hover:bg-gray-50/50 transition cursor-pointer border-b border-gray-50/50">
+              <div class="col-span-1 text-xs text-gray-300 font-mono">2847</div>
+              <div class="col-span-4 text-sm font-medium text-gray-900">AutoDemo Rossi Srl</div>
+              <div class="col-span-3 text-sm text-gray-500">Milano, Via Roma 15</div>
+              <div class="col-span-2"><span class="text-xs font-medium text-blue-600">● In Corso</span></div>
+              <div class="col-span-2 text-xs text-gray-400 text-right">Oggi 14:30</div>
+            </div>
+            <div class="grid grid-cols-12 gap-4 px-5 py-3.5 items-center hover:bg-gray-50/50 transition cursor-pointer border-b border-gray-50/50">
+              <div class="col-span-1 text-xs text-gray-300 font-mono">2846</div>
+              <div class="col-span-4 text-sm font-medium text-gray-900">Carrozzeria Bianchi</div>
+              <div class="col-span-3 text-sm text-gray-500">Torino, Corso Francia 8</div>
+              <div class="col-span-2"><span class="text-xs font-medium text-amber-600">● Da Fare</span></div>
+              <div class="col-span-2 text-xs text-gray-400 text-right">Oggi 10:00</div>
+            </div>
+            <div class="grid grid-cols-12 gap-4 px-5 py-3.5 items-center hover:bg-gray-50/50 transition cursor-pointer border-b border-gray-50/50">
+              <div class="col-span-1 text-xs text-gray-300 font-mono">2845</div>
+              <div class="col-span-4 text-sm font-medium text-gray-900">Demolizioni Verdi SpA</div>
+              <div class="col-span-3 text-sm text-gray-500">Bologna, Via Emilia 22</div>
+              <div class="col-span-2"><span class="text-xs font-medium text-emerald-600">● Completato</span></div>
+              <div class="col-span-2 text-xs text-gray-400 text-right">Ieri 16:45</div>
+            </div>
+            <div class="grid grid-cols-12 gap-4 px-5 py-3.5 items-center hover:bg-gray-50/50 transition cursor-pointer border-b border-gray-50/50">
+              <div class="col-span-1 text-xs text-gray-300 font-mono">2844</div>
+              <div class="col-span-4 text-sm font-medium text-gray-900">Auto Recupero Nord</div>
+              <div class="col-span-3 text-sm text-gray-500">Genova, Via XX Settembre</div>
+              <div class="col-span-2"><span class="text-xs font-medium text-emerald-600">● Completato</span></div>
+              <div class="col-span-2 text-xs text-gray-400 text-right">Ieri 09:15</div>
+            </div>
+            <div class="grid grid-cols-12 gap-4 px-5 py-3.5 items-center hover:bg-gray-50/50 transition cursor-pointer">
+              <div class="col-span-1 text-xs text-gray-300 font-mono">2843</div>
+              <div class="col-span-4 text-sm font-medium text-gray-900">Eco Demolizioni Srl</div>
+              <div class="col-span-3 text-sm text-gray-500">Firenze, Viale Europa 5</div>
+              <div class="col-span-2"><span class="text-xs font-medium text-gray-400">● In Attesa</span></div>
+              <div class="col-span-2 text-xs text-gray-400 text-right">10 Feb</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: 2/5 -->
+        <div class="col-span-2 space-y-8">
+
+          <!-- Azioni: bottoni puri, niente card -->
+          <div>
+            <h2 class="text-lg font-bold text-gray-900 mb-4">Azioni</h2>
+            <div class="space-y-2">
+              <button class="w-full text-left px-4 py-3 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition">+ Nuovo Trasporto</button>
+              <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 bg-white rounded-lg hover:bg-gray-50 transition border border-gray-100">+ Nuovo Cliente</button>
+              <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 bg-white rounded-lg hover:bg-gray-50 transition border border-gray-100">+ Nuovo Preventivo</button>
+            </div>
+          </div>
+
+          <!-- Avviso: testo puro, niente box colorato -->
+          <div>
+            <h2 class="text-lg font-bold text-gray-900 mb-3">Avvisi</h2>
+            <div class="space-y-3">
+              <div class="flex gap-3">
+                <div class="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0"></div>
+                <div>
+                  <div class="text-sm text-gray-700">2 trasporti in attesa da 48h+</div>
+                  <div class="text-xs text-gray-400 mt-0.5">Contatta gli autisti</div>
+                </div>
+              </div>
+              <div class="flex gap-3">
+                <div class="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
+                <div>
+                  <div class="text-sm text-gray-700">Nuova richiesta assistenza</div>
+                  <div class="text-xs text-gray-400 mt-0.5">Da: Carrozzeria Bianchi</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Autisti: dots -->
+          <div>
+            <h2 class="text-lg font-bold text-gray-900 mb-3">Autisti</h2>
+            <div class="space-y-2.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                  <span class="text-sm text-gray-700">Giuseppe Verdi</span>
+                </div>
+                <span class="text-xs text-gray-400">Milano</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                  <span class="text-sm text-gray-700">Luca Bianchi</span>
+                </div>
+                <span class="text-xs text-gray-400">Torino</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+                  <span class="text-sm text-gray-700">Paolo Neri</span>
+                </div>
+                <span class="text-xs text-gray-400">In viaggio</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-2 h-2 rounded-full bg-gray-300"></div>
+                  <span class="text-sm text-gray-400">Andrea Russo</span>
+                </div>
+                <span class="text-xs text-gray-300">Offline</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="fixed bottom-4 right-4 bg-gray-900 text-white text-xs px-3 py-2 rounded-full shadow-lg font-medium">
+  A — Linear / Notion
+</div>
+
+</body>
+</html>
