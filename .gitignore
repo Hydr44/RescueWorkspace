@@ -13,6 +13,7 @@ yarn-error.log*
 .env.production
 .env.staging
 .env.*.local
+.credentials-staging.md
 
 # Build outputs
 dist/
