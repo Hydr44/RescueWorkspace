@@ -47,44 +47,113 @@ export default function AuthCallback() {
   }, [navigate, location]);
 
   return (
-    <div className="flex items-center justify-center p-6 bg-[#141c27]">
-      <div className="w-full max-w-md rounded-3xl bg-[#1a2536]/90 backdrop-blur-xl  ring-1 ring-black/5 p-8 border border-white/20">
-        <div className="text-center space-y-6">
-          {status === 'processing' && (
-            <>
-              <div className="mx-auto w-16 h-16 rounded-full border-4 border-blue-500 border-t-transparent animate-spin flex items-center justify-center bg-blue-500/20">
-                <FiLoader className="w-8 h-8 text-blue-400" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold bg-blue-600 bg-clip-text text-transparent mb-2">Elaborazione autenticazione</h3>
-                <p className="text-slate-400">Attendere prego...</p>
-              </div>
-            </>
-          )}
-          {status === 'success' && (
-            <>
-              <div className="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center ">
-                <FiCheckCircle className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold bg-blue-600 bg-clip-text text-transparent mb-2">Autenticazione completata</h3>
-                <p className="text-slate-400">Reindirizzamento in corso...</p>
-              </div>
-            </>
-          )}
-          {status === 'error' && (
-            <>
-              <div className="mx-auto w-16 h-16 bg-red-600 rounded-full flex items-center justify-center ">
-                <FiXCircle className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-red-400 mb-2">Errore di autenticazione</h3>
-                <p className="text-slate-400">Reindirizzamento al login...</p>
-              </div>
-            </>
-          )}
-        </div>
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      minHeight: '100vh',
+      background: 'var(--bg-left)',
+      padding: '1.5rem'
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: '28rem',
+        background: 'var(--bg-right)',
+        border: '1px solid var(--border-right)',
+        padding: '2rem',
+        textAlign: 'center'
+      }}>
+        {status === 'processing' && (
+          <>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              margin: '0 auto 1.5rem',
+              border: '4px solid var(--brand-primary)',
+              borderTopColor: 'transparent',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(37, 99, 235, 0.1)'
+            }}>
+              <FiLoader style={{ width: '2rem', height: '2rem', color: 'var(--brand-primary)' }} />
+            </div>
+            <div>
+              <h3 style={{ 
+                fontSize: '1.25rem', 
+                fontWeight: 700, 
+                color: 'var(--neutral-900)',
+                marginBottom: '0.5rem'
+              }}>
+                Elaborazione autenticazione
+              </h3>
+              <p style={{ color: 'var(--text-right-muted)' }}>Attendere prego...</p>
+            </div>
+          </>
+        )}
+        {status === 'success' && (
+          <>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              margin: '0 auto 1.5rem',
+              background: 'var(--brand-primary)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <FiCheckCircle style={{ width: '2rem', height: '2rem', color: 'white' }} />
+            </div>
+            <div>
+              <h3 style={{ 
+                fontSize: '1.25rem', 
+                fontWeight: 700, 
+                color: 'var(--neutral-900)',
+                marginBottom: '0.5rem'
+              }}>
+                Autenticazione completata
+              </h3>
+              <p style={{ color: 'var(--text-right-muted)' }}>Reindirizzamento in corso...</p>
+            </div>
+          </>
+        )}
+        {status === 'error' && (
+          <>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              margin: '0 auto 1.5rem',
+              background: '#ef4444',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <FiXCircle style={{ width: '2rem', height: '2rem', color: 'white' }} />
+            </div>
+            <div>
+              <h3 style={{ 
+                fontSize: '0.875rem', 
+                fontWeight: 700, 
+                color: '#ef4444',
+                marginBottom: '0.5rem'
+              }}>
+                Errore di autenticazione
+              </h3>
+              <p style={{ color: 'var(--text-right-muted)' }}>Reindirizzamento al login...</p>
+            </div>
+          </>
+        )}
       </div>
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

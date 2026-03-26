@@ -54,13 +54,21 @@ function registerAssistanceIpc(handleSafe, db, { _fetch, ASSIST_BASE }) {
   });
 
   handleSafe('assistance:list', async ({ orgId = null, limit = 50 } = {}) => {
-    const params = new URLSearchParams();
-    if (orgId) params.set('orgId', orgId);
-    params.set('limit', String(limit));
-    const r = await _fetch(`${ASSIST_BASE}/api/assist/list?${params.toString()}`);
-    if (!r.ok) throw new Error(`assist:list http ${r.status}`);
-    const json = await r.json(); // { ok, rows: [...] }
-    return json.rows;
+    try {
+      const params = new URLSearchParams();
+      if (orgId) params.set('orgId', orgId);
+      params.set('limit', String(limit));
+      const r = await _fetch(`${ASSIST_BASE}/api/assist/list?${params.toString()}`);
+      if (!r.ok) throw new Error(`assist:list http ${r.status}`);
+      const json = await r.json(); // { ok, rows: [...] }
+      return json.rows;
+    } catch (err) {
+      // Fallback silenzioso se server non raggiungibile
+      if (err.code === 'ENOTFOUND' || err.cause?.code === 'ENOTFOUND') {
+        return [];
+      }
+      throw err;
+    }
   });
 
   handleSafe('assistance:getByToken', async (token) => {
