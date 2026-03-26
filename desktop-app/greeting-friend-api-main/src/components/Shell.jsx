@@ -13,6 +13,7 @@ import Toast from "./Toast";
 import { useToastContext } from "@/context/ToastContext";
 import { OAuthService } from "@/lib/oauth";
 import "@/styles/header-fix.css";
+import "@/styles/split-design.css";
 import AiAssistantPanel from "./AiAssistantPanel";
 import NotificationDropdown from "./NotificationDropdown";
 
@@ -22,7 +23,7 @@ import {
   FiBarChart2, FiFileText, FiSettings,
   FiLogOut, FiShield,
   FiSearch, FiChevronRight, FiX, FiCommand, FiTrash2,
-  FiNavigation
+  FiNavigation, FiMenu
 } from "react-icons/fi";
 import PropTypes from "prop-types";
 
@@ -107,6 +108,17 @@ export default function Shell({ children }) {
   // Deriva modalità sidebar e densità interfaccia dalle impostazioni Appearance
   const sidebarMode = appearance.sidebar === "collapsed" ? "collapsed" : "expanded";
   const density = appearance.density === "compact" ? "compact" : "comfortable";
+
+  // Toggle sidebar collapse
+  const toggleSidebar = () => {
+    const newAppearance = {
+      ...appearance,
+      sidebar: sidebarMode === "collapsed" ? "expanded" : "collapsed"
+    };
+    setAppearance(newAppearance);
+    localStorage.setItem("rm-appearance", JSON.stringify(newAppearance));
+    window.dispatchEvent(new CustomEvent("rm-appearance-change", { detail: newAppearance }));
+  };
 
   // Genera breadcrumb basato sulla route corrente
   const generateBreadcrumb = (pathname) => {
@@ -418,8 +430,15 @@ export default function Shell({ children }) {
                     ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
       >
         {/* Brand */}
-        <div className="h-24 px-3 flex items-center justify-center border-b border-white/5 flex-shrink-0">
+        <div className="h-24 px-3 flex items-center justify-center border-b border-white/5 flex-shrink-0 relative">
           <img src={logoUrl} alt="" className={sidebarMode === "collapsed" ? "h-16 w-auto object-contain" : "h-20 w-auto object-contain"} draggable={false} />
+          <button
+            onClick={toggleSidebar}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-white/10 transition-colors rounded"
+            title={sidebarMode === "collapsed" ? "Espandi sidebar" : "Comprimi sidebar"}
+          >
+            <FiMenu className="w-4 h-4 text-white/70" />
+          </button>
         </div>
 
         {/* Org switcher */}
