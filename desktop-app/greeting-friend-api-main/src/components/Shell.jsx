@@ -430,15 +430,8 @@ export default function Shell({ children }) {
                     ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
       >
         {/* Brand */}
-        <div className="h-24 px-3 flex items-center justify-between border-b border-white/5 flex-shrink-0">
-          <img src={logoUrl} alt="" className={sidebarMode === "collapsed" ? "h-16 w-auto object-contain" : "h-20 w-auto object-contain"} draggable={false} />
-          <button
-            onClick={toggleSidebar}
-            className="p-2 hover:bg-white/10 transition-colors rounded flex-shrink-0"
-            title={sidebarMode === "collapsed" ? "Espandi sidebar" : "Comprimi sidebar"}
-          >
-            <FiMenu className="w-4 h-4 text-white/70" />
-          </button>
+        <div className="h-20 px-3 flex items-center justify-center border-b border-white/5 flex-shrink-0">
+          <img src={logoUrl} alt="" className={sidebarMode === "collapsed" ? "h-12 w-auto object-contain" : "h-14 w-auto object-contain"} draggable={false} />
         </div>
 
         {/* Org switcher */}
@@ -538,6 +531,18 @@ export default function Shell({ children }) {
             </div>
           </div>
         )}
+
+        {/* Toggle Sidebar Button - Bottom */}
+        <div className="flex-shrink-0 border-t border-white/5 px-4 py-3">
+          <button
+            onClick={toggleSidebar}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/[0.08] transition text-white/70 hover:text-white ${sidebarMode === "collapsed" ? "justify-center" : ""}`}
+            title={sidebarMode === "collapsed" ? "Espandi sidebar" : "Comprimi sidebar"}
+          >
+            <FiMenu className="w-4 h-4 flex-shrink-0" />
+            {sidebarMode !== "collapsed" && <span className="text-xs">Comprimi</span>}
+          </button>
+        </div>
       </aside>
 
       {/* Contenuto */}
