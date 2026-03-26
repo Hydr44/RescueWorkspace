@@ -430,11 +430,11 @@ export default function Shell({ children }) {
                     ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
       >
         {/* Brand */}
-        <div className="h-24 px-3 flex items-center justify-center border-b border-white/5 flex-shrink-0 relative">
+        <div className="h-24 px-3 flex items-center justify-between border-b border-white/5 flex-shrink-0">
           <img src={logoUrl} alt="" className={sidebarMode === "collapsed" ? "h-16 w-auto object-contain" : "h-20 w-auto object-contain"} draggable={false} />
           <button
             onClick={toggleSidebar}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-white/10 transition-colors rounded"
+            className="p-2 hover:bg-white/10 transition-colors rounded flex-shrink-0"
             title={sidebarMode === "collapsed" ? "Espandi sidebar" : "Comprimi sidebar"}
           >
             <FiMenu className="w-4 h-4 text-white/70" />
@@ -461,53 +461,53 @@ export default function Shell({ children }) {
 
         {/* Nav - Scrollabile, occupa lo spazio rimanente */}
         <nav className="flex-1 px-2 py-3 space-y-4 overflow-y-auto min-h-0">
-              <Section title="Operativo">
-                <SideLink to="/"            icon={FiHome}      label="Dashboard"   onClick={() => setOpen(false)} />
-                <SideLink to="/trasporti"   icon={FiTruck}     label="Trasporti"   onClick={() => setOpen(false)} count={counts.transports} />
-                <SideLink to="/tracking"    icon={FiNavigation} label="Tracking GPS" onClick={() => setOpen(false)} />
+              <Section title="Operativo" collapsed={sidebarMode === "collapsed"}>
+                <SideLink to="/"            icon={FiHome}      label="Dashboard"   onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+                <SideLink to="/trasporti"   icon={FiTruck}     label="Trasporti"   onClick={() => setOpen(false)} count={counts.transports} collapsed={sidebarMode === "collapsed"} />
+                <SideLink to="/tracking"    icon={FiNavigation} label="Tracking GPS" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
                 {activeModules.rvfu && (
-                  <SideLink to="/demolizioni-rvfu" icon={RVFUSidebarIcon}  label="Demolizioni RVFU" onClick={() => setOpen(false)} />
+                  <SideLink to="/demolizioni-rvfu" icon={RVFUSidebarIcon}  label="Demolizioni RVFU" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
                 )}
                 {activeModules.rentri && (
-                  <SideLink to="/rifiuti"     icon={FiTrash2}    label="Rifiuti RENTRI" onClick={() => setOpen(false)} />
+                  <SideLink to="/rifiuti"     icon={FiTrash2}    label="Rifiuti RENTRI" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
                 )}
-                <SideLink to="/calendario"  icon={FiCalendar}  label="Calendario"  onClick={() => setOpen(false)} />
+                <SideLink to="/calendario"  icon={FiCalendar}  label="Calendario"  onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
               </Section>
 
-          <Section title="Anagrafiche">
-            <SideLink to="/clienti"   icon={FiUser}    label="Clienti"  onClick={() => setOpen(false)} count={counts.clients} />
-            <SideLink to="/mezzi"     icon={FiLayers}  label="Mezzi"    onClick={() => setOpen(false)} />
+          <Section title="Anagrafiche" collapsed={sidebarMode === "collapsed"}>
+            <SideLink to="/clienti"   icon={FiUser}    label="Clienti"  onClick={() => setOpen(false)} count={counts.clients} collapsed={sidebarMode === "collapsed"} />
+            <SideLink to="/mezzi"     icon={FiLayers}  label="Mezzi"    onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
             {activeModules.piazzale && (
-              <SideLink to="/piazzale"  icon={FiMapPin}  label="Piazzale" onClick={() => setOpen(false)} />
+              <SideLink to="/piazzale"  icon={FiMapPin}  label="Piazzale" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
             )}
-            <SideLink to="/autisti"   icon={FiUsers}   label="Autisti"  onClick={() => setOpen(false)} />
+            <SideLink to="/autisti"   icon={FiUsers}   label="Autisti"  onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
             {activeModules.ricambi && (
-              <SideLink to="/ricambi"   icon={RicambiSidebarIcon} label="Ricambi"  onClick={() => setOpen(false)} />
+              <SideLink to="/ricambi"   icon={RicambiSidebarIcon} label="Ricambi"  onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
             )}
           </Section>
 
-          <Section title="Vendite">
-            <SideLink to="/vendite/preventivi"   icon={FiFileText}     label="Preventivi"  onClick={() => setOpen(false)} count={counts.quotes} />
+          <Section title="Vendite" collapsed={sidebarMode === "collapsed"}>
+            <SideLink to="/vendite/preventivi"   icon={FiFileText}     label="Preventivi"  onClick={() => setOpen(false)} count={counts.quotes} collapsed={sidebarMode === "collapsed"} />
           </Section>
 
-          <Section title="Analisi">
-            <SideLink to="/report"     icon={FiBarChart2} label="Report"      onClick={() => setOpen(false)} />
+          <Section title="Analisi" collapsed={sidebarMode === "collapsed"}>
+            <SideLink to="/report"     icon={FiBarChart2} label="Report"      onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
             {activeModules.sdi && (
-              <SideLink to="/fatture"    icon={FiFileText}  label="Fatture"     onClick={() => setOpen(false)} />
+              <SideLink to="/fatture"    icon={FiFileText}  label="Fatture"     onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
             )}
           </Section>
 
           {activeModules.contabilita && (
-            <Section title="Contabilità">
-              <SideLink to="/contabilita" icon={FiFileText} label="Dashboard Contabile" onClick={() => setOpen(false)} />
-              <SideLink to="/contabilita/movimenti" icon={FiFileText} label="Movimenti Contabili" onClick={() => setOpen(false)} />
-              <SideLink to="/contabilita/piano-conti" icon={FiFileText} label="Piano dei Conti" onClick={() => setOpen(false)} />
+            <Section title="Contabilità" collapsed={sidebarMode === "collapsed"}>
+              <SideLink to="/contabilita" icon={FiFileText} label="Dashboard Contabile" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+              <SideLink to="/contabilita/movimenti" icon={FiFileText} label="Movimenti Contabili" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+              <SideLink to="/contabilita/piano-conti" icon={FiFileText} label="Piano dei Conti" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
             </Section>
           )}
 
-          <Section title="Sistema">
-            {isAdmin && <SideLink to="/utenti" icon={FiUsers} label="Utenti & Ruoli" onClick={() => setOpen(false)} />}
-            <SideLink to="/settings" icon={FiSettings}  label="Impostazioni"   onClick={() => setOpen(false)} />
+          <Section title="Sistema" collapsed={sidebarMode === "collapsed"}>
+            {isAdmin && <SideLink to="/utenti" icon={FiUsers} label="Utenti & Ruoli" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />}
+            <SideLink to="/settings" icon={FiSettings}  label="Impostazioni"   onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
           </Section>
         </nav>
 
@@ -765,18 +765,20 @@ export default function Shell({ children }) {
   );
 }
 
-function Section({ title, children }) {
+function Section({ title, children, collapsed }) {
   return (
     <div>
-      <div className="px-3 pb-1.5 text-[9px] font-semibold uppercase tracking-[0.15em] text-blue-300/30">
-        {title}
-      </div>
+      {!collapsed && (
+        <div className="px-3 pb-1.5 text-[9px] font-semibold uppercase tracking-[0.15em] text-blue-300/30">
+          {title}
+        </div>
+      )}
       <div className="space-y-0.5">{children}</div>
     </div>
   );
 }
 
-function SideLink({ to, label, icon: Icon, onClick, count }) {
+function SideLink({ to, label, icon: Icon, onClick, count, collapsed }) {
   const end = to === "/";
   return (
     <NavLink to={to} end={end} onClick={onClick}>
@@ -784,16 +786,18 @@ function SideLink({ to, label, icon: Icon, onClick, count }) {
         <div
           className={[
             "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all duration-150",
+            collapsed ? "justify-center" : "",
             isActive
               ? "font-medium bg-blue-600/20 text-white border border-blue-500/20"
               : "text-white/35 hover:text-white/80 hover:bg-white/5 border border-transparent",
           ].join(" ")}
           aria-current={isActive ? "page" : undefined}
+          title={collapsed ? label : ""}
         >
           {Icon && <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-400' : ''}`} />}
-          <span className="truncate flex-1">{label}</span>
+          {!collapsed && <span className="truncate flex-1">{label}</span>}
           
-          {count !== undefined && count > 0 && (
+          {!collapsed && count !== undefined && count > 0 && (
             <span className={[
               "text-[9px] px-1.5 py-0.5 rounded-md font-medium",
               isActive 
