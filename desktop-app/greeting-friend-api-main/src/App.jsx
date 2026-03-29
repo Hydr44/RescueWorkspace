@@ -71,7 +71,8 @@ function lazyPage(importer, name) {
 }
 
 // pagine
-const Dashboard = lazyPage(() => import("./pages/Dashboard"), "Dashboard");
+const Dashboard = lazyPage(() => import("./pages/DashboardNew"), "DashboardNew");
+const DashboardOld = lazyPage(() => import("./pages/Dashboard"), "Dashboard");
 const Transports = lazyPage(() => import("./pages/Transports"), "Transports");
 const TransportNew = lazyPage(() => import("./pages/TransportNew"), "TransportNew");
 const TransportDetail = lazyPage(() => import("./pages/TransportDetail"), "TransportDetail");

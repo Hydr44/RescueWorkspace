@@ -1,0 +1,296 @@
+import { useState, useEffect, useCallback } from 'react';
+import { supabaseBrowser } from '../lib/supabase-browser';
+
+export function useDashboardData(orgId) {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState({
+    vfuPipeline: [],
+    alerts: {
+      criticalCerts: [],
+      overdueVFU: [],
+      rentriLimits: [],
+      overdueInvoices: []
+    },
+    rentriCompliance: {
+      certificates: { expired: 0, expiring: 0, valid: 0 },
+      limits: [],
+      pendingFormulari: 0,
+      registriToDo: 0
+    },
+    spareParts: {
+      topSellers: [],
+      lowStock: 0
+    },
+    metrics: {
+      vfuCompleted: [],
+      revenue: [],
+      wasteDisposed: [],
+      partsSold: []
+    },
+    recentActivity: []
+  });
+
+  const supabase = supabaseBrowser();
+
+  const loadVFUPipeline = useCallback(async () => {
+    if (!orgId) return [];
+
+    try {
+      const { data: vfuData, error } = await supabase
+        .from('demolition_cases')
+        .select('id, targa, marca, modello, processing_status, processing_started_at, created_at')
+        .eq('org_id', orgId)
+        .neq('processing_status', 'completato')
+        .order('processing_started_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Raggruppa per fase
+      const pipeline = {};
+      const phases = [
+        'accettazione',
+        'messa_in_sicurezza',
+        'bonifica',
+        'smontaggio_ricambi',
+        'smontaggio_componenti',
+        'pesatura',
+        'radiazione_pra',
+        'conferimento'
+      ];
+
+      phases.forEach(phase => {
+        pipeline[phase] = vfuData?.filter(v => v.processing_status === phase) || [];
+      });
+
+      return pipeline;
+    } catch (error) {
+      console.error('Error loading VFU pipeline:', error);
+      return {};
+    }
+  }, [orgId, supabase]);
+
+  const loadAlerts = useCallback(async () => {
+    if (!orgId) return { criticalCerts: [], overdueVFU: [], rentriLimits: [], overdueInvoices: [] };
+
+    try {
+      // Certificati RENTRI in scadenza (<30gg)
+      const { data: certs } = await supabase
+        .from('rentri_org_certificates')
+        .select('id, tipo, scadenza, org_id')
+        .eq('org_id', orgId)
+        .gte('scadenza', new Date().toISOString())
+        .lte('scadenza', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
+
+      // VFU oltre scadenza
+      const { data: overdueVFU } = await supabase
+        .from('demolition_cases')
+        .select('id, targa, processing_status, processing_started_at')
+        .eq('org_id', orgId)
+        .neq('processing_status', 'completato');
+
+      // Calcola VFU in ritardo
+      const now = new Date();
+      const deadlines = {
+        messa_in_sicurezza: 3,
+        bonifica: 5,
+        smontaggio_ricambi: 10,
+        smontaggio_componenti: 15,
+        radiazione_pra: 30,
+        conferimento: 60
+      };
+
+      const overdue = overdueVFU?.filter(vfu => {
+        const deadline = deadlines[vfu.processing_status];
+        if (!deadline || !vfu.processing_started_at) return false;
+        const startDate = new Date(vfu.processing_started_at);
+        const daysPassed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
+        return daysPassed > deadline;
+      }) || [];
+
+      return {
+        criticalCerts: certs || [],
+        overdueVFU: overdue,
+        rentriLimits: [],
+        overdueInvoices: []
+      };
+    } catch (error) {
+      console.error('Error loading alerts:', error);
+      return { criticalCerts: [], overdueVFU: [], rentriLimits: [], overdueInvoices: [] };
+    }
+  }, [orgId, supabase]);
+
+  const loadRENTRICompliance = useCallback(async () => {
+    if (!orgId) return { certificates: { expired: 0, expiring: 0, valid: 0 }, limits: [], pendingFormulari: 0, registriToDo: 0 };
+
+    try {
+      // Certificati
+      const { data: allCerts } = await supabase
+        .from('rentri_org_certificates')
+        .select('scadenza')
+        .eq('org_id', orgId);
+
+      const now = new Date();
+      const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      const certificates = {
+        expired: allCerts?.filter(c => new Date(c.scadenza) < now).length || 0,
+        expiring: allCerts?.filter(c => {
+          const scad = new Date(c.scadenza);
+          return scad >= now && scad <= in30Days;
+        }).length || 0,
+        valid: allCerts?.filter(c => new Date(c.scadenza) > in30Days).length || 0
+      };
+
+      // Formulari pending
+      const { count: pendingFormulari } = await supabase
+        .from('rentri_formulari')
+        .select('*', { count: 'exact', head: true })
+        .eq('org_id', orgId)
+        .is('firmato_at', null);
+
+      return {
+        certificates,
+        limits: [],
+        pendingFormulari: pendingFormulari || 0,
+        registriToDo: 0
+      };
+    } catch (error) {
+      console.error('Error loading RENTRI compliance:', error);
+      return { certificates: { expired: 0, expiring: 0, valid: 0 }, limits: [], pendingFormulari: 0, registriToDo: 0 };
+    }
+  }, [orgId, supabase]);
+
+  const loadSpareParts = useCallback(async () => {
+    if (!orgId) return { topSellers: [], lowStock: 0 };
+
+    try {
+      // Top 5 ricambi più venduti (ultimi 30gg)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: topSellers } = await supabase
+        .from('spare_parts')
+        .select(`
+          id,
+          name,
+          internal_code,
+          price_sell,
+          stock_quantity,
+          marketplace_listings!inner(id, created_at, status)
+        `)
+        .eq('org_id', orgId)
+        .gte('marketplace_listings.created_at', thirtyDaysAgo)
+        .eq('marketplace_listings.status', 'sold')
+        .limit(5);
+
+      // Alert stock basso
+      const { count: lowStock } = await supabase
+        .from('spare_parts')
+        .select('*', { count: 'exact', head: true })
+        .eq('org_id', orgId)
+        .lt('stock_quantity', 5);
+
+      return {
+        topSellers: topSellers || [],
+        lowStock: lowStock || 0
+      };
+    } catch (error) {
+      console.error('Error loading spare parts:', error);
+      return { topSellers: [], lowStock: 0 };
+    }
+  }, [orgId, supabase]);
+
+  const loadRecentActivity = useCallback(async () => {
+    if (!orgId) return [];
+
+    try {
+      const activities = [];
+
+      // Ultime demolizioni
+      const { data: recentVFU } = await supabase
+        .from('demolition_cases')
+        .select('id, targa, created_at')
+        .eq('org_id', orgId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      recentVFU?.forEach(vfu => {
+        activities.push({
+          type: 'vfu_new',
+          timestamp: vfu.created_at,
+          data: { targa: vfu.targa, id: vfu.id }
+        });
+      });
+
+      // Ultimi trasporti completati
+      const { data: recentTransports } = await supabase
+        .from('transports')
+        .select('id, cliente, created_at, status')
+        .eq('org_id', orgId)
+        .in('status', ['done', 'completato'])
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      recentTransports?.forEach(t => {
+        activities.push({
+          type: 'transport_completed',
+          timestamp: t.created_at,
+          data: { cliente: t.cliente, id: t.id }
+        });
+      });
+
+      // Ordina per timestamp
+      activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      return activities.slice(0, 10);
+    } catch (error) {
+      console.error('Error loading recent activity:', error);
+      return [];
+    }
+  }, [orgId, supabase]);
+
+  const loadAllData = useCallback(async () => {
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const [vfuPipeline, alerts, rentriCompliance, spareParts, recentActivity] = await Promise.all([
+        loadVFUPipeline(),
+        loadAlerts(),
+        loadRENTRICompliance(),
+        loadSpareParts(),
+        loadRecentActivity()
+      ]);
+
+      setData({
+        vfuPipeline,
+        alerts,
+        rentriCompliance,
+        spareParts,
+        metrics: {
+          vfuCompleted: [],
+          revenue: [],
+          wasteDisposed: [],
+          partsSold: []
+        },
+        recentActivity
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [orgId, loadVFUPipeline, loadAlerts, loadRENTRICompliance, loadSpareParts, loadRecentActivity]);
+
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
+
+  return {
+    data,
+    loading,
+    refresh: loadAllData
+  };
+}
