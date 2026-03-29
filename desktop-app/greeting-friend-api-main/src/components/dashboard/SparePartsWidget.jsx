@@ -7,7 +7,7 @@ export default function SparePartsWidget({ spareParts }) {
   const { topSellers, lowStock } = spareParts;
 
   return (
-    <div className="bg-[#1a2536] border border-[#243044] overflow-hidden">
+    <div className="bg-[#1a2536] border border-[#243044] overflow-hidden h-full flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#243044]">
         <div className="flex items-center gap-2">
           <FiPackage className="w-4 h-4 text-emerald-400" />
@@ -21,7 +21,7 @@ export default function SparePartsWidget({ spareParts }) {
         </button>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-4 flex-1">
         {/* Alert stock basso */}
         {lowStock > 0 && (
           <div 

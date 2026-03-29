@@ -31,7 +31,7 @@ export default function ClientLocationWidget({ assistList, onCreateRequest, onDe
 
   return (
     <>
-      <div className="bg-[#1a2536] border border-[#243044] overflow-hidden">
+      <div className="bg-[#1a2536] border border-[#243044] overflow-hidden h-full flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#243044]">
           <div className="flex items-center gap-2">
             <FiMapPin className="w-4 h-4 text-cyan-400" />

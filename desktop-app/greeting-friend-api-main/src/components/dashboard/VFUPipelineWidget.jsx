@@ -107,7 +107,7 @@ export default function VFUPipelineWidget({ pipeline }) {
       </div>
 
       <div className="p-4">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
           {phases.map(phase => {
             const config = PHASE_CONFIG[phase];
             const vehicles = pipeline[phase] || [];
@@ -123,7 +123,7 @@ export default function VFUPipelineWidget({ pipeline }) {
                   </span>
                 </div>
                 
-                <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
                   {vehicles.length === 0 ? (
                     <div className="bg-[#141c27] border border-[#243044] p-2.5 text-center">
                       <p className="text-[10px] text-slate-600">Nessuno</p>

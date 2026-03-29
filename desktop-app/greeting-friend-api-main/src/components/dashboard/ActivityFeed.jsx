@@ -90,7 +90,7 @@ export default function ActivityFeed({ activities }) {
         <h2 className="text-sm font-semibold text-slate-200">Attività Recenti</h2>
       </div>
 
-      <div className="divide-y divide-[#243044]/50 max-h-[400px] overflow-y-auto">
+      <div className="divide-y divide-[#243044]/50 max-h-[320px] overflow-y-auto">
         {activities.length === 0 ? (
           <div className="p-6 text-center">
             <FiCheckCircle className="w-6 h-6 text-slate-600 mx-auto mb-2" />
