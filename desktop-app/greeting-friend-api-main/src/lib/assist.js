@@ -24,12 +24,22 @@ export async function createAssistRequest({ phone, note, orgId, createdBy }) {
   return r.json(); // { ok, token, url, request }
 }
 
-export async function listAssistRequests({ orgId, limit = 50 } = {}) {
+export async function listAssistRequests(orgId) {
   const params = new URLSearchParams();
   if (orgId) params.set("orgId", orgId);
-  if (limit) params.set("limit", String(limit));
+  params.set("limit", "50");
 
   const r = await fetch(`${API.ASSIST}/api/assist/list?${params.toString()}`);
   if (!r.ok) throw new Error((await r.json()).error || r.statusText);
-  return r.json(); // { ok, rows: [...] }
+  const data = await r.json();
+  return data.rows || [];
+}
+
+export async function deleteAssistRequest(requestId) {
+  const r = await fetch(`${API.ASSIST}/api/assist/${requestId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!r.ok) throw new Error((await r.json()).error || r.statusText);
+  return r.json();
 }
