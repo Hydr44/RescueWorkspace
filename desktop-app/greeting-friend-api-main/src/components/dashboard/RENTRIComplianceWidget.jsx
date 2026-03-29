@@ -1,5 +1,6 @@
 import { FiShield, FiAlertCircle, FiCheckCircle, FiFileText, FiClock } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import DashboardCard from './DashboardCard';
 
 export default function RENTRIComplianceWidget({ compliance }) {
   const navigate = useNavigate();
@@ -43,21 +44,14 @@ export default function RENTRIComplianceWidget({ compliance }) {
   const StatusIcon = config.icon;
 
   return (
-    <div className="bg-[#1a2536] border border-[#243044] overflow-hidden h-full flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#243044]">
-        <div className="flex items-center gap-2">
-          <FiShield className="w-4 h-4 text-blue-400" />
-          <h2 className="text-sm font-semibold text-slate-200">RENTRI Compliance</h2>
-        </div>
-        <button
-          onClick={() => navigate('/rifiuti')}
-          className="text-xs text-blue-400 hover:text-blue-300 transition"
-        >
-          Gestisci →
-        </button>
-      </div>
-
-      <div className="p-4 space-y-4 flex-1">
+    <DashboardCard
+      icon={FiShield}
+      title="RENTRI Compliance"
+      action="Gestisci"
+      onAction={() => navigate('/rifiuti')}
+      iconColor="text-emerald-400"
+    >
+      <div className="space-y-4">
         {/* Semaforo generale */}
         <div className={`flex items-center gap-3 p-3 border ${config.border} ${config.bg}`}>
           <StatusIcon className={`w-5 h-5 ${config.text}`} />
@@ -151,6 +145,6 @@ export default function RENTRIComplianceWidget({ compliance }) {
           </button>
         </div>
       </div>
-    </div>
+    </DashboardCard>
   );
 }

@@ -1,5 +1,6 @@
 import { FiPackage, FiTrendingUp, FiAlertTriangle } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import DashboardCard from './DashboardCard';
 
 export default function SparePartsWidget({ spareParts }) {
   const navigate = useNavigate();
@@ -7,21 +8,14 @@ export default function SparePartsWidget({ spareParts }) {
   const { topSellers, lowStock } = spareParts;
 
   return (
-    <div className="bg-[#1a2536] border border-[#243044] overflow-hidden h-full flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#243044]">
-        <div className="flex items-center gap-2">
-          <FiPackage className="w-4 h-4 text-emerald-400" />
-          <h2 className="text-sm font-semibold text-slate-200">Ricambi</h2>
-        </div>
-        <button
-          onClick={() => navigate('/ricambi')}
-          className="text-xs text-blue-400 hover:text-blue-300 transition"
-        >
-          Magazzino →
-        </button>
-      </div>
-
-      <div className="p-4 space-y-4 flex-1">
+    <DashboardCard
+      icon={FiPackage}
+      title="Ricambi"
+      action="Magazzino"
+      onAction={() => navigate('/ricambi')}
+      iconColor="text-purple-400"
+    >
+      <div className="space-y-4">
         {/* Alert stock basso */}
         {lowStock > 0 && (
           <div 
@@ -89,6 +83,6 @@ export default function SparePartsWidget({ spareParts }) {
           </button>
         </div>
       </div>
-    </div>
+    </DashboardCard>
   );
 }

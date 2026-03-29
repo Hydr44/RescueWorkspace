@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { FiMapPin, FiLink2, FiCopy, FiExternalLink, FiTrash2, FiX } from 'react-icons/fi';
+import { FiMapPin, FiCopy, FiExternalLink, FiTrash2, FiX } from 'react-icons/fi';
 import { useQRCode } from '../../hooks/useQRCode';
+import DashboardCard from './DashboardCard';
 
 export default function ClientLocationWidget({ assistList, onCreateRequest, onDeleteRequest, onRefresh }) {
   const [showModal, setShowModal] = useState(false);
@@ -31,21 +32,12 @@ export default function ClientLocationWidget({ assistList, onCreateRequest, onDe
 
   return (
     <>
-      <div className="bg-[#1a2536] border border-[#243044] overflow-hidden h-full flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#243044]">
-          <div className="flex items-center gap-2">
-            <FiMapPin className="w-4 h-4 text-cyan-400" />
-            <h2 className="text-sm font-semibold text-slate-200">Posizione Cliente</h2>
-          </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="text-xs font-medium text-white bg-cyan-600 hover:bg-cyan-700 px-3 py-1.5 transition"
-          >
-            Nuova Richiesta
-          </button>
-        </div>
-
-        <div className="p-4">
+      <DashboardCard
+        icon={FiMapPin}
+        title="Posizione Cliente"
+        iconColor="text-cyan-400"
+      >
+        <div className="space-y-3">
           {assistList.length === 0 ? (
             <div className="text-center py-6">
               <FiMapPin className="w-8 h-8 text-slate-600 mx-auto mb-3" />
@@ -129,8 +121,16 @@ export default function ClientLocationWidget({ assistList, onCreateRequest, onDe
               )}
             </div>
           )}
+          
+          {/* Pulsante nuova richiesta */}
+          <button
+            onClick={() => setShowModal(true)}
+            className="w-full text-xs font-medium text-white bg-cyan-600 hover:bg-cyan-700 px-4 py-2 transition"
+          >
+            + Nuova Richiesta
+          </button>
         </div>
-      </div>
+      </DashboardCard>
 
       {/* Modal creazione richiesta */}
       {showModal && (
