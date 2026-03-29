@@ -7,12 +7,12 @@
  * @created 2026-03-29
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiRefreshCw, FiAlertCircle } from "react-icons/fi";
 import { useOrg } from "../context/OrgContext";
 import { useDashboardData } from "../hooks/useDashboardData";
-import { createAssistRequest } from "../lib/assist";
+import { createAssistRequest, deleteAssistRequest } from "../lib/assist";
 
 // Componenti Dashboard
 import AlertBar from "../components/dashboard/AlertBar";
@@ -21,12 +21,31 @@ import RENTRIComplianceWidget from "../components/dashboard/RENTRIComplianceWidg
 import SparePartsWidget from "../components/dashboard/SparePartsWidget";
 import QuickActionsGrid from "../components/dashboard/QuickActionsGrid";
 import ActivityFeed from "../components/dashboard/ActivityFeed";
+import ClientLocationWidget from "../components/dashboard/ClientLocationWidget";
+import WidgetContainer from "../components/dashboard/WidgetContainer";
+
+const DEFAULT_WIDGET_ORDER = ['rentri', 'ricambi', 'posizione'];
 
 export default function DashboardNew() {
   const navigate = useNavigate();
   const { orgId, orgName } = useOrg();
   const { data, loading, refresh } = useDashboardData(orgId);
   const [refreshing, setRefreshing] = useState(false);
+  const [widgetOrder, setWidgetOrder] = useState(() => {
+    const saved = localStorage.getItem('dashboard-widget-order');
+    return saved ? JSON.parse(saved) : DEFAULT_WIDGET_ORDER;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dashboard-widget-order', JSON.stringify(widgetOrder));
+  }, [widgetOrder]);
+
+  const moveWidget = (index, direction) => {
+    const newOrder = [...widgetOrder];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
+    setWidgetOrder(newOrder);
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -34,7 +53,7 @@ export default function DashboardNew() {
     setRefreshing(false);
   };
 
-  const handleLocateClient = async () => {
+  const handleCreateAssistRequest = async () => {
     if (!orgId) {
       alert("Seleziona prima un'organizzazione");
       return;
@@ -46,6 +65,16 @@ export default function DashboardNew() {
     } catch (error) {
       console.error("Error creating assistance:", error);
       alert("Errore nella creazione della richiesta di posizione");
+    }
+  };
+
+  const handleDeleteAssistRequest = async (id) => {
+    try {
+      await deleteAssistRequest(id);
+      await refresh();
+    } catch (error) {
+      console.error("Error deleting assistance:", error);
+      alert("Errore nell'eliminazione della richiesta");
     }
   };
 
@@ -107,34 +136,66 @@ export default function DashboardNew() {
       {/* Alert Bar - Critici */}
       {orgId && <AlertBar alerts={data.alerts} />}
 
-      {/* Layout principale: 3 colonne */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        
-        {/* Colonna 1: VFU Pipeline (2 colonne) */}
-        <div className="lg:col-span-2">
-          <VFUPipelineWidget pipeline={data.vfuPipeline} />
-        </div>
-
-        {/* Colonna 2: RENTRI Compliance */}
-        <div>
-          <RENTRIComplianceWidget compliance={data.rentriCompliance} />
-        </div>
+      {/* Layout principale: VFU Pipeline full width */}
+      <div>
+        <VFUPipelineWidget pipeline={data.vfuPipeline} />
       </div>
 
-      {/* Seconda riga: Ricambi + Azioni + Attività */}
+      {/* Seconda riga: RENTRI + Ricambi + Posizione Cliente (riordinabili) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        
-        {/* Ricambi */}
-        <div>
-          <SparePartsWidget spareParts={data.spareParts} />
-        </div>
+        {widgetOrder.map((widgetId, index) => {
+          const widgets = {
+            rentri: (
+              <WidgetContainer
+                key="rentri"
+                title="RENTRI Compliance"
+                canMoveUp={index > 0}
+                canMoveDown={index < widgetOrder.length - 1}
+                onMoveUp={() => moveWidget(index, 'up')}
+                onMoveDown={() => moveWidget(index, 'down')}
+              >
+                <RENTRIComplianceWidget compliance={data.rentriCompliance} />
+              </WidgetContainer>
+            ),
+            ricambi: (
+              <WidgetContainer
+                key="ricambi"
+                title="Ricambi"
+                canMoveUp={index > 0}
+                canMoveDown={index < widgetOrder.length - 1}
+                onMoveUp={() => moveWidget(index, 'up')}
+                onMoveDown={() => moveWidget(index, 'down')}
+              >
+                <SparePartsWidget spareParts={data.spareParts} />
+              </WidgetContainer>
+            ),
+            posizione: (
+              <WidgetContainer
+                key="posizione"
+                title="Posizione Cliente"
+                canMoveUp={index > 0}
+                canMoveDown={index < widgetOrder.length - 1}
+                onMoveUp={() => moveWidget(index, 'up')}
+                onMoveDown={() => moveWidget(index, 'down')}
+              >
+                <ClientLocationWidget 
+                  assistList={data.assistRequests} 
+                  onCreateRequest={handleCreateAssistRequest}
+                  onDeleteRequest={handleDeleteAssistRequest}
+                  onRefresh={refresh}
+                />
+              </WidgetContainer>
+            )
+          };
+          return <div key={widgetId}>{widgets[widgetId]}</div>;
+        })}
+      </div>
 
-        {/* Azioni Rapide */}
+      {/* Terza riga: Azioni Rapide + Attività */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div>
-          <QuickActionsGrid onLocateClient={handleLocateClient} />
+          <QuickActionsGrid />
         </div>
-
-        {/* Attività Recenti */}
         <div>
           <ActivityFeed activities={data.recentActivity} />
         </div>

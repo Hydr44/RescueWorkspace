@@ -1,4 +1,4 @@
-import { FiTruck, FiFileText, FiPackage, FiMapPin, FiDollarSign, FiCalendar } from 'react-icons/fi';
+import { FiTruck, FiFileText, FiPackage, FiDollarSign, FiCalendar } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 const ACTIONS = [
@@ -6,19 +6,15 @@ const ACTIONS = [
   { id: 'formulario', icon: FiFileText, label: 'Formulario RENTRI', path: '/rifiuti/formulari/nuovo', color: 'emerald' },
   { id: 'ricambio', icon: FiPackage, label: 'Nuovo Ricambio', path: '/ricambi/nuovo', color: 'purple' },
   { id: 'trasporto', icon: FiTruck, label: 'Nuovo Trasporto', path: '/trasporti/new', color: 'amber' },
-  { id: 'posizione', icon: FiMapPin, label: 'Posizione Cliente', path: '/dashboard', color: 'cyan', action: 'locate' },
-  { id: 'fattura', icon: FiDollarSign, label: 'Genera Fattura', path: '/fatture/nuovo', color: 'green' }
+  { id: 'fattura', icon: FiDollarSign, label: 'Genera Fattura', path: '/fatture/nuovo', color: 'green' },
+  { id: 'calendario', icon: FiCalendar, label: 'Calendario', path: '/calendario', color: 'cyan' }
 ];
 
-export default function QuickActionsGrid({ onLocateClient }) {
+export default function QuickActionsGrid() {
   const navigate = useNavigate();
 
   const handleAction = (action) => {
-    if (action.action === 'locate' && onLocateClient) {
-      onLocateClient();
-    } else {
-      navigate(action.path);
-    }
+    navigate(action.path);
   };
 
   const getColorClasses = (color) => {
