@@ -34,6 +34,23 @@ if (!global.__RM_BOOTSTRAPPED__) global.__RM_BOOTSTRAPPED__ = true;
 // Registra protocollo desktop:// per OAuth callback
 app.setAsDefaultProtocolClient('desktop');
 
+// Ignora errori certificato SSL solo per domini ACI formazione (certificato scaduto)
+app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+  const allowedDomains = [
+    'ssoformazione.ilportaledeltrasporto.it',
+    'formazione.ilportaledeltrasporto.it'
+  ];
+  
+  const urlObj = new URL(url);
+  if (allowedDomains.includes(urlObj.hostname)) {
+    console.log(`⚠️  Certificato SSL ignorato per ${urlObj.hostname} (ambiente test)`);
+    event.preventDefault();
+    callback(true); // Accetta il certificato
+  } else {
+    callback(false); // Rifiuta per tutti gli altri domini
+  }
+});
+
 let win;
 
 // Controlla se l'utente era già autenticato (flag salvato al login)

@@ -38,12 +38,12 @@ export function useDashboardData(orgId) {
     if (!orgId) return [];
 
     try {
-      const { data: vfuData, error } = await supabase
+      const { data: vfuCases, error } = await supabase
         .from('demolition_cases')
-        .select('id, targa, marca, modello, processing_status, processing_started_at, created_at')
+        .select('id, targa, modello, processing_status, processing_started_at, created_at')
         .eq('org_id', orgId)
         .neq('processing_status', 'completato')
-        .order('processing_started_at', { ascending: true });
+        .order('processing_started_at', { ascending: true, nullsFirst: false });
 
       if (error) throw error;
 
@@ -279,15 +279,8 @@ export function useDashboardData(orgId) {
   }, [orgId, supabase]);
 
   const loadAssistRequests = useCallback(async () => {
-    if (!orgId) return [];
-
-    try {
-      const requests = await listAssistRequests(orgId);
-      return requests || [];
-    } catch (error) {
-      console.error('Error loading assist requests:', error);
-      return [];
-    }
+    // Temporaneamente disabilitato - API assist.rescuemanager.eu non disponibile
+    return [];
   }, [orgId]);
 
   const loadAllData = useCallback(async () => {

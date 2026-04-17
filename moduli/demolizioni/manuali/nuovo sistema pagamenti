@@ -1,0 +1,101 @@
+
+12
+
+100%
+SpecificheWS-NuovoSistemaPagamenti-SH-1.14.doc
+Specifiche Web Services
+Nuovo Sistema Pagamenti
+SH
+SpecificheWS- NuovoSistemaPagamenti-SH-1.14.doc
+Page 12 of 35
+4 DEFINIZIONE DEI SERVIZI
+Nel presente capitolo viene fornita una descrizione sintetica delle operazioni disponibili e sono contenuti i json.
+Ogni operazione ha come risposta due elementi:
+un esito (obbligatorio), che indica al chiamante se la chiamata è andata a buon fine (CodiceEsito=OK)
+oppure se è stato riscontrato un problema che non ha permesso la corretta esecuzione dell’operazione
+richiesta (CodiceEsito=KO) Di seguito un esempio di un esito indicando un problema in fase di
+esecuzione dell’operazione:
+un risultato (opzionale), che contiene il dettaglio dei dati di risposta se ci sono
+{
+"esito": {
+"codice": "KO",
+"descrizione": "Descrizione dell’errore"
+}
+"risultato": {}
+}
+4.1 GESTIONE TARIFFARIO
+4.1.1 RICERCA TIPO TARIFFARIO
+Descrizione: Servizio per recuperare i tipi di tariffario e le province abbinate ad essi.
+HTTP Method: GET
+Url: {{baseUrl}}/pagamenti/sh/v1/catalogo/tariffario
+Input: I possibili filtri di ricerca sono: il codiceTipoTariffario (vedere servizio RICERCA TARIFFARIO), il
+codiceProvincia o la siglaProvincia (vedere ELENCO PROVINCE VALIDE).
+Output: Lista dei tipi di tariffario con codiceTipoTariffario, descrizioneTipoTariffario e lista delle province ad
+essi abbinati.
+ATTENZIONE: l’output di questo servizio non è strutturato con un blocco esito e uno risultato, ma in caso
+positivo (http code 200) si avrà direttamente l’elenco dei risultati della ricerca strutturati nel modo descritto
+sopra.
+4.1.2 CORRISPONDENZA TARIFFE NUOVE E VECCHIE (vedere GESTIONE NUOVO TARIFFARIO)
+Descrizione: Servizio per recuperare l’elenco delle pratiche MCTC e delle nuove tariffe ad esse associate.
+HTTP Method: GET
+Url: {{baseUrl}}/pagamenti/sh/v1/catalogo/corrispondenzatariffe
+Input: I filtri di ricerca richiesti sono: il codiceTipoTariffario obbligatorio (vedere servizio RICERCA TARIFFARIO)
+e uno a scelta tra il codice pratica MCTC, il vecchio codice tariffa, il nuovo codice tariffa.
+Output: Lista delle pratiche MCTC con il relativo nuovo codice tariffa.
+ATTENZIONE: l’output di questo servizio non è strutturato con un blocco esito e uno risultato, ma in caso
+positivo (http code 200) si avrà direttamente l’elenco dei risultati della ricerca strutturati nel modo descritto
+sopra.
+4.1.3 CATALOGO PRATICHE TARIFFE COMPLETO
+Descrizione: Servizio per recuperare l’elenco completo delle pratiche MCTC e delle tariffe associate per tutti i
+tipi di tariffario presenti.
+SpecificheWS- NuovoSistemaPagamenti-SH-1.14.doc
+Page 13 of 35
+Questo servizio recupererà le informazioni dall’archivio una volta al giorno alla mezzanotte e durante il giorno
+restituirà le informazioni in modalità statica; pertanto dovrà essere invocato al massimo una volta al giorno dai
+vari client che dovranno memorizzare localmente le informazioni ricevute.
+HTTP Method: GET
+Url: {{baseUrl}}/pagamenti/sh/v1/catalogo/elencocompleto
+Output: l’ultima data in cui sono stati ricaricati i dati e l’elenco completo di tutti i codici tariffario con tutte le
+pratiche MCTC, le relative tariffe e le informazione ad esse annesse.
+ATTENZIONE: l’output di questo servizio non è strutturato con un blocco esito e uno risultato, ma in caso
+positivo (http code 200) si avrà direttamente l’elenco dei risultati della ricerca strutturati nel modo descritto
+sopra.
+4.2 GESTIONE CASSETTO PAGAMENTI
+4.2.1 INSERIMENTO RICHIESTE DI PAGAMENTO SPONTANEO (ASINCRONO)
+Descrizione: Servizio per inserire un elenco di richieste di pagamento spontaneo eseguite da uno stesso
+soggetto pagatore ovvero l’utente loggato. Il servizio per permettere la creazioni di un numero maggiore di
+richieste in un unico carrello è asincrono, quindi la creazione delle richieste avverrà a valle della risposta con
+esito positivo. (N.B. essendo la creazione asincrona, se si effettua immediatamente la ricerca delle richieste del
+carrello appena inviato potrebbero non essere trovati tutti i record attesi)
+HTTP Method: POST
+Url: {{baseUrl}}/pagamenti/sh/v1/cassetto/inserimentoSpontaneo
+Input: Per ogni richiesta vanno indicati i dati della pratica per cui si vuole inserire un pagamento spontaneo
+ovvero:
+• causalePagamento, descrizione del motivo per cui si sta inserendo la richiesta di pagamento
+spontaneo
+• codiceTipoTariffario (vedere servizio RICERCA TARIFFARIO)
+• flagCumulativo, indicare S in caso di acquisto cumulativo ovvero acquisto con una sola richiesta di più
+pratiche (numeroPratiche > 1) dello stesso tipo
+• flagEsenzione (N o S)
+• flagUrgenza (N o S)
+• numeroPratiche, indicare il numero di pratiche dello stesso tipo da acquistare con questa richiesta
+(>1 in caso di richiesta cumulativa)
+• flagAggregato (N o S), se valorizzato con S le richieste presenti nel singolo item saranno aggregate per
+l’eventuale pagamento effettuato in modalità online; il campo è facoltativo, se non valorizzato sarà
+assunto di default come N, quindi un eventuale pagamento online dovrà essere effettuato
+singolarmente per ogni richiesta presente nel singolo item.
+• flagAbbinamentoAutomatico (N o S), vedere ESENZIONE ABBINAMENTO AUTOMATICO.
+• codiceTipoPraticaMctc, il codice della pratica da acquistare relativa al nuovo catalago che andrà
+valorizzato in alternativa al codiceTipoPratica (vedere CATALOGO PRATICHE TARIFFE COMPLETO).
+Inoltre, se il sistema non la troverà in archivio, verrà richiesto di indicare l’anagrafica del soggetto pagatore
+ovvero i dati anagrafici dell’Agenzia loggata.
+Output: Esito della richiesta e in caso positivo l’idCarrello ovvero dell’insieme delle richieste inserite con un
+unico invio e l’anagrafica del soggetto pagatore che, se presente in archivio, è stata recuperata o, se non
+presente in archivio, è stata richiesta in input.
+INSERIMENTO RICHIESTE DI PAGAMENTO PER IL TITOLARE DELLA PRATICA
+Per poter permettere agli utenti professionali di inserire richieste di pagamento a nome del titolare della
+pratica che stanno lavorando, è stato introdotto tra i dati del pagatore il flagPagatoreOpEsterno: se valorizzato
+con S verrà presa in considerazione l’anagrafica inviata in input (di cui dovranno essere passati tutti i dati) e
+non quella presente in archivio. Tale richiesta di pagamento risulterà a tutti gli effetti presente nel cassetto
+dell’utente che l’ha inserita, ma nell’avviso di pagamento e nella ricevuta saranno riportati i dati anagrafici del
+titolare della pratica ovvero quelli passati in input.

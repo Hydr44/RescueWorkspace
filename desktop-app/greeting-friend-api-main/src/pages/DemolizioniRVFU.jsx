@@ -21,6 +21,7 @@ import RVFUErrorManager from '@/components/rvfu/RVFUErrorManager';
 import VFUProcessingTimeline from '@/components/rvfu/VFUProcessingTimeline';
 import { isRVFUMockMode, setRVFUMockMode, mockVerificaVeicolo, mockListaVFU } from '@/lib/rvfu-mock';
 import { logger } from '@/lib/logger';
+import { normalizeCausale } from '@/lib/rvfu-mapper';
 import { printSchedaDemolizione } from '@/lib/services/rentriPrintService';
 
 const TABLE = "demolition_cases";
@@ -480,7 +481,7 @@ export default function DemolizioniRVFU() {
         proprietario_comune: meta.owner?.city || meta.intestatario?.comuneResidenza || '',
         proprietario_provincia: meta.owner?.province || meta.intestatario?.provinciaResidenza || '',
         proprietario_tipo_persona: meta.intestatario?.tipoPersonaGiuridica === 'PG' ? 'PG' : 'PF',
-        demolizione_causale: meta.rvfu?.causale || caseToSync.demolizione_causale || 'DEMOLIZIONE',
+        demolizione_causale: normalizeCausale(meta.rvfu?.causale || caseToSync.demolizione_causale || 'D'),
         demolizione_osservazioni: meta.rvfu?.noteAggiuntive || caseToSync.demolizione_osservazioni || caseToSync.note || '',
         note_parti_rifiuti: meta.rvfu?.notePartiRifiuti || '',
         flag_consegna_forze_ordine: meta.rvfu?.flagConsegnaForzeOrdine || 'N',

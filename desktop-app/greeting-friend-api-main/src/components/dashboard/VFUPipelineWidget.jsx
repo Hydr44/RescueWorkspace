@@ -41,9 +41,9 @@ function VFUCard({ vfu, phase }) {
       className="bg-[#141c27] border border-[#243044] p-2.5 hover:bg-[#1a2536] transition cursor-pointer group"
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-slate-200 truncate">{vfu.targa}</p>
-          <p className="text-[10px] text-slate-500 truncate">{vfu.marca} {vfu.modello}</p>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] font-medium text-slate-300 truncate">{vfu.targa}</span>
+          <span className="text-[9px] text-slate-500">{vfu.modello || 'N/D'}</span>
         </div>
         <FiTruck className="w-3 h-3 text-slate-600 flex-shrink-0" />
       </div>

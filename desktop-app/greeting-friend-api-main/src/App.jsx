@@ -95,7 +95,8 @@ const Quotes = lazyPage(() => import("./pages/Quotes"), "Quotes");
 const QuoteNew = lazyPage(() => import("./pages/QuoteNew"), "QuoteNew");
 const DemolizioniRVFU = lazyPage(() => import("./pages/DemolizioniRVFU"), "DemolizioniRVFU");
 const DemolizioneRVFUForm = lazyPage(() => import("./pages/DemolizioneRVFUForm"), "DemolizioneRVFUForm");
-const DemolizioneRVFUDettaglio = lazyPage(() => import("./pages/DemolizioneRVFUDettaglio"), "DemolizioneRVFUDettaglio");
+const DemolizioneRVFUDettaglio = lazyPage(() => import("./pages/DemolizioneRVFUDettaglioNew"), "DemolizioneRVFUDettaglioNew");
+const RVFUTestConsole = lazyPage(() => import("./pages/RVFUTestConsole"), "RVFUTestConsole");
 const DebugSync = lazyPage(() => import("./pages/DebugSync"), "DebugSync");
 const AcceptInvite = lazyPage(() => import("./pages/AcceptInvite"), "AcceptInvite");
 const SentryTest = lazyPage(() => import("./pages/SentryTest"), "SentryTest");
@@ -312,6 +313,7 @@ export default function App() {
               <Route path="/demolizioni-rvfu/new" element={<Protected><ModuleGuard module="rvfu"><DemolizioneRVFUForm /></ModuleGuard></Protected>} />
               <Route path="/demolizioni-rvfu/dettaglio/:id" element={<Protected><ModuleGuard module="rvfu"><DemolizioneRVFUDettaglio /></ModuleGuard></Protected>} />
               <Route path="/demolizioni-rvfu/:id" element={<Protected><ModuleGuard module="rvfu"><DemolizioneRVFUForm /></ModuleGuard></Protected>} />
+              <Route path="/rvfu-test" element={<Protected><RVFUTestConsole /></Protected>} />
 
               {/* Ricambi MVP */}
               <Route path="/ricambi" element={<Protected><SparePartsMVP /></Protected>} />

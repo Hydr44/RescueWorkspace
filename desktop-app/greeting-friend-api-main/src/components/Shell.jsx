@@ -23,7 +23,7 @@ import {
   FiBarChart2, FiFileText, FiSettings,
   FiLogOut, FiShield,
   FiSearch, FiChevronRight, FiX, FiCommand, FiTrash2,
-  FiNavigation, FiMenu
+  FiNavigation, FiMenu, FiTerminal
 } from "react-icons/fi";
 import PropTypes from "prop-types";
 
@@ -501,6 +501,7 @@ export default function Shell({ children }) {
           <Section title="Sistema" collapsed={sidebarMode === "collapsed"}>
             {isAdmin && <SideLink to="/utenti" icon={FiUsers} label="Utenti & Ruoli" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />}
             <SideLink to="/settings" icon={FiSettings}  label="Impostazioni"   onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+            <SideLink to="/rvfu-test" icon={FiTerminal}  label="RVFU Test"   onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
           </Section>
         </nav>
 

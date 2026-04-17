@@ -199,6 +199,24 @@ function buildDistintaVFUCreate(formData: DemolitionFormData): DistintaVFUCreate
   };
 }
 
+// Mappa di normalizzazione causale: converte vecchi valori stringa nei codici API corretti
+const CAUSALE_NORMALIZE_MAP: Record<string, string> = {
+  'DEMOLIZIONE': 'D',
+  'ROTTAMAZIONE': 'D',
+  'CESSAZIONE': 'D',
+  'FURTO': 'D',
+  'INCIDENTE': 'D',
+  'SD DEMOLIZIONE': 'SD',
+  'PA DEMOLIZIONE SU PROVVEDIMENTO PA': 'PA',
+  'VEICOLI NON RICONOSCIUTI': 'NN',
+};
+
+export function normalizeCausale(causale: string | undefined): string {
+  if (!causale) return 'D';
+  const upper = causale.trim().toUpperCase();
+  return CAUSALE_NORMALIZE_MAP[upper] || causale;
+}
+
 /**
  * Converte i dati del form locale in VFUCreateAsConcessionario per l'API RVFU
  */

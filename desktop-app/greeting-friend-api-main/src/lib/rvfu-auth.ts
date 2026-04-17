@@ -23,10 +23,17 @@ const SSO_URLS = {
   production: 'https://sso.ilportaledeltrasporto.it/sso',
 } as const;
 
+// Realm path richiesto da ACI (aggiornato 08/04/2026)
+const REALM_PATH = '/realms/root/realms/pdtusers';
+
+// Nome cookie sessione SSO (pdtsso-form sul nuovo server, iPlanetDirectoryPro sul vecchio)
+const SSO_COOKIE_NAMES = ['pdtsso-form', 'iPlanetDirectoryPro'];
+
 export class RVFUAuthService {
   private readonly config: AuthConfig;
   public tokens: AuthTokens | null = null;
   private readonly ssoBaseUrl: string;
+  private sessionCookie: { name: string; value: string } | null = null;
 
   constructor(config: AuthConfig) {
     this.config = config;
@@ -45,8 +52,9 @@ export class RVFUAuthService {
     try {
       this.saveCredentials(username, password);
 
-      // Step 1: OpenAM /authenticate → tokenId
-      const tokenId = await this.step1_authenticate(username, password);
+      // Step 1: OpenAM /authenticate → tokenId + session cookie
+      const { tokenId, sessionCookie } = await this.step1_authenticate(username, password);
+      this.sessionCookie = sessionCookie;
 
       // Step 2: OAuth2 /authorize → authorization code
       const code = await this.step2_authorize(tokenId);
@@ -67,8 +75,8 @@ export class RVFUAuthService {
   }
 
   // Step 1: POST /sso/json/authenticate
-  private async step1_authenticate(username: string, password: string): Promise<string> {
-    const url = `${this.ssoBaseUrl}/json/authenticate`;
+  private async step1_authenticate(username: string, password: string): Promise<{ tokenId: string; sessionCookie: { name: string; value: string } | null }> {
+    const url = `${this.ssoBaseUrl}/json${REALM_PATH}/authenticate`;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -91,11 +99,27 @@ export class RVFUAuthService {
       throw new Error(`Autenticazione fallita: ${msg}. Verifica username (DETO003001) e password.`);
     }
 
+    // Cattura session cookie dalla risposta (pdtsso-form o iPlanetDirectoryPro)
+    let sessionCookie: { name: string; value: string } | null = null;
+    const setCookieHeader = response.headers.get('set-cookie') || '';
+    for (const cookieName of SSO_COOKIE_NAMES) {
+      const match = setCookieHeader.match(new RegExp(`${cookieName}=([^;]+)`));
+      if (match) {
+        sessionCookie = { name: cookieName, value: match[1] };
+        console.log(`[RVFU Auth] Step 1: session cookie '${cookieName}' catturato`);
+        break;
+      }
+    }
+
     const data = await response.json();
-    if (!data.tokenId) throw new Error('Risposta senza tokenId');
+    console.log('[RVFU Auth] Step 1 response data:', JSON.stringify(data, null, 2).substring(0, 500));
+    if (!data.tokenId) {
+      console.error('[RVFU Auth] Step 1 ERRORE: tokenId mancante!', { data, keys: Object.keys(data || {}) });
+      throw new Error('Risposta senza tokenId');
+    }
 
     console.log('[RVFU Auth] Step 1 OK: tokenId ricevuto');
-    return data.tokenId;
+    return { tokenId: data.tokenId, sessionCookie };
   }
 
   // Step 2: POST /sso/oauth2/authorize → code (via redirect)
@@ -124,10 +148,11 @@ export class RVFUAuthService {
 
     console.log('[RVFU Auth] Step 2: BrowserWindow /authorize');
     const result = await openAuthWindow({
-      authorizeEndpoint: `${this.ssoBaseUrl}/oauth2/authorize`,
+      authorizeEndpoint: `${this.ssoBaseUrl}/oauth2${REALM_PATH}/authorize`,
       redirectUri: this.config.redirectUri,
       tokenId,
       authorizeParams,
+      sessionCookie: this.sessionCookie,
     });
 
     if (!result?.code) throw new Error('Nessun authorization code ricevuto dalla finestra browser');
@@ -147,10 +172,15 @@ export class RVFUAuthService {
       decision: 'allow',
     });
 
-    const response = await fetch(`${this.ssoBaseUrl}/oauth2/authorize`, {
+    // Usa il session cookie catturato da Step 1, con fallback a iPlanetDirectoryPro=tokenId
+    const cookieHeader = this.sessionCookie
+      ? `${this.sessionCookie.name}=${this.sessionCookie.value}`
+      : `iPlanetDirectoryPro=${tokenId}`;
+
+    const response = await fetch(`${this.ssoBaseUrl}/oauth2${REALM_PATH}/authorize`, {
       method: 'POST',
       headers: {
-        Cookie: `iPlanetDirectoryPro=${tokenId}`,
+        Cookie: cookieHeader,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
@@ -200,7 +230,7 @@ export class RVFUAuthService {
       client_secret: this.config.clientSecret,
     });
 
-    const response = await fetch(`${this.ssoBaseUrl}/oauth2/access_token`, {
+    const response = await fetch(`${this.ssoBaseUrl}/oauth2${REALM_PATH}/access_token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString(),
@@ -237,7 +267,7 @@ export class RVFUAuthService {
       client_secret: this.config.clientSecret,
     });
 
-    const response = await fetch(`${this.ssoBaseUrl}/oauth2/access_token`, {
+    const response = await fetch(`${this.ssoBaseUrl}/oauth2${REALM_PATH}/access_token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString(),

@@ -61,14 +61,18 @@ function registerRvfuIpc(handleSafe) {
   // ===== RVFU OAuth Authorization Window =====
   // SOLUZIONE 1: Usa la finestra unica per il login OAuth
   // Questo assicura che i cookie siano sempre disponibili nella stessa finestra
-  handleSafe('rvfu:open-auth-window', async ({ authUrl, redirectUri, tokenId, authorizeParams, authorizeEndpoint }) => {
+  handleSafe('rvfu:open-auth-window', async ({ authUrl, redirectUri, tokenId, authorizeParams, authorizeEndpoint, sessionCookie }) => {
     return new Promise((resolve, reject) => {
+      // sessionCookie: { name: 'pdtsso-form', value: '...' } dal nuovo server ACI
+      const ssoCookieName = sessionCookie?.name || 'iPlanetDirectoryPro';
+      const ssoCookieValue = sessionCookie?.value || tokenId;
       console.log('[RVFU IPC] Opening Electron BrowserWindow for RVFU auth:', {
         hasAuthUrl: !!authUrl,
         redirectUri,
         hasTokenId: !!tokenId,
         hasParams: !!authorizeParams,
         hasAuthorizeEndpoint: !!authorizeEndpoint,
+        ssoCookieName,
       });
 
       // Estrai il dominio SSO dall'authorizeEndpoint o dall'authUrl
@@ -131,17 +135,17 @@ function registerRvfuIpc(handleSafe) {
           // Forza SEMPRE l'aggiunta del cookie per richieste a /oauth2/authorize
           if (tokenId && details.url.includes('/oauth2/authorize')) {
             const existingCookie = details.requestHeaders['Cookie'] || '';
-            const hasCookie = existingCookie.includes('iPlanetDirectoryPro=');
+            const hasCookie = existingCookie.includes(`${ssoCookieName}=`) || existingCookie.includes('iPlanetDirectoryPro=') || existingCookie.includes('pdtsso-form=');
 
             if (!hasCookie) {
-              console.log('[RVFU IPC] ⚠ Cookie iPlanetDirectoryPro MISSING - Adding it now!');
+              console.log(`[RVFU IPC] ⚠ Cookie ${ssoCookieName} MISSING - Adding it now!`);
               details.requestHeaders['Cookie'] = existingCookie
-                ? `${existingCookie}; iPlanetDirectoryPro=${tokenId}`
-                : `iPlanetDirectoryPro=${tokenId}`;
+                ? `${existingCookie}; ${ssoCookieName}=${ssoCookieValue}`
+                : `${ssoCookieName}=${ssoCookieValue}`;
               console.log('[RVFU IPC] ✓ Cookie added. New Cookie header (first 150 chars):',
                 details.requestHeaders['Cookie'].substring(0, 150) + '...');
             } else {
-              console.log('[RVFU IPC] ✓ Cookie iPlanetDirectoryPro already present in request');
+              console.log(`[RVFU IPC] ✓ Cookie ${ssoCookieName} already present in request`);
             }
           }
 
@@ -228,17 +232,18 @@ function registerRvfuIpc(handleSafe) {
           },
         ];
 
-        console.log('\n=== [RVFU IPC] Setting iPlanetDirectoryPro Cookie ===');
+        console.log(`\n=== [RVFU IPC] Setting ${ssoCookieName} Cookie ===`);
         console.log('[RVFU IPC] Domain:', ssoDomain);
-        console.log('[RVFU IPC] TokenId length:', tokenId.length);
-        console.log('[RVFU IPC] TokenId preview:', tokenId.substring(0, 50) + '...');
+        console.log('[RVFU IPC] Cookie name:', ssoCookieName);
+        console.log('[RVFU IPC] Cookie value length:', ssoCookieValue.length);
+        console.log('[RVFU IPC] Cookie value preview:', ssoCookieValue.substring(0, 50) + '...');
 
         // Imposta il cookie per tutte le varianti possibili
         const cookiePromises = cookieVariants.map(variant => {
           const cookie = {
             url: variant.url,
-            name: 'iPlanetDirectoryPro',
-            value: tokenId,
+            name: ssoCookieName,
+            value: ssoCookieValue,
             domain: variant.domain,
             path: variant.path,
             secure: true,
@@ -261,8 +266,8 @@ function registerRvfuIpc(handleSafe) {
               return defaultSession.cookies.get({ url: variant.url });
             })
           ]).then(([authCookies, defaultCookies]) => {
-            const authCookie = authCookies.find(c => c.name === 'iPlanetDirectoryPro');
-            const defaultCookie = defaultCookies.find(c => c.name === 'iPlanetDirectoryPro');
+            const authCookie = authCookies.find(c => c.name === ssoCookieName);
+            const defaultCookie = defaultCookies.find(c => c.name === ssoCookieName);
 
             if (authCookie) {
               console.log('[RVFU IPC] ✓ Cookie verified for authWindow:', variant.url);
@@ -538,26 +543,26 @@ function registerRvfuIpc(handleSafe) {
           hasCookie: !!(details.requestHeaders['Cookie'] || details.requestHeaders['cookie'])
         });
 
-        // Recupera il cookie iPlanetDirectoryPro dalla sessione
+        // Recupera il session cookie SSO (pdtsso-form o iPlanetDirectoryPro) dalla sessione
         const ssoCookies = await session.defaultSession.cookies.get({ domain: 'ssoformazione.ilportaledeltrasporto.it' });
         const parentCookies = await session.defaultSession.cookies.get({ domain: '.ilportaledeltrasporto.it' });
-        const iPlanetCookie = [...ssoCookies, ...parentCookies].find(c => c.name === 'iPlanetDirectoryPro');
+        const allSessionCookies = [...ssoCookies, ...parentCookies];
+        const ssoCookie = allSessionCookies.find(c => c.name === 'pdtsso-form') || allSessionCookies.find(c => c.name === 'iPlanetDirectoryPro');
 
-        if (iPlanetCookie) {
+        if (ssoCookie) {
           const existingCookie = details.requestHeaders['Cookie'] || details.requestHeaders['cookie'] || '';
-          if (!existingCookie.includes('iPlanetDirectoryPro')) {
-            const iPlanetHeader = `iPlanetDirectoryPro=${iPlanetCookie.value}`;
+          if (!existingCookie.includes(ssoCookie.name)) {
+            const cookieHeader = `${ssoCookie.name}=${ssoCookie.value}`;
             const newCookieHeader = existingCookie
-              ? `${existingCookie}; ${iPlanetHeader}`
-              : iPlanetHeader;
+              ? `${existingCookie}; ${cookieHeader}`
+              : cookieHeader;
             details.requestHeaders['Cookie'] = newCookieHeader;
-            console.log('[RVFU IPC API] ✅ Cookie iPlanetDirectoryPro aggiunto alla richiesta API:', details.url.substring(0, 100));
-            console.log('[RVFU IPC API] 🔍 Cookie header length:', newCookieHeader.length);
+            console.log(`[RVFU IPC API] ✅ Cookie ${ssoCookie.name} aggiunto alla richiesta API:`, details.url.substring(0, 100));
           } else {
-            console.log('[RVFU IPC API] ✓ Cookie iPlanetDirectoryPro già presente nella richiesta');
+            console.log(`[RVFU IPC API] ✓ Cookie ${ssoCookie.name} già presente nella richiesta`);
           }
         } else {
-          console.warn('[RVFU IPC API] ⚠️ Cookie iPlanetDirectoryPro NON trovato nella sessione per richiesta:', details.url.substring(0, 100));
+          console.warn('[RVFU IPC API] ⚠️ Cookie SSO NON trovato nella sessione per richiesta:', details.url.substring(0, 100));
         }
 
         callback({ requestHeaders: details.requestHeaders });
@@ -589,22 +594,24 @@ function registerRvfuIpc(handleSafe) {
         console.log('[RVFU IPC API]   - ssoformazione.ilportaledeltrasporto.it:', ssoCookies.length);
         console.log('[RVFU IPC API]   - .ilportaledeltrasporto.it:', parentCookies.length);
 
-        // Cerca i cookie importanti
-        const iPlanetCookie = [...ssoCookies, ...parentCookies].find(c => c.name === 'iPlanetDirectoryPro');
+        // Cerca i cookie importanti (pdtsso-form ha priorità su iPlanetDirectoryPro)
+        const allSsoCookies = [...ssoCookies, ...parentCookies];
+        const SSO_COOKIE_NAMES = ['pdtsso-form', 'iPlanetDirectoryPro'];
+        const ssoCookieFound = allSsoCookies.find(c => SSO_COOKIE_NAMES.includes(c.name));
         const amFilterCookie = allCookies.find(c => c.name === 'amFilterCDSSORequest');
 
         const existingCookie = details.requestHeaders['Cookie'] || '';
         let cookieHeader = existingCookie;
 
-        // Aggiungi iPlanetDirectoryPro se mancante
-        if (iPlanetCookie && !existingCookie.includes('iPlanetDirectoryPro')) {
-          const iPlanetHeader = `iPlanetDirectoryPro=${iPlanetCookie.value}`;
-          cookieHeader = cookieHeader ? `${cookieHeader}; ${iPlanetHeader}` : iPlanetHeader;
-          console.log('[RVFU IPC API] ✅ Aggiungo cookie iPlanetDirectoryPro al POST CDSSO');
-        } else if (iPlanetCookie) {
-          console.log('[RVFU IPC API] ✓ Cookie iPlanetDirectoryPro già presente nel POST');
+        // Aggiungi session cookie SSO se mancante
+        if (ssoCookieFound && !existingCookie.includes(ssoCookieFound.name)) {
+          const ssoHeader = `${ssoCookieFound.name}=${ssoCookieFound.value}`;
+          cookieHeader = cookieHeader ? `${cookieHeader}; ${ssoHeader}` : ssoHeader;
+          console.log(`[RVFU IPC API] ✅ Aggiungo cookie ${ssoCookieFound.name} al POST CDSSO`);
+        } else if (ssoCookieFound) {
+          console.log(`[RVFU IPC API] ✓ Cookie ${ssoCookieFound.name} già presente nel POST`);
         } else {
-          console.warn('[RVFU IPC API] ⚠️ Cookie iPlanetDirectoryPro NON trovato per POST CDSSO!');
+          console.warn('[RVFU IPC API] ⚠️ Cookie SSO NON trovato per POST CDSSO!');
         }
 
         // Aggiungi amFilterCDSSORequest se presente (richiesto da ForgeRock)
@@ -1191,37 +1198,38 @@ function registerRvfuIpc(handleSafe) {
                       console.log('[RVFU IPC API] 🔐 ID token length:', idToken.length);
                       console.log('[RVFU IPC API] 🔐 ID token prefix:', idToken.substring(0, 50) + '...');
 
-                      // ✅ IMPORTANTE: Verifica e imposta il cookie iPlanetDirectoryPro PRIMA del POST
+                      // ✅ IMPORTANTE: Verifica e imposta il session cookie SSO PRIMA del POST
                       // Il cookie deve essere disponibile per formazione.ilportaledeltrasporto.it
                       const apiDomain = 'formazione.ilportaledeltrasporto.it';
                       const ssoDomain = 'ssoformazione.ilportaledeltrasporto.it';
 
-                      // Recupera il cookie dalla sessione
+                      // Recupera il cookie dalla sessione (pdtsso-form ha priorità)
                       const cookies = await session.defaultSession.cookies.get({ domain: ssoDomain });
-                      const iPlanetCookie = cookies.find(c => c.name === 'iPlanetDirectoryPro');
+                      const parentCookiesCSSSO = await session.defaultSession.cookies.get({ domain: '.ilportaledeltrasporto.it' });
+                      const allCdsso = [...cookies, ...parentCookiesCSSSO];
+                      const ssoCookieCdsso = allCdsso.find(c => c.name === 'pdtsso-form') || allCdsso.find(c => c.name === 'iPlanetDirectoryPro');
 
-                      if (iPlanetCookie) {
-                        console.log('[RVFU IPC API] 🔐 Cookie iPlanetDirectoryPro trovato nella sessione, impostazione per dominio API...');
+                      if (ssoCookieCdsso) {
+                        console.log(`[RVFU IPC API] 🔐 Cookie ${ssoCookieCdsso.name} trovato nella sessione, impostazione per dominio API...`);
 
                         // Imposta il cookie per il dominio API (formazione.ilportaledeltrasporto.it)
-                        // Questo garantisce che il cookie sia disponibile quando viene fatto il POST
                         try {
                           await session.defaultSession.cookies.set({
                             url: `https://${apiDomain}/`,
-                            name: 'iPlanetDirectoryPro',
-                            value: iPlanetCookie.value,
-                            domain: '.ilportaledeltrasporto.it', // Dominio parent per condivisione cross-subdomain
+                            name: ssoCookieCdsso.name,
+                            value: ssoCookieCdsso.value,
+                            domain: '.ilportaledeltrasporto.it',
                             path: '/',
                             secure: true,
                             httpOnly: true,
-                            sameSite: 'lax' // Permette invio con POST cross-site
+                            sameSite: 'lax'
                           });
-                          console.log('[RVFU IPC API] ✅ Cookie iPlanetDirectoryPro impostato per dominio API prima del CDSSO');
+                          console.log(`[RVFU IPC API] ✅ Cookie ${ssoCookieCdsso.name} impostato per dominio API prima del CDSSO`);
                         } catch (cookieError) {
                           console.error('[RVFU IPC API] ❌ Errore impostazione cookie per dominio API:', cookieError);
                         }
                       } else {
-                        console.warn('[RVFU IPC API] ⚠️ Cookie iPlanetDirectoryPro NON trovato nella sessione!');
+                        console.warn('[RVFU IPC API] ⚠️ Cookie SSO NON trovato nella sessione!');
                       }
 
                       // ✅ Intercetta TUTTI i console.log durante la navigazione CDSSO
@@ -3303,7 +3311,7 @@ function registerRvfuIpc(handleSafe) {
       codePrefix: code.substring(0, 20) + '...',
     });
 
-    const tokenUrl = `${ssoBaseUrl}/oauth2/access_token`;
+    const tokenUrl = `${ssoBaseUrl}/oauth2/realms/root/realms/pdtusers/access_token`;
     const params = new URLSearchParams();
     params.append('grant_type', 'authorization_code');
     params.append('code', code);
@@ -3472,12 +3480,14 @@ function registerRvfuIpc(handleSafe) {
       ]).then(([domainCookies, ssoCookies, parentCookies]) => {
 
         const allCookies = [...domainCookies, ...ssoCookies, ...parentCookies];
-        const iPlanetCookie = allCookies.find(c => c.name === 'iPlanetDirectoryPro');
+        // ✅ FIX 13/04/2026: Cerca entrambi i cookie (pdtsso-form ha priorità, poi iPlanetDirectoryPro)
+        const SSO_COOKIE_NAMES = ['pdtsso-form', 'iPlanetDirectoryPro'];
+        const ssoCookie = allCookies.find(c => SSO_COOKIE_NAMES.includes(c.name));
 
         console.log('[RVFU IPC API Direct] 🔍 Cookie disponibili:', {
           domain: domain,
           totalCookies: allCookies.length,
-          hasIPlanet: !!iPlanetCookie,
+          ssoCookieFound: ssoCookie ? ssoCookie.name : 'NONE',
           isAPIRest: isAPIRestRequest,
           cookieNames: allCookies.map(c => c.name)
         });
@@ -3485,10 +3495,10 @@ function registerRvfuIpc(handleSafe) {
         // ✅ FIX 02/03/2026: Usa session.defaultSession per invio automatico cookies
         // net.request con session gestisce domain matching, path, httpOnly, secure correttamente
         let cookieHeader = ''; // Non serve più - la session li invia automaticamente
-        if (iPlanetCookie) {
-          console.log('[RVFU IPC API Direct] ✅ iPlanetDirectoryPro trovato - session lo invierà automaticamente');
+        if (ssoCookie) {
+          console.log(`[RVFU IPC API Direct] ✅ Cookie SSO '${ssoCookie.name}' trovato - session lo invierà automaticamente`);
         } else {
-          console.warn('[RVFU IPC API Direct] ⚠️ iPlanetDirectoryPro NON trovato nella session!');
+          console.warn('[RVFU IPC API Direct] ⚠️ Cookie SSO (pdtsso-form o iPlanetDirectoryPro) NON trovato nella session!');
         }
 
         const request = net.request({

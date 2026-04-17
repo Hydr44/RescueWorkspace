@@ -17,6 +17,7 @@ import { useRVFUAuth } from '@/hooks/useRVFUAuth';
 import { createRVFUClient } from '@/lib/rvfu-client';
 import { useDemo } from '@/hooks/useDemo';
 import { mockVerificaVeicolo } from '@/lib/rvfu-mock';
+import { normalizeCausale } from '@/lib/rvfu-mapper';
 
 const TABLE = "demolition_cases";
 
@@ -166,7 +167,7 @@ const DemolizioneRVFUForm = () => {
         anno: '2010', colore: 'BIANCO', cilindrata: '1242', potenza: '51',
         dataPrimaImmatricolazione: '2010-03-15', flagConsegnaForzeOrdine: 'N',
         canaleNoPra: false, cic: '',
-        obbligoIscrizionePRA: 'S', demolizione_causale: 'ROTTAMAZIONE',
+        obbligoIscrizionePRA: 'S', demolizione_causale: 'D',
         demolizione_data: new Date().toISOString().split('T')[0], demolizione_km: '185000',
         demolizione_osservazioni: 'Veicolo incidentato, danni strutturali importanti',
         proprietario_tipoPersona: 'PF', proprietario_nome: 'MARIO', proprietario_cognome: 'ROSSI',
@@ -193,7 +194,7 @@ const DemolizioneRVFUForm = () => {
         anno: '2015', colore: 'GRIGIO', cilindrata: '1598', potenza: '77',
         dataPrimaImmatricolazione: '2015-06-20', flagConsegnaForzeOrdine: 'N',
         canaleNoPra: false, cic: '',
-        obbligoIscrizionePRA: 'S', demolizione_causale: 'DEMOLIZIONE',
+        obbligoIscrizionePRA: 'S', demolizione_causale: 'D',
         demolizione_data: new Date().toISOString().split('T')[0], demolizione_km: '220000',
         demolizione_osservazioni: 'Fine vita utile, motore fuso',
         proprietario_tipoPersona: 'PF', proprietario_nome: 'LUIGI', proprietario_cognome: 'VERDI',
@@ -220,7 +221,7 @@ const DemolizioneRVFUForm = () => {
         anno: '2018', colore: 'NERO', cilindrata: '124', potenza: '8',
         dataPrimaImmatricolazione: '2018-09-10', flagConsegnaForzeOrdine: 'N',
         canaleNoPra: true, cic: '',
-        obbligoIscrizionePRA: 'N', demolizione_causale: 'ROTTAMAZIONE',
+        obbligoIscrizionePRA: 'N', demolizione_causale: 'D',
         demolizione_data: new Date().toISOString().split('T')[0], demolizione_km: '35000',
         demolizione_osservazioni: 'Ciclomotore, gestione senza PRA (canale UMC)',
         proprietario_tipoPersona: 'PF', proprietario_nome: 'LARA', proprietario_cognome: 'BIANCHI',
@@ -247,7 +248,7 @@ const DemolizioneRVFUForm = () => {
         anno: '2012', colore: 'ROSSO', cilindrata: '1149', potenza: '55',
         dataPrimaImmatricolazione: '2012-11-05', flagConsegnaForzeOrdine: 'N',
         canaleNoPra: false, cic: '',
-        obbligoIscrizionePRA: 'S', demolizione_causale: 'CESSAZIONE',
+        obbligoIscrizionePRA: 'S', demolizione_causale: 'D',
         demolizione_data: new Date().toISOString().split('T')[0], demolizione_km: '310000',
         demolizione_osservazioni: 'Veicolo aziendale dismesso, elevato chilometraggio',
         proprietario_tipoPersona: 'PG', proprietario_nome: '', proprietario_cognome: '',
@@ -274,7 +275,7 @@ const DemolizioneRVFUForm = () => {
         anno: '2005', colore: 'BLU', cilindrata: '1388', potenza: '59',
         dataPrimaImmatricolazione: '2005-04-22', flagConsegnaForzeOrdine: 'S',
         canaleNoPra: false, cic: '',
-        obbligoIscrizionePRA: 'S', demolizione_causale: 'FURTO',
+        obbligoIscrizionePRA: 'S', demolizione_causale: 'D',
         demolizione_data: new Date().toISOString().split('T')[0], demolizione_km: '0',
         demolizione_osservazioni: 'Veicolo ritrovato dopo furto, consegnato da Forze Ordine, non riparabile',
         proprietario_tipoPersona: 'PF', proprietario_nome: 'ANNA', proprietario_cognome: 'NERI',
@@ -381,11 +382,10 @@ const DemolizioneRVFUForm = () => {
         // Fallback: usa causali di default se la tabella è vuota
         // (Non logghiamo warning perché il fallback funziona correttamente)
         setCausali([
-          { codice: 'ROTTAMAZIONE', descrizione: 'Rottamazione veicolo' },
-          { codice: 'DEMOLIZIONE', descrizione: 'Demolizione veicolo' },
-          { codice: 'CESSAZIONE', descrizione: 'Cessione veicolo' },
-          { codice: 'FURTO', descrizione: 'Furto veicolo' },
-          { codice: 'INCIDENTE', descrizione: 'Incidente stradale' }
+          { codice: 'D', descrizione: 'Demolizione' },
+          { codice: 'SD', descrizione: 'Demolizione (SD)' },
+          { codice: 'PA', descrizione: 'Demolizione su provvedimento PA' },
+          { codice: 'NN', descrizione: 'Veicoli non riconosciuti' }
         ]);
       }
       if (provinceRes.data) setProvince(provinceRes.data);
@@ -393,11 +393,10 @@ const DemolizioneRVFUForm = () => {
       logger.error('Error loading lookup data:', error);
       // Fallback in caso di errore
       setCausali([
-        { codice: 'ROTTAMAZIONE', descrizione: 'Rottamazione veicolo' },
-        { codice: 'DEMOLIZIONE', descrizione: 'Demolizione veicolo' },
-        { codice: 'CESSAZIONE', descrizione: 'Cessione veicolo' },
-        { codice: 'FURTO', descrizione: 'Furto veicolo' },
-        { codice: 'INCIDENTE', descrizione: 'Incidente stradale' }
+        { codice: 'D', descrizione: 'Demolizione' },
+        { codice: 'SD', descrizione: 'Demolizione (SD)' },
+        { codice: 'PA', descrizione: 'Demolizione su provvedimento PA' },
+        { codice: 'NN', descrizione: 'Veicoli non riconosciuti' }
       ]);
     }
   };
@@ -499,11 +498,20 @@ const DemolizioneRVFUForm = () => {
       errors.ricerca = 'Inserisci almeno la targa O il telaio';
     }
 
-    // Validazione: CF è opzionale se c'è la targa (per test)
-    // Se non c'è targa, CF diventa obbligatorio
-    const hasCF = searchParams.codiceFiscale && searchParams.codiceFiscale.trim().length > 0;
+    // Validazione CF
+    const cfTrimmed = searchParams.codiceFiscale?.trim() || '';
+    const hasCF = cfTrimmed.length > 0;
     if (!hasTarga && !hasCF) {
       errors.codiceFiscale = 'Inserisci il codice fiscale se non specifichi la targa';
+    }
+    // Validazione formato CF: 16 alfanumerico (PF) o 11 cifre (PG/P.IVA)
+    if (hasCF) {
+      const cfUpper = cfTrimmed.toUpperCase();
+      const isValidPF = /^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/.test(cfUpper);
+      const isValidPG = /^\d{11}$/.test(cfUpper);
+      if (!isValidPF && !isValidPG) {
+        errors.codiceFiscale = 'Codice fiscale non valido. Deve essere 16 caratteri (persona fisica) o 11 cifre (P.IVA)';
+      }
     }
 
     if (Object.keys(errors).length > 0) {
@@ -540,7 +548,13 @@ const DemolizioneRVFUForm = () => {
           telaio: searchParams.telaio?.trim() || undefined,
         });
         if (veicolo) {
-          showSuccess('Veicolo trovato!');
+          const cfFornito = searchParams.codiceFiscale?.trim();
+          const intestatarioTrovato = veicolo.proprietario || veicolo.soggettoVeicolo;
+          if (cfFornito && !intestatarioTrovato) {
+            showInfo('Veicolo trovato, ma il CF inserito non corrisponde all\'intestatario. Compila i dati intestatario manualmente.');
+          } else {
+            showSuccess('Veicolo trovato!');
+          }
         }
       } else {
         showError('Autenticazione RVFU richiesta per ricerca online.');
@@ -564,6 +578,8 @@ const DemolizioneRVFUForm = () => {
 
   const handleSelectVeicolo = (veicolo) => {
     // Popola i campi del form con i dati del veicolo trovato
+    const isPRA = veicolo.obbligoIscrizionePRA === 'S' || veicolo.obbligoIscrizionePraFlag === true;
+
     setFormData(prev => ({
       ...prev,
       // Dati veicolo
@@ -572,27 +588,36 @@ const DemolizioneRVFUForm = () => {
       numero_telaio: veicolo.telaio || prev.numero_telaio,
       marca: veicolo.marca || prev.marca,
       modello: veicolo.modello || prev.modello,
+      marca_modello: veicolo.marca_modello || `${veicolo.marca || ''} ${veicolo.modello || ''}`.trim() || prev.marca_modello,
       cilindrata: veicolo.cilindrata?.toString() || prev.cilindrata,
       potenza: veicolo.potenza?.toString() || prev.potenza,
       dataPrimaImmatricolazione: veicolo.dataPrimaImmatricolazione || veicolo.dataImmatricolazione || prev.dataPrimaImmatricolazione,
-      tipoVeicolo: searchParams.tipoVeicolo || prev.tipoVeicolo,
+      tipoVeicolo: veicolo.tipoVeicolo || searchParams.tipoVeicolo || prev.tipoVeicolo,
       demolizione_causale: searchParams.causale || prev.demolizione_causale,
-      // Campo PRA (importante per distinguere veicoli PRA/non PRA)
-      obbligoIscrizionePRA: veicolo.obbligoIscrizionePRA || (veicolo.obbligoIscrizionePraFlag ? 'S' : 'N') || prev.obbligoIscrizionePRA,
-      canaleNoPra: veicolo.canaleNoPra !== undefined ? veicolo.canaleNoPra : (veicolo.obbligoIscrizionePRA !== 'S'),
-      // Dati intestatario (se disponibili)
-      proprietario_cf: veicolo.proprietario?.codiceFiscale || veicolo.soggettoVeicolo?.codiceFiscale || searchParams.codiceFiscale || prev.proprietario_cf,
-      proprietario_nome: veicolo.proprietario?.nome || veicolo.soggettoVeicolo?.nome || prev.proprietario_nome,
-      proprietario_cognome: veicolo.proprietario?.cognome || veicolo.soggettoVeicolo?.cognome || prev.proprietario_cognome,
-      proprietario_indirizzoResidenza: veicolo.proprietario?.indirizzo || veicolo.soggettoVeicolo?.indirizzo || prev.proprietario_indirizzoResidenza,
+      cic: veicolo.cic || prev.cic,
+      // Campo PRA
+      obbligoIscrizionePRA: isPRA ? 'S' : 'N',
+      canaleNoPra: !isPRA,
+      // Dati intestatario (se disponibili dall'API — richiede codiceFiscale nella ricerca)
+      proprietario_cf: veicolo.proprietario?.codiceFiscale || searchParams.codiceFiscale || prev.proprietario_cf,
+      proprietario_nome: veicolo.proprietario?.nome || prev.proprietario_nome,
+      proprietario_cognome: veicolo.proprietario?.cognome || prev.proprietario_cognome,
+      proprietario_indirizzoResidenza: veicolo.proprietario?.indirizzo || prev.proprietario_indirizzoResidenza,
+      proprietario_dataNascita: veicolo.proprietario?.dataNascita || prev.proprietario_dataNascita,
+      proprietario_comuneNascita: veicolo.proprietario?.comuneNascita || prev.proprietario_comuneNascita,
+      proprietario_provinciaNascita: veicolo.proprietario?.provinciaNascita || prev.proprietario_provinciaNascita,
     }));
 
     // Chiudi il modal di ricerca
     setShowSearchModal(false);
     
-    // Mostra messaggio informativo sul tipo veicolo PRA/non PRA
-    const isPRA = veicolo.obbligoIscrizionePRA === 'S' || veicolo.obbligoIscrizionePraFlag === true;
-    showSuccess(`Dati veicolo caricati nel form${isPRA ? ' - Veicolo con obbligo PRA' : ' - Veicolo senza obbligo PRA'}`);
+    // Messaggio informativo
+    const hasIntestatario = !!veicolo.proprietario;
+    let msg = `Dati veicolo caricati - ${isPRA ? 'Con obbligo PRA' : 'Senza obbligo PRA'}`;
+    if (!hasIntestatario) {
+      msg += '\n\nNota: dati intestatario non disponibili. Per ottenerli, ripeti la ricerca inserendo anche il Codice Fiscale.';
+    }
+    showSuccess(msg);
   };
 
   const handleSubmit = async (e) => {
@@ -666,7 +691,7 @@ const DemolizioneRVFUForm = () => {
             canaleNoPra: formData.canaleNoPra,
             cic: formData.cic,
             obbligoIscrizionePRA: formData.obbligoIscrizionePRA,
-            causale: formData.demolizione_causale,
+            causale: normalizeCausale(formData.demolizione_causale),
             km: formData.demolizione_km,
             osservazioni: formData.demolizione_osservazioni,
             noteAggiuntive: formData.noteAggiuntive,
@@ -688,6 +713,33 @@ const DemolizioneRVFUForm = () => {
             residence_cap: formData.proprietario_capResidenza,
             phone: formData.proprietario_telefono,
             email: formData.proprietario_email,
+          },
+          intestatario: {
+            codiceFiscale: formData.proprietario_cf,
+            nome: formData.proprietario_nome,
+            cognome: formData.proprietario_cognome,
+            ragioneSociale: formData.proprietario_ragioneSociale,
+            tipoPersonaGiuridica: formData.proprietario_tipoPersona,
+            dataNascita: formData.proprietario_dataNascita,
+            codiceComuneNascita: formData.proprietario_codiceComuneNascita,
+            codiceProvinciaNascita: formData.proprietario_codiceProvinciaNascita,
+            comuneNascita: formData.proprietario_comuneNascita,
+            provinciaNascita: formData.proprietario_provinciaNascita,
+            statoNascita: formData.proprietario_statoNascita,
+            codiceStatoEsteroNascita: formData.proprietario_codiceStatoEsteroNascita,
+            localitaEsteraNascita: formData.proprietario_localitaEsteraNascita,
+            codiceComuneResidenza: formData.proprietario_codiceComuneResidenza,
+            codiceProvinciaResidenza: formData.proprietario_codiceProvinciaResidenza,
+            comuneResidenza: formData.proprietario_comuneResidenza,
+            provinciaResidenza: formData.proprietario_provinciaResidenza,
+            indirizzoResidenza: formData.proprietario_indirizzoResidenza,
+            numeroCivicoResidenza: formData.proprietario_numeroCivicoResidenza,
+            capResidenza: formData.proprietario_capResidenza,
+            dugResidenza: formData.proprietario_dugResidenza,
+            toponimoResidenza: formData.proprietario_toponimoResidenza,
+            statoResidenza: formData.proprietario_statoResidenza,
+            codiceStatoEsteroResidenza: formData.proprietario_codiceStatoEsteroResidenza,
+            localitaEsteraResidenza: formData.proprietario_localitaEsteraResidenza,
           },
           detentore: formData.showDetentore ? {
             tipo: formData.detentore_tipoPersona,
@@ -1011,16 +1063,19 @@ const DemolizioneRVFUForm = () => {
                     Canale No PRA
                   </label>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">CIC</label>
-                  <input
-                    type="text"
-                    value={formData.cic || ''}
-                    onChange={(e) => handleInputChange('cic', e.target.value)}
-                    placeholder="Codice identificativo"
-                    className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
-                  />
-                </div>
+                {/* CIC visibile solo per ciclomotori o se valore presente */}
+                {(formData.tipoVeicolo === 'C' || formData.cic) && (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">CIC <span className="text-slate-500">(Ciclomotori)</span></label>
+                    <input
+                      type="text"
+                      value={formData.cic || ''}
+                      onChange={(e) => handleInputChange('cic', e.target.value)}
+                      placeholder="Codice identificativo ciclomotore"
+                      className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1834,7 +1889,7 @@ const DemolizioneRVFUForm = () => {
                         targa: randomTarga,
                         telaio: '',
                         tipoVeicolo: 'A',
-                        causale: 'DEMOLIZIONE'
+                        causale: 'D'
                       });
                       setSearchErrors({});
                     }}
@@ -1850,7 +1905,7 @@ const DemolizioneRVFUForm = () => {
                           targa: e.target.value,
                           telaio: '',
                           tipoVeicolo: 'A',
-                          causale: 'DEMOLIZIONE'
+                          causale: 'D'
                         });
                         setSearchErrors({});
                         e.target.value = '';
@@ -2036,54 +2091,70 @@ const DemolizioneRVFUForm = () => {
                                          (veicolo.ostativiEForzature && veicolo.ostativiEForzature.length > 0) ||
                                          veicolo.radiabileFlag === false;
                       const isRadiabile = veicolo.radiabileFlag === true || veicolo.radiabile === 'S';
+                      const isPRA = veicolo.obbligoIscrizionePRA === 'S' || veicolo.obbligoIscrizionePraFlag === true;
+                      const displayModello = veicolo.marca_modello || `${veicolo.marca || ''} ${veicolo.modello || ''}`.trim();
                       
                       return (
                         <div
                           key={index}
-                          className="bg-[#1a2536]/5 rounded-lg p-4 border border-[#243044] hover:border-indigo-500 transition-colors cursor-pointer"
+                          className="bg-[#0f1923] rounded-lg p-4 border border-[#243044] hover:border-indigo-500 transition-colors cursor-pointer"
                           onClick={() => handleSelectVeicolo(veicolo)}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <FiTruck className="w-4 h-4 text-blue-400" />
-                                <span className="font-semibold text-white">{veicolo.targa || 'N/A'}</span>
-                                <span className="text-xs text-slate-500">
-                                  {veicolo.marca && veicolo.modello ? `- ${veicolo.marca} ${veicolo.modello}` : ''}
-                                </span>
+                              {/* Targa e Modello */}
+                              <div className="flex items-center gap-3 mb-3">
+                                <FiTruck className="w-5 h-5 text-blue-400" />
+                                <span className="font-bold text-white text-lg tracking-wider">{veicolo.targa || 'N/A'}</span>
+                                {displayModello && (
+                                  <span className="text-sm text-slate-300">{displayModello}</span>
+                                )}
                               </div>
                               
-                              <div className="text-xs text-slate-500 space-y-1 mb-3">
+                              {/* Griglia dati veicolo */}
+                              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs mb-3">
                                 {veicolo.telaio && (
-                                  <div>Telaio: {veicolo.telaio}</div>
+                                  <div className="text-slate-400"><span className="text-slate-500">Telaio:</span> {veicolo.telaio}</div>
                                 )}
-                                {veicolo.proprietario && (
-                                  <div>Intestatario: {veicolo.proprietario.nome} {veicolo.proprietario.cognome} ({veicolo.proprietario.codiceFiscale})</div>
+                                {(veicolo.dataPrimaImmatricolazione || veicolo.dataImmatricolazione) && (
+                                  <div className="text-slate-400"><span className="text-slate-500">Immatricolazione:</span> {veicolo.dataPrimaImmatricolazione || veicolo.dataImmatricolazione}</div>
                                 )}
-                                {veicolo.obbligoIscrizionePRA && (
-                                  <div className="flex items-center gap-2">
-                                    <span>PRA:</span>
-                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                      veicolo.obbligoIscrizionePRA === 'S' 
-                                        ? 'bg-blue-900/50 text-blue-300' 
-                                        : 'bg-[#1a2536] text-slate-500'
-                                    }`}>
-                                      {veicolo.obbligoIscrizionePRA === 'S' ? 'Con Obbligo PRA' : 'Senza Obbligo PRA'}
-                                    </span>
-                                  </div>
+                                {veicolo.pesoComplessivo && (
+                                  <div className="text-slate-400"><span className="text-slate-500">Peso:</span> {veicolo.pesoComplessivo} kg</div>
+                                )}
+                                {veicolo.tipoVeicolo && (
+                                  <div className="text-slate-400"><span className="text-slate-500">Tipo:</span> {veicolo.tipoVeicolo === 'A' ? 'Autoveicolo' : veicolo.tipoVeicolo === 'M' ? 'Motoveicolo' : veicolo.tipoVeicolo}</div>
+                                )}
+                              </div>
+
+                              {/* Badge PRA + Intestatario */}
+                              <div className="flex flex-wrap items-center gap-2 mb-3">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  isPRA ? 'bg-blue-900/50 text-blue-300' : 'bg-slate-800 text-slate-400'
+                                }`}>
+                                  {isPRA ? 'Con Obbligo PRA' : 'Senza Obbligo PRA'}
+                                </span>
+                                {veicolo.proprietario ? (
+                                  <span className="text-xs text-slate-400">
+                                    Intestatario: {veicolo.proprietario.nome} {veicolo.proprietario.cognome} ({veicolo.proprietario.codiceFiscale})
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-amber-400/70">
+                                    Intestatario: da compilare (inserisci CF nella ricerca per precompilare)
+                                  </span>
                                 )}
                               </div>
 
                               {/* Fermi Ostativi */}
                               {hasOstativi && (
-                                <div className="mt-3 p-3 bg-yellow-900/20 border border-yellow-600 rounded-lg">
+                                <div className="mt-2 p-3 bg-yellow-900/20 border border-yellow-600 rounded-lg">
                                   <div className="flex items-center gap-2 mb-2">
                                     <FiAlertCircle className="w-4 h-4 text-yellow-400" />
                                     <span className="text-sm font-semibold text-yellow-300">Fermi/Vincoli Ostativi</span>
                                   </div>
                                   <div className="text-xs text-yellow-200 space-y-1">
                                     {!isRadiabile && (
-                                      <div className="font-medium"> Veicolo NON radiabile</div>
+                                      <div className="font-medium">Veicolo NON radiabile</div>
                                     )}
                                     {veicolo.vincoloOstativo && (
                                       <div>Vincolo: {veicolo.vincoloOstativo}</div>
@@ -2107,7 +2178,7 @@ const DemolizioneRVFUForm = () => {
 
                               {/* Veicolo radiabile */}
                               {!hasOstativi && isRadiabile && (
-                                <div className="mt-3 p-2 bg-green-900/20 border border-green-600 rounded-lg">
+                                <div className="mt-2 p-2 bg-green-900/20 border border-green-600 rounded-lg">
                                   <div className="flex items-center gap-2 text-xs text-green-300">
                                     <FiCheckCircle className="w-4 h-4" />
                                     <span>Veicolo radiabile - Nessun vincolo ostativo</span>
@@ -2120,9 +2191,10 @@ const DemolizioneRVFUForm = () => {
                                 e.stopPropagation();
                                 handleSelectVeicolo(veicolo);
                               }}
-                              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm transition-colors ml-4"
+                              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors ml-4 shrink-0"
                             >
                               <FiCheck className="w-4 h-4" />
+                              Seleziona
                             </button>
                           </div>
                         </div>

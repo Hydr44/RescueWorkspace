@@ -13,7 +13,7 @@ export default function RVFULogin({ onSuccess, onCancel }) {
   
   const { login, isLoading, error, clearError } = useRVFUAuth(environment);
 
-  // Credenziali di test
+  // Credenziali di test (confermate da ACI 13/04/2026)
   const TEST_CREDENTIALS = {
     username: 'DETO003001',
     password: 'TEST.030',
