@@ -40,7 +40,7 @@ export function useDashboardData(orgId) {
     try {
       const { data: vfuCases, error } = await supabase
         .from('demolition_cases')
-        .select('id, targa, modello, processing_status, processing_started_at, created_at')
+        .select('id, targa, marca_modello, processing_status, processing_started_at, created_at')
         .eq('org_id', orgId)
         .neq('processing_status', 'completato')
         .order('processing_started_at', { ascending: true, nullsFirst: false });
@@ -78,10 +78,10 @@ export function useDashboardData(orgId) {
       // Certificati RENTRI in scadenza (<30gg)
       const { data: certs } = await supabase
         .from('rentri_org_certificates')
-        .select('id, tipo, scadenza, org_id')
+        .select('id, tipo_certificato, expires_at, org_id')
         .eq('org_id', orgId)
-        .gte('scadenza', new Date().toISOString())
-        .lte('scadenza', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
+        .gte('expires_at', new Date().toISOString())
+        .lte('expires_at', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
 
       // VFU oltre scadenza
       const { data: overdueVFU } = await supabase
@@ -128,7 +128,7 @@ export function useDashboardData(orgId) {
       // Certificati
       const { data: allCerts, error: certsError } = await supabase
         .from('rentri_org_certificates')
-        .select('scadenza, tipo')
+        .select('expires_at, tipo_certificato')
         .eq('org_id', orgId);
 
       const now = new Date();
@@ -142,13 +142,13 @@ export function useDashboardData(orgId) {
 
       if (!certsError && allCerts && allCerts.length > 0) {
         certificates = {
-          expired: allCerts.filter(c => c.scadenza && new Date(c.scadenza) < now).length,
+          expired: allCerts.filter(c => c.expires_at && new Date(c.expires_at) < now).length,
           expiring: allCerts.filter(c => {
-            if (!c.scadenza) return false;
-            const scad = new Date(c.scadenza);
+            if (!c.expires_at) return false;
+            const scad = new Date(c.expires_at);
             return scad >= now && scad <= in30Days;
           }).length,
-          valid: allCerts.filter(c => c.scadenza && new Date(c.scadenza) > in30Days).length
+          valid: allCerts.filter(c => c.expires_at && new Date(c.expires_at) > in30Days).length
         };
       }
 
@@ -204,7 +204,7 @@ export function useDashboardData(orgId) {
           name,
           internal_code,
           price_sell,
-          stock_quantity,
+          quantity,
           marketplace_listings!inner(id, created_at, status)
         `)
         .eq('org_id', orgId)
@@ -217,7 +217,7 @@ export function useDashboardData(orgId) {
         .from('spare_parts')
         .select('*', { count: 'exact', head: true })
         .eq('org_id', orgId)
-        .lt('stock_quantity', 5);
+        .lt('quantity', 5);
 
       return {
         topSellers: topSellers || [],
@@ -254,9 +254,9 @@ export function useDashboardData(orgId) {
       // Ultimi trasporti completati
       const { data: recentTransports } = await supabase
         .from('transports')
-        .select('id, cliente, created_at, status')
+        .select('id, customer_name, created_at, status')
         .eq('org_id', orgId)
-        .in('status', ['done', 'completato'])
+        .in('status', ['done', 'completed'])
         .order('created_at', { ascending: false })
         .limit(3);
 
@@ -264,7 +264,7 @@ export function useDashboardData(orgId) {
         activities.push({
           type: 'transport_completed',
           timestamp: t.created_at,
-          data: { cliente: t.cliente, id: t.id }
+          data: { cliente: t.customer_name, id: t.id }
         });
       });
 

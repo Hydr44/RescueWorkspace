@@ -43,7 +43,7 @@ function VFUCard({ vfu, phase }) {
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[10px] font-medium text-slate-300 truncate">{vfu.targa}</span>
-          <span className="text-[9px] text-slate-500">{vfu.modello || 'N/D'}</span>
+          <span className="text-[9px] text-slate-500">{vfu.marca_modello || 'N/D'}</span>
         </div>
         <FiTruck className="w-3 h-3 text-slate-600 flex-shrink-0" />
       </div>

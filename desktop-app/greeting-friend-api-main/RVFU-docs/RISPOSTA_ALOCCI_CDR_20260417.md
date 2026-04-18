@@ -1,13 +1,28 @@
 Ciao Massimiliano,
 
-grazie per la conferma. Il 1026 persiste anche oggi su tutte le targhe. Di seguito le chiamate esatte.
+abbiamo provato subito con AG004557 e AG004559 come indicato. Il 1026 persiste su entrambe.
+
+Test eseguiti il 18/04/2026 ore 08:33 CEST
 
 ---
 
-Genera certificato rottamazione (VFU #116007, VA189AJ)
+1. Stato attuale VFU #116002 (AG004557):
+
+GET https://formazione.ilportaledeltrasporto.it/rvfu/sh/cr/VFU/116002
+
+Risultato:
+  statoVFU: "PRESO IN CARICO"
+  dataPresaInCarico: null
+  idCertificato: null
+  idRicevuta: null
+  fascicolo: listaDocumenti = [] (vuoto, nessun CDR presente)
+
+---
+
+2. Genera certificato rottamazione (VFU #116002, AG004557):
 
 Request:
-POST https://formazione.ilportaledeltrasporto.it/rvfu/sh/cr/genera/certificatoRottamazione/116007
+POST https://formazione.ilportaledeltrasporto.it/rvfu/sh/cr/genera/certificatoRottamazione/116002
 Authorization: Bearer {id_token}
 Content-Type: application/json
 
@@ -25,10 +40,10 @@ Response:
 
 ---
 
-Genera certificato rottamazione (VFU #116012, VA100AJ — registrato oggi)
+3. Genera certificato rottamazione (VFU #116006, AG004559):
 
 Request:
-POST https://formazione.ilportaledeltrasporto.it/rvfu/sh/cr/genera/certificatoRottamazione/116012
+POST https://formazione.ilportaledeltrasporto.it/rvfu/sh/cr/genera/certificatoRottamazione/116006
 Authorization: Bearer {id_token}
 Content-Type: application/json
 
@@ -46,8 +61,29 @@ Response:
 
 ---
 
-Stesso errore 1026 su tutti i VFU, sia registrati ieri che oggi.
-Rimaniamo in attesa di conferma quando i Servizi Firma sono ripristinati.
+4. Genera ricevuta presa in carico (VFU #116002, AG004557):
+
+Request:
+POST https://formazione.ilportaledeltrasporto.it/rvfu/sh/cr/genera/ricevutaPresaInCarico/116002
+Authorization: Bearer {id_token}
+Content-Type: application/json
+
+{}
+
+Response:
+{
+  "result": null,
+  "esito": {
+    "responseStatus": "KO",
+    "message": "SI È VERIFICATO UN ERRORE SI PREGA DI RIPROVARE PIÙ TARDI",
+    "code": "1026"
+  }
+}
+
+---
+
+Il CDR non risulta emesso su nessuna delle due targhe (fascicolo vuoto, idCertificato null).
+Il 1026 persiste sia su genera CDR che su genera ricevuta.
 
 Grazie,
 Rescue Manager S.R.L.
