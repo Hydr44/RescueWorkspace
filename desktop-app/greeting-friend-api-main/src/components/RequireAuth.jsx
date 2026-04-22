@@ -69,7 +69,7 @@ export default function RequireAuth({ children }) {
   const location = useLocation();
   
   // Ottieni stato organizzazioni
-  const { loading: orgLoading } = useOrg();
+  const { loading: orgLoading, userId } = useOrg();
 
   // Controlla autenticazione OAuth
   const checkOAuthAuth = () => {
