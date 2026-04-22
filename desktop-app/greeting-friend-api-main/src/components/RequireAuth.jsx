@@ -6,16 +6,16 @@ import { OAuthService } from "@/lib/oauth";
 import { useOrg } from "@/context/OrgContext";
 import { FiLoader } from "react-icons/fi";
 
-function EnvironmentScreen({ title, message, hint, onLogout }) {
+function EnvironmentScreen({ title, message, hint, onLogout, isError }) {
   return (
     <div className="min-h-screen bg-[#0f1419] text-white flex items-center justify-center px-6">
       <div className="w-full max-w-lg">
-        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/10 backdrop-blur-xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)]">
-          <div className="absolute inset-0 bg-blue-500/5" />
+        <div className={`relative overflow-hidden rounded-3xl border ${isError ? 'border-red-500/30' : 'border-white/10'} bg-white/10 backdrop-blur-xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)]`}>
+          <div className={`absolute inset-0 ${isError ? 'bg-red-500/10' : 'bg-blue-500/5'}`} />
           <div className="relative p-8 space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.35em] text-indigo-200/80">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className={`w-2 h-2 rounded-full ${isError ? 'bg-red-400' : 'bg-emerald-400'} animate-pulse`} />
                 RescueManager
               </div>
               {onLogout && (
@@ -28,16 +28,31 @@ function EnvironmentScreen({ title, message, hint, onLogout }) {
               )}
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-semibold text-white drop-shadow-sm">{title}</h2>
+              <h2 className={`text-2xl font-semibold ${isError ? 'text-red-300' : 'text-white'} drop-shadow-sm`}>{title}</h2>
               <p className="text-sm text-indigo-100 leading-relaxed">{message}</p>
             </div>
-            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <div className="flex items-center justify-center w-12 h-12 rounded-full border-2 border-white/30 border-t-transparent animate-spin">
-                <FiLoader className="text-indigo-100" />
-              </div>
-              <div className="text-xs text-indigo-100/90">
-                {hint || "Stiamo completando le ultime verifiche. Operazione in corso..."}
-              </div>
+            <div className={`flex items-center gap-3 rounded-2xl border ${isError ? 'border-red-500/30 bg-red-500/10' : 'border-white/10 bg-white/5'} px-4 py-3`}>
+              {!isError ? (
+                <>
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full border-2 border-white/30 border-t-transparent animate-spin">
+                    <FiLoader className="text-indigo-100" />
+                  </div>
+                  <div className="text-xs text-indigo-100/90">
+                    {hint || "Stiamo completando le ultime verifiche. Operazione in corso..."}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/20 text-red-400">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="text-xs text-red-200/90">
+                    {hint || "Si è verificato un problema. Riprova più tardi."}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -80,6 +95,9 @@ export default function RequireAuth({ children }) {
   
   // Ottieni stato organizzazioni
   const { loading: orgLoading, userId } = useOrg();
+  
+  // Stato per rilevare problemi di connessione
+  const [connectionError, setConnectionError] = useState(false);
 
   // Funzione di logout manuale
   const handleManualLogout = async () => {
@@ -198,25 +216,25 @@ export default function RequireAuth({ children }) {
         // Loading completato
         setOrgsReady(true);
         
-        // Se loading completato ma userId è null, sessione scaduta
-        // Forza logout e redirect a login
+        // Se loading completato ma userId è null, mostra errore
+        // NON fare logout per evitare loop infinito
         if (!userId) {
-          console.warn("[RequireAuth] Session expired - no userId after org loading");
-          setAuthed(false);
+          console.warn("[RequireAuth] No userId after org loading - showing error");
+          setConnectionError(true);
         }
       }
     }
   }, [authed, orgLoading, userId]);
 
-  // Safety: se resta bloccato su "Preparazione ambiente" per più di 12s, forza logout
+  // Safety: se resta bloccato su "Preparazione ambiente" per più di 12s, mostra errore
   useEffect(() => {
     if (!authed) return;
     
     // Avvia timer solo se siamo in stato di loading
     if (orgLoading || !orgsReady) {
       const safetyTimer = setTimeout(() => {
-        console.error("[RequireAuth] Stuck on environment preparation for 12s, forcing logout");
-        setAuthed(false);
+        console.error("[RequireAuth] Stuck on environment preparation for 12s - showing error");
+        setConnectionError(true);
       }, 12000);
       
       return () => clearTimeout(safetyTimer);
@@ -238,6 +256,19 @@ export default function RequireAuth({ children }) {
       navigate(`/login?redirect=${encodeURIComponent(here)}`, { replace: true });
     }
   }, [authed, booted, location, navigate]);
+
+  // Mostra errore di connessione se rilevato
+  if (connectionError) {
+    return (
+      <EnvironmentScreen
+        title="Servizio temporaneamente non disponibile"
+        message="I nostri server stanno riscontrando problemi di connessione. Stiamo lavorando per risolvere il problema il prima possibile."
+        hint="Riprova tra qualche minuto. Se il problema persiste, contatta l'assistenza."
+        onLogout={handleManualLogout}
+        isError={true}
+      />
+    );
+  }
 
   if (!booted) {
     return (
