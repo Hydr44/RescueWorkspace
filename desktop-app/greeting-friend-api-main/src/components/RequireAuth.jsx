@@ -154,33 +154,33 @@ export default function RequireAuth({ children }) {
       if (orgLoading) {
         setOrgsReady(false);
       } else {
+        // Loading completato
         setOrgsReady(true);
         
         // Se loading completato ma userId è null, sessione scaduta
         // Forza logout e redirect a login
-        if (!orgLoading && !userId) {
+        if (!userId) {
           console.warn("[RequireAuth] Session expired - no userId after org loading");
           setAuthed(false);
-          setBooted(true);
         }
       }
     }
   }, [authed, orgLoading, userId]);
 
-  // Safety: se resta bloccato su "Preparazione ambiente" per più di 10s, forza logout
+  // Safety: se resta bloccato su "Preparazione ambiente" per più di 12s, forza logout
   useEffect(() => {
-    if (!authed || !booted) return;
+    if (!authed) return;
     
+    // Avvia timer solo se siamo in stato di loading
     if (orgLoading || !orgsReady) {
       const safetyTimer = setTimeout(() => {
-        console.error("[RequireAuth] Stuck on environment preparation for 10s, forcing logout");
+        console.error("[RequireAuth] Stuck on environment preparation for 12s, forcing logout");
         setAuthed(false);
-        setBooted(true);
-      }, 10000);
+      }, 12000);
       
       return () => clearTimeout(safetyTimer);
     }
-  }, [authed, booted, orgLoading, orgsReady]);
+  }, [authed, orgLoading, orgsReady]);
 
   // Redirect solo quando sappiamo di essere "booted"
   useEffect(() => {
