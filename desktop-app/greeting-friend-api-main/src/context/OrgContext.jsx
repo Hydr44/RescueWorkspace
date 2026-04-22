@@ -126,6 +126,8 @@ export function OrgProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const refreshRun = useRef(0);
+  const safetyTimeoutRef = useRef(null);
+  const lastRefreshTime = useRef(0);
 
   async function fetchRole(currentOrgId, forUserId) {
     const uid = forUserId || userId;
@@ -144,13 +146,28 @@ export function OrgProvider({ children }) {
   }
 
   async function refresh({ keepLoading = false } = {}) {
+    // Debounce: evita refresh troppo frequenti (max 1 ogni 2 secondi)
+    const now = Date.now();
+    if (now - lastRefreshTime.current < 2000 && keepLoading) {
+      console.log("[OrgContext] Refresh debounced (too soon)");
+      return;
+    }
+    lastRefreshTime.current = now;
+
     const runId = ++refreshRun.current;
     if (!keepLoading) setLoading(true);
 
+    // Cancella timeout precedente se esiste
+    if (safetyTimeoutRef.current) {
+      clearTimeout(safetyTimeoutRef.current);
+      safetyTimeoutRef.current = null;
+    }
+
     // Safety timeout: forza loading=false dopo 8 secondi
-    const safetyTimeout = setTimeout(() => {
+    safetyTimeoutRef.current = setTimeout(() => {
       console.warn("[OrgContext] Safety timeout reached, forcing loading=false");
       if (runId === refreshRun.current) setLoading(false);
+      safetyTimeoutRef.current = null;
     }, 8000);
 
     try {
@@ -181,7 +198,10 @@ export function OrgProvider({ children }) {
         console.warn("[OrgContext] No user found, clearing state");
         setUserId(null); setOrgId(null); setOrgs([]); setRole(null);
         try { localStorage.removeItem(LS_KEY); } catch {}
-        clearTimeout(safetyTimeout);
+        if (safetyTimeoutRef.current) {
+          clearTimeout(safetyTimeoutRef.current);
+          safetyTimeoutRef.current = null;
+        }
         return;
       }
       setUserId(user.id);
@@ -245,7 +265,10 @@ export function OrgProvider({ children }) {
       setUserId(null); setOrgId(null); setOrgs([]); setRole(null);
       try { localStorage.removeItem(LS_KEY); } catch {}
     } finally {
-      clearTimeout(safetyTimeout);
+      if (safetyTimeoutRef.current) {
+        clearTimeout(safetyTimeoutRef.current);
+        safetyTimeoutRef.current = null;
+      }
       if (runId === refreshRun.current) {
         setLoading(false);
         console.log("[OrgContext] Loading complete");
@@ -299,23 +322,13 @@ export function OrgProvider({ children }) {
     window.addEventListener("storage", onStorage);
     window.addEventListener("oauth-tokens-saved", onOAuthTokensSaved);
     
-    // Monitora i token OAuth (con debounce per evitare loop) - solo come fallback
-    let lastCheck = 0;
-    const checkInterval = setInterval(() => {
-      const now = Date.now();
-      if (now - lastCheck < 2000) return; // Debounce: max 1 check ogni 2 secondi
-      lastCheck = now;
-      
-      const tokens = localStorage.getItem("rm-oauth-tokens");
-      if (tokens && !userId) {
-        refresh({ keepLoading: true });
-      }
-    }, 1000); // Check ogni secondo invece di 500ms
+    // Polling OAuth disabilitato - usa solo eventi custom
+    // Il polling causava refresh continui e timeout multipli
+    // Gli eventi "oauth-tokens-saved" e "storage" sono sufficienti
     
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("oauth-tokens-saved", onOAuthTokensSaved);
-      clearInterval(checkInterval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
