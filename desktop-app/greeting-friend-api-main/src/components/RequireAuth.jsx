@@ -6,16 +6,26 @@ import { OAuthService } from "@/lib/oauth";
 import { useOrg } from "@/context/OrgContext";
 import { FiLoader } from "react-icons/fi";
 
-function EnvironmentScreen({ title, message, hint }) {
+function EnvironmentScreen({ title, message, hint, onLogout }) {
   return (
     <div className="min-h-screen bg-[#0f1419] text-white flex items-center justify-center px-6">
       <div className="w-full max-w-lg">
         <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/10 backdrop-blur-xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)]">
           <div className="absolute inset-0 bg-blue-500/5" />
           <div className="relative p-8 space-y-6">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.35em] text-indigo-200/80">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              RescueManager
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.35em] text-indigo-200/80">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                RescueManager
+              </div>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors px-3 py-1 rounded-lg border border-red-400/30 hover:border-red-400/50 hover:bg-red-400/10"
+                >
+                  Esci
+                </button>
+              )}
             </div>
             <div className="space-y-2">
               <h2 className="text-2xl font-semibold text-white drop-shadow-sm">{title}</h2>
@@ -70,6 +80,37 @@ export default function RequireAuth({ children }) {
   
   // Ottieni stato organizzazioni
   const { loading: orgLoading, userId } = useOrg();
+
+  // Funzione di logout manuale
+  const handleManualLogout = async () => {
+    console.log("[RequireAuth] Manual logout triggered");
+    
+    // Pulisci OAuth tokens
+    try {
+      localStorage.removeItem("rm-oauth-tokens");
+      localStorage.removeItem("rm-auth");
+      localStorage.removeItem("rm:current_org");
+    } catch (e) {
+      console.error("[RequireAuth] Error clearing localStorage:", e);
+    }
+
+    // Logout da Supabase
+    if (isSupabaseReady) {
+      try {
+        const supabase = supabaseBrowser();
+        await supabase.auth.signOut();
+      } catch (e) {
+        console.error("[RequireAuth] Error signing out from Supabase:", e);
+      }
+    }
+
+    // Forza stato logout
+    setAuthed(false);
+    setBooted(true);
+    
+    // Redirect a login
+    navigate("/login", { replace: true });
+  };
 
   // Controlla autenticazione OAuth
   const checkOAuthAuth = () => {
@@ -204,6 +245,7 @@ export default function RequireAuth({ children }) {
         title="Preparazione sessione"
         message="Stiamo verificando la tua sessione corrente e sincronizzando i dati di accesso."
         hint="Questo richiederà solo qualche secondo."
+        onLogout={handleManualLogout}
       />
     );
   }
@@ -214,7 +256,8 @@ export default function RequireAuth({ children }) {
         <EnvironmentScreen
           title="Preparazione ambiente"
           message="Stiamo caricando la tua organizzazione, le preferenze utente e i dati operativi."
-          hint="Puoi chiudere questa finestra solo quando la configurazione è completata."
+          hint="Se l'operazione impiega troppo tempo, prova a uscire e rifare l'accesso."
+          onLogout={handleManualLogout}
         />
       );
     }
@@ -227,6 +270,7 @@ export default function RequireAuth({ children }) {
       title="Sessione non valida"
       message="Non abbiamo trovato una sessione attiva. Tra pochi istanti verrai reindirizzato alla schermata di accesso."
       hint="Se il problema persiste, effettua di nuovo l'accesso."
+      onLogout={handleManualLogout}
     />
   );
 }
