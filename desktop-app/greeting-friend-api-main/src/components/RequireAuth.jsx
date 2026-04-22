@@ -155,9 +155,32 @@ export default function RequireAuth({ children }) {
         setOrgsReady(false);
       } else {
         setOrgsReady(true);
+        
+        // Se loading completato ma userId è null, sessione scaduta
+        // Forza logout e redirect a login
+        if (!orgLoading && !userId) {
+          console.warn("[RequireAuth] Session expired - no userId after org loading");
+          setAuthed(false);
+          setBooted(true);
+        }
       }
     }
-  }, [authed, orgLoading]);
+  }, [authed, orgLoading, userId]);
+
+  // Safety: se resta bloccato su "Preparazione ambiente" per più di 10s, forza logout
+  useEffect(() => {
+    if (!authed || !booted) return;
+    
+    if (orgLoading || !orgsReady) {
+      const safetyTimer = setTimeout(() => {
+        console.error("[RequireAuth] Stuck on environment preparation for 10s, forcing logout");
+        setAuthed(false);
+        setBooted(true);
+      }, 10000);
+      
+      return () => clearTimeout(safetyTimer);
+    }
+  }, [authed, booted, orgLoading, orgsReady]);
 
   // Redirect solo quando sappiamo di essere "booted"
   useEffect(() => {
