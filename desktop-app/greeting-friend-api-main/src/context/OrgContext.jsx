@@ -71,7 +71,8 @@ async function loadMyOrganizations(supabase, userId) {
     .eq("user_id", userId);
   
   if (memError) {
-    return [];
+    console.error("[OrgContext] Error loading org_members:", memError);
+    // Non bloccare, prova fallback
   }
 
   const ids = Array.from(new Set((mem || []).map(m => m.org_id))).filter(Boolean);
@@ -146,6 +147,12 @@ export function OrgProvider({ children }) {
     const runId = ++refreshRun.current;
     if (!keepLoading) setLoading(true);
 
+    // Safety timeout: forza loading=false dopo 8 secondi
+    const safetyTimeout = setTimeout(() => {
+      console.warn("[OrgContext] Safety timeout reached, forcing loading=false");
+      if (runId === refreshRun.current) setLoading(false);
+    }, 8000);
+
     try {
       // Prima prova OAuth
       const { OAuthService } = await import("@/lib/oauth");
@@ -164,33 +171,37 @@ export function OrgProvider({ children }) {
         }
       }
       
-      // Fallback a Supabase con timeout più lungo per primo avvio
+      // Fallback a Supabase con timeout ridotto
       if (!user) {
-        const session = await waitForSessionReady(supabase, { timeoutMs: 5000 });
+        const session = await waitForSessionReady(supabase, { timeoutMs: 3000 });
         user = session?.user || (await readUserSafe(supabase));
       }
       
       if (!user) {
+        console.warn("[OrgContext] No user found, clearing state");
         setUserId(null); setOrgId(null); setOrgs([]); setRole(null);
         try { localStorage.removeItem(LS_KEY); } catch {}
+        clearTimeout(safetyTimeout);
         return;
       }
       setUserId(user.id);
       
-      // Retry con backoff incrementale per garantire caricamento al primo avvio
+      // Retry con backoff ridotto per evitare blocchi
       let myOrgs = [];
       try {
         myOrgs = await retryWithBackoff(() => {
           return loadMyOrganizations(supabase, user.id);
         }, { 
-          maxRetries: 4,
-          delayMs: 500 
+          maxRetries: 2,
+          delayMs: 300 
         });
       } catch (err) {
-        console.error("[OrgContext] Error loading orgs:", err);
+        console.error("[OrgContext] Error loading orgs (will continue anyway):", err);
+        // Continua anche se fallisce - l'utente può selezionare org dopo
       }
       
       myOrgs = Array.isArray(myOrgs) ? myOrgs : [];
+      console.log("[OrgContext] Loaded orgs:", myOrgs.length);
 
       let nextOrgId = null;
       try {
@@ -230,11 +241,15 @@ export function OrgProvider({ children }) {
         }
       }
     } catch (e) {
-      console.warn("[OrgContext] refresh failed:", e);
+      console.error("[OrgContext] refresh failed:", e);
       setUserId(null); setOrgId(null); setOrgs([]); setRole(null);
       try { localStorage.removeItem(LS_KEY); } catch {}
     } finally {
-      if (runId === refreshRun.current) setLoading(false);
+      clearTimeout(safetyTimeout);
+      if (runId === refreshRun.current) {
+        setLoading(false);
+        console.log("[OrgContext] Loading complete");
+      }
     }
   }
 

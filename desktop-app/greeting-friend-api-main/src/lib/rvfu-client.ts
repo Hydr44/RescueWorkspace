@@ -42,8 +42,26 @@ export interface VeicoloInfo {
     cognome?: string;
     nome?: string;
     dataNascita?: string;
+    tipoSoggettoEnum?: string;
+    // Nascita
     comuneNascita?: string;
+    codiceComuneNascita?: string;
     provinciaNascita?: string;
+    codiceProvinciaNascita?: string;
+    siglaProvinciaNascita?: string;
+    statoEsteroNascita?: string;
+    localitaEsteraNascita?: string;
+    // Residenza
+    comuneResidenza?: string;
+    codiceComuneResidenza?: string;
+    provinciaResidenza?: string;
+    codiceProvinciaResidenza?: string;
+    siglaProvinciaResidenza?: string;
+    indirizzoResidenza?: string;
+    numeroCivicoResidenza?: string;
+    capResidenza?: string;
+    dugResidenza?: string;
+    toponimoResidenza?: string;
     indirizzo?: string;
   } | null;
   soggettoVeicolo?: any;
@@ -90,8 +108,12 @@ function normalizeCausale(causale: string): string {
 
 // Targhe di test ambiente formazione (confermate da ACI 26/02/2026)
 export const TARGHE_TEST_FORMAZIONE = [
-  'VA076AJ', 'VA185AJ', 'VA187AJ', 'VA189AJ',
-  'VA205AJ', 'VA207AJ', 'VA209AJ',
+  // Trattori (tipoVeicolo T) — registrazione confermata funzionante
+  'AG004557', 'AG004559', 'AG004561', 'AG004563',
+  // Autoveicoli con CF NTSPRM71L20H501B — ricerca veicolo funzionante
+  'VA189AJ', 'VA227AJ', 'VA229AJ', 'VA231AJ',
+  // Altre targhe ambiente formazione (da verificare)
+  'VA076AJ', 'VA185AJ', 'VA187AJ', 'VA205AJ', 'VA207AJ', 'VA209AJ',
 ];
 
 // URL API per ambiente
@@ -319,14 +341,36 @@ export class RVFUClient {
       destinazioneVeicolo: veicolo.destinazioneVeicolo,
       regimeVeicolo: veicolo.regimeVeicolo,
       // Soggetto/intestatario (null se non fornito CF nella ricerca)
+      // L'API ACI restituisce provincia/comune come oggetti nested:
+      //   provinciaResidenza: { codice: "058", denominazione: "ROMA", sigla: "RM" }
+      //   comuneResidenza: { codice: "091", denominazione: "ROMA" }
       proprietario: soggetto ? {
         codiceFiscale: soggetto.codiceFiscale,
         cognome: soggetto.cognome,
         nome: soggetto.nome,
         dataNascita: fixDate(soggetto.dataNascita),
-        comuneNascita: soggetto.comuneNascita,
-        provinciaNascita: soggetto.provinciaNascita,
-        indirizzo: soggetto.indirizzo,
+        tipoSoggettoEnum: soggetto.tipoSoggettoEnum,
+        // Nascita — possono essere null, stringhe o oggetti
+        comuneNascita: typeof soggetto.comuneNascita === 'object' ? soggetto.comuneNascita?.denominazione : soggetto.comuneNascita,
+        codiceComuneNascita: typeof soggetto.comuneNascita === 'object' ? soggetto.comuneNascita?.codice : undefined,
+        provinciaNascita: typeof soggetto.provinciaNascita === 'object' ? soggetto.provinciaNascita?.denominazione : soggetto.provinciaNascita,
+        codiceProvinciaNascita: typeof soggetto.provinciaNascita === 'object' ? soggetto.provinciaNascita?.codice : undefined,
+        siglaProvinciaNascita: typeof soggetto.provinciaNascita === 'object' ? soggetto.provinciaNascita?.sigla : undefined,
+        statoEsteroNascita: soggetto.statoEsteroNascita,
+        localitaEsteraNascita: soggetto.localitaEsteraNascita,
+        // Residenza — sempre oggetti nested dall'ACI
+        comuneResidenza: typeof soggetto.comuneResidenza === 'object' ? soggetto.comuneResidenza?.denominazione : soggetto.comuneResidenza,
+        codiceComuneResidenza: typeof soggetto.comuneResidenza === 'object' ? soggetto.comuneResidenza?.codice : undefined,
+        provinciaResidenza: typeof soggetto.provinciaResidenza === 'object' ? soggetto.provinciaResidenza?.denominazione : soggetto.provinciaResidenza,
+        codiceProvinciaResidenza: typeof soggetto.provinciaResidenza === 'object' ? soggetto.provinciaResidenza?.codice : undefined,
+        siglaProvinciaResidenza: typeof soggetto.provinciaResidenza === 'object' ? soggetto.provinciaResidenza?.sigla : undefined,
+        // Indirizzo residenza
+        indirizzoResidenza: soggetto.indirizzoResidenza,
+        numeroCivicoResidenza: soggetto.numeroCivicoResidenza,
+        capResidenza: soggetto.capResidenza,
+        dugResidenza: soggetto.dugResidenza,
+        toponimoResidenza: soggetto.toponimoResidenza,
+        indirizzo: soggetto.indirizzo || soggetto.indirizzoResidenza,
       } : null,
       soggettoVeicolo: soggetto,
       codiceFiscale: soggetto?.codiceFiscale,
@@ -353,14 +397,7 @@ export class RVFUClient {
    * GET /cr/consulta/VFU — Lista VFU registrati
    */
   async consultaVFUConcessionario(filters: any = {}): Promise<any> {
-    const params: Record<string, string> = {};
-    if (filters.pageNumber !== undefined) params.pageNumber = String(filters.pageNumber);
-    if (filters.pageSize !== undefined) params.pageSize = String(filters.pageSize);
-    if (filters.paged !== undefined) params.paged = String(filters.paged);
-    if (filters.targa) params.targa = filters.targa;
-    if (filters.telaio) params.telaio = filters.telaio;
-    if (filters.statoVFU) params.statoVFU = filters.statoVFU;
-
+    const params = this.buildListFilters(filters);
     console.log('[RVFU Client] consultaVFU:', params);
     return this.makeRequest('/cr/consulta/VFU', {
       method: 'GET',
@@ -470,22 +507,18 @@ export class RVFUClient {
    * GET /cr/consultaPresaInCarico/VFU — Lista VFU da prendere in carico
    */
   async consultaPresaInCarico(filters: any = {}): Promise<any> {
-    const params: Record<string, string> = {};
-    if (filters.pageNumber !== undefined) params.pageNumber = String(filters.pageNumber);
-    if (filters.pageSize !== undefined) params.pageSize = String(filters.pageSize);
     return this.makeRequest('/cr/consultaPresaInCarico/VFU', {
       method: 'GET',
-      params,
+      params: this.buildListFilters(filters),
     });
   }
 
   /**
-   * GET /cr/agenziaSTA — Ricerca agenzia STA
+   * GET /cr/agenziaSTA/{codiceAgenzia} — Ricerca agenzia STA
    */
-  async ricercaAgenziaSTA(params: Record<string, string> = {}): Promise<any> {
-    return this.makeRequest('/cr/agenziaSTA', {
+  async ricercaAgenziaSTA(codiceAgenzia: string): Promise<any> {
+    return this.makeRequest(`/cr/agenziaSTA/${encodeURIComponent(codiceAgenzia)}`, {
       method: 'GET',
-      params,
     });
   }
 

@@ -3572,11 +3572,33 @@ function registerRvfuIpc(handleSafe) {
           console.log('[RVFU IPC API Direct] 🧪 TEST 3: Usando Bearer Token + Cookie insieme');
         }
 
+        // ✅ Timeout per evitare hang infiniti (30 secondi)
+        const REQUEST_TIMEOUT_MS = 30000;
+        const requestTimeout = setTimeout(() => {
+          console.error(`[RVFU IPC API Direct] ❌ TIMEOUT ${REQUEST_TIMEOUT_MS}ms - la richiesta ${method} non ha ricevuto risposta`);
+          try { request.abort(); } catch (e) { /* ignore */ }
+          reject(new Error(`Timeout: il server non ha risposto entro ${REQUEST_TIMEOUT_MS / 1000} secondi per ${method} ${url.substring(0, 80)}`));
+        }, REQUEST_TIMEOUT_MS);
+
+        // ✅ Gestione redirect — per POST non seguire redirect (perde il body)
+        request.on('redirect', (statusCode, redirectMethod, redirectUrl) => {
+          console.warn('[RVFU IPC API Direct] ⚠️ REDIRECT ricevuto:', { statusCode, redirectMethod, redirectUrl: redirectUrl?.substring(0, 150), originalMethod: method });
+          if (method === 'POST' || method === 'PUT') {
+            clearTimeout(requestTimeout);
+            console.error(`[RVFU IPC API Direct] ❌ Redirect su ${method} — NON seguo (perderebbe il body). Probabile CDSSO.`);
+            reject(new Error(`Il server ha rediretto la richiesta ${method} (${statusCode}). Possibile sessione scaduta — rifai login RVFU.`));
+          } else {
+            console.log('[RVFU IPC API Direct] ↪️ Seguo redirect per', method);
+            request.followRedirect();
+          }
+        });
+
         // Gestisci la risposta
         let responseData = Buffer.alloc(0);
         let isJSON = false;
 
         request.on('response', (response) => {
+          clearTimeout(requestTimeout);
           const contentType = response.headers['content-type'] || '';
           isJSON = contentType.includes('application/json');
 
@@ -3728,8 +3750,15 @@ function registerRvfuIpc(handleSafe) {
                 console.log('[RVFU IPC API Direct] ✅ Richiesta completata con successo');
                 resolve(data);
               } else {
-                console.error('[RVFU IPC API Direct] ❌ Errore nella risposta:', response.statusCode, response.statusMessage);
-                reject(new Error(`API call failed: ${response.statusCode} ${response.statusMessage}`));
+                // Estrai dettagli errore dal body per diagnostica
+                let errorDetail = '';
+                if (typeof data === 'object' && data !== null) {
+                  errorDetail = data?.esito?.message || data?.message || JSON.stringify(data).substring(0, 300);
+                } else if (typeof data === 'string') {
+                  errorDetail = data.substring(0, 300);
+                }
+                console.error('[RVFU IPC API Direct] ❌ Errore nella risposta:', response.statusCode, response.statusMessage, errorDetail);
+                reject(new Error(`API call failed: ${response.statusCode} ${response.statusMessage}${errorDetail ? ' — ' + errorDetail : ''}`));
               }
             } catch (error) {
               console.error('[RVFU IPC API Direct] ❌ Errore parsing risposta:', error);
@@ -3769,6 +3798,7 @@ function registerRvfuIpc(handleSafe) {
             });
           }
 
+          clearTimeout(requestTimeout);
           // ✅ FIX: Crea errore con dettagli completi
           const enhancedError = new Error(`rvfu:api-call-direct: ${error?.message || 'Unknown error'}${error?.code ? ` (${error.code})` : ''}`);
           enhancedError.code = error?.code;
@@ -3781,9 +3811,11 @@ function registerRvfuIpc(handleSafe) {
         // Invia il body se presente
         if (body) {
           const bodyBuffer = Buffer.from(typeof body === 'string' ? body : JSON.stringify(body), 'utf-8');
+          console.log(`[RVFU IPC API Direct] 📤 Invio body: ${bodyBuffer.length} bytes, method: ${method}`);
           request.write(bodyBuffer);
         }
 
+        console.log(`[RVFU IPC API Direct] 📤 request.end() — in attesa risposta...`);
         request.end();
       }).catch((error) => {
         console.error('[RVFU IPC API Direct] ❌ Errore preparazione richiesta:', error);

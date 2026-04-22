@@ -1,6 +1,6 @@
 import React from 'react';
 import { FiCheck, FiCircle } from 'react-icons/fi';
-import { getWorkflowSteps, getStatoBadgeColor } from '@/lib/vfu-state-machine';
+import { getWorkflowSteps, getStatoColors } from '@/lib/vfu-state-machine';
 
 const VFUWorkflowStepper = ({ statoCorrente }) => {
   const steps = getWorkflowSteps(statoCorrente);
@@ -23,7 +23,7 @@ const VFUWorkflowStepper = ({ statoCorrente }) => {
         {/* Steps */}
         <div className="relative flex justify-between">
           {steps.map((step, idx) => {
-            const color = getStatoBadgeColor(step.stato);
+            const colors = getStatoColors(step.stato);
             let bgColor = 'bg-gray-700';
             let textColor = 'text-gray-400';
             let ringColor = 'ring-gray-600';
@@ -33,9 +33,9 @@ const VFUWorkflowStepper = ({ statoCorrente }) => {
               textColor = 'text-white';
               ringColor = 'ring-green-500';
             } else if (step.isCurrent) {
-              bgColor = `bg-${color}-600`;
+              bgColor = colors.bg;
               textColor = 'text-white';
-              ringColor = `ring-${color}-500`;
+              ringColor = colors.ring;
             }
 
             return (

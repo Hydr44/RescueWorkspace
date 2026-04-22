@@ -61,7 +61,7 @@ export function useDashboardData(orgId) {
       ];
 
       phases.forEach(phase => {
-        pipeline[phase] = vfuData?.filter(v => v.processing_status === phase) || [];
+        pipeline[phase] = vfuCases?.filter(v => v.processing_status === phase) || [];
       });
 
       return pipeline;

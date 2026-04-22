@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   FiEdit, FiX, FiCheckCircle, FiSend, FiTrash2, FiUserPlus, 
-  FiShuffle, FiUnlock, FiFileText, FiAward, FiPaperclip, FiTruck 
+  FiShuffle, FiUnlock, FiFileText, FiAward, FiPaperclip, FiTruck, FiSearch, FiLoader
 } from 'react-icons/fi';
 import { getAzioniDisponibili } from '@/lib/vfu-state-machine';
 import LoadingButton from '@/components/ui/LoadingButton';
@@ -12,11 +12,110 @@ const ICON_MAP = {
   FiShuffle, FiUnlock, FiFileText, FiAward, FiPaperclip, FiTruck
 };
 
+const STASearchField = ({ rvfuClient, value, onChange }) => {
+  const [searchCode, setSearchCode] = useState(value || '');
+  const [searching, setSearching] = useState(false);
+  const [agenzia, setAgenzia] = useState(null);
+  const [error, setError] = useState('');
+
+  const handleSearch = async () => {
+    if (!searchCode.trim() || !rvfuClient) return;
+    setSearching(true);
+    setError('');
+    setAgenzia(null);
+    try {
+      const response = await rvfuClient.ricercaAgenziaSTA(searchCode.trim().toUpperCase());
+      const esito = response?.esito;
+      const result = response?.result ?? response?.payload;
+      if (result?.codiceAgenzia) {
+        setAgenzia(result);
+        onChange(result.codiceAgenzia, result);
+      } else {
+        const msg = esito?.message || 'Agenzia non trovata';
+        setError(msg);
+        onChange('', null);
+      }
+    } catch (err) {
+      setError(err.message || 'Errore ricerca agenzia');
+      onChange('', null);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Ricerca Agenzia STA *
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={searchCode}
+            onChange={(e) => {
+              setSearchCode(e.target.value.toUpperCase());
+              if (agenzia) { setAgenzia(null); onChange('', null); }
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            className="flex-1 bg-[#243044] border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono"
+            placeholder="es. RM0001, BO0001"
+            required
+          />
+          <button
+            type="button"
+            onClick={handleSearch}
+            disabled={searching || !searchCode.trim()}
+            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg text-sm flex items-center gap-1.5"
+          >
+            {searching ? <FiLoader className="w-4 h-4 animate-spin" /> : <FiSearch className="w-4 h-4" />}
+            Cerca
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 mt-1">
+          Inserisci il codice STA e premi Cerca (es. RM0001, RM1000, BO0001)
+        </p>
+      </div>
+
+      {error && (
+        <div className="text-xs text-red-400 bg-red-900/20 border border-red-700/30 rounded-lg p-3">
+          {error}
+        </div>
+      )}
+
+      {agenzia && (
+        <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-3 space-y-1">
+          <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
+            <FiCheckCircle className="w-4 h-4" />
+            Agenzia trovata
+          </div>
+          <div className="text-xs text-gray-300">
+            <span className="font-mono text-green-300">{agenzia.codiceAgenzia}</span>
+            {' — '}
+            {agenzia.denominazione || 'N/A'}
+          </div>
+          {agenzia.provinciaSede && (
+            <div className="text-xs text-gray-400">
+              Provincia: {agenzia.provinciaSede}
+            </div>
+          )}
+          {agenzia.email && (
+            <div className="text-xs text-gray-400">
+              Email: {agenzia.email}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const VFUAzioniTab = ({ 
   statoVFU, 
   fascicoloStato,
   onAzioneClick,
-  loading 
+  loading,
+  rvfuClient 
 }) => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [actionData, setActionData] = useState({});
@@ -127,15 +226,47 @@ const VFUAzioniTab = ({
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Data demolizione
+                    Data distruzione targa *
                   </label>
                   <input
                     type="date"
-                    value={actionData.dataDemolizione || new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setActionData(prev => ({ ...prev, dataDemolizione: e.target.value }))}
+                    value={actionData.dataDistruzioneTarga || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setActionData(prev => ({ ...prev, dataDistruzioneTarga: e.target.value }))}
                     className="w-full bg-[#243044] border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Data distruzione documenti *
+                  </label>
+                  <input
+                    type="date"
+                    value={actionData.dataDistruzioneDocumenti || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setActionData(prev => ({ ...prev, dataDistruzioneDocumenti: e.target.value }))}
+                    className="w-full bg-[#243044] border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Numero targhe distrutte *
+                  </label>
+                  <input
+                    type="number"
+                    value={actionData.numeroTargheDistrutte ?? 2}
+                    onChange={(e) => setActionData(prev => ({ ...prev, numeroTargheDistrutte: Number.parseInt(e.target.value, 10) }))}
+                    className="w-full bg-[#243044] border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
+                    min="0"
+                    max="2"
+                  />
+                </div>
+                <div className="text-xs text-gray-400 bg-amber-900/20 border border-amber-700/30 rounded-lg p-3">
+                  <strong>Nota:</strong> Tutti i campi sono obbligatori per l'API ACI.
+                </div>
+              </div>
+            )}
+
+            {confirmAction.azione === 'aggiorna' && (
+              <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Data bonifica
@@ -149,39 +280,25 @@ const VFUAzioniTab = ({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Numero targhe distrutte
+                    Note parti rifiuti
                   </label>
-                  <input
-                    type="number"
-                    value={actionData.numeroTargheDistrutte || 2}
-                    onChange={(e) => setActionData(prev => ({ ...prev, numeroTargheDistrutte: Number.parseInt(e.target.value, 10) }))}
+                  <textarea
+                    value={actionData.notePartiRifiuti || ''}
+                    onChange={(e) => setActionData(prev => ({ ...prev, notePartiRifiuti: e.target.value }))}
                     className="w-full bg-[#243044] border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
-                    min="0"
-                    max="2"
+                    rows={3}
+                    placeholder="Note opzionali su parti rifiuti"
                   />
                 </div>
               </div>
             )}
 
             {confirmAction.azione === 'inoltraSTA' && (
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Agenzia STA *
-                  </label>
-                  <input
-                    type="text"
-                    value={actionData.codiceSTA || ''}
-                    onChange={(e) => setActionData(prev => ({ ...prev, codiceSTA: e.target.value }))}
-                    className="w-full bg-[#243044] border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
-                    placeholder="Codice agenzia STA"
-                    required
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Inserire il codice dell'agenzia STA per la radiazione PRA
-                  </p>
-                </div>
-              </div>
+              <STASearchField
+                rvfuClient={rvfuClient}
+                value={actionData.codiceSTA || ''}
+                onChange={(codice, agenzia) => setActionData(prev => ({ ...prev, codiceSTA: codice, agenziaSTA: agenzia }))}
+              />
             )}
 
             {confirmAction.azione === 'cedi' && (

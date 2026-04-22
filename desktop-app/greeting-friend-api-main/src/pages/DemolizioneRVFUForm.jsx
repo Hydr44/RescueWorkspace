@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import PropTypes from 'prop-types';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   FiX, FiShield, FiUser, FiTruck, FiFileText,
-  FiArrowLeft, FiCheck, FiCalendar, FiMapPin, FiPhone, FiMail, FiSearch, FiAlertCircle, FiCheckCircle
+  FiArrowLeft, FiCheck, FiCalendar, FiSearch, FiAlertCircle, FiCheckCircle, FiSend
 } from 'react-icons/fi';
 import { supabase } from '@/lib/supabase-browser';
 import { useOrg } from '@/context/OrgContext';
@@ -16,7 +15,6 @@ import { useDocumentManager } from '@/hooks/useDocumentManager';
 import { useRVFUAuth } from '@/hooks/useRVFUAuth';
 import { createRVFUClient } from '@/lib/rvfu-client';
 import { useDemo } from '@/hooks/useDemo';
-import { mockVerificaVeicolo } from '@/lib/rvfu-mock';
 import { normalizeCausale } from '@/lib/rvfu-mapper';
 
 const TABLE = "demolition_cases";
@@ -34,6 +32,8 @@ const DemolizioneRVFUForm = () => {
   const [saving, setSaving] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false); // Modal per ricerca veicolo
   const [searching, setSearching] = useState(false);
+  const [aciFields, setAciFields] = useState(new Set()); // Campi auto-popolati da ACI/PRA (read-only)
+  const [sendingToRVFU, setSendingToRVFU] = useState(false);
   const [veicoliTrovati, setVeicoliTrovati] = useState([]);
   const [searchErrors, setSearchErrors] = useState({});
   const [searchParams, setSearchParams] = useState({
@@ -158,141 +158,75 @@ const DemolizioneRVFUForm = () => {
   const [comuniResidenzaDetentore, setComuniResidenzaDetentore] = useState([]);
   const [showTestMenu, setShowTestMenu] = useState(false);
 
+  // ══════════════════════════════════════════════════════════════════
+  // DATI TEST FORMAZIONE ACI — targhe reali ambiente formazione
+  // I dati intestatario (nome, cognome, indirizzo, provincia, etc.)
+  // vengono popolati automaticamente da ACI tramite "Cerca Veicolo".
+  // Qui mettiamo solo: targa, CF (per la ricerca), causale e distinta.
+  // ══════════════════════════════════════════════════════════════════
   const TEST_DATASETS = [
     {
-      label: '1 - Fiat Panda (Rossi Mario, Cagliari)',
+      label: '1 - AG004557 (Trattore, causale D) ✅ Registrazione OK',
       data: {
-        targa: 'AB123CD', telaio: 'ZFA22300005123456', numero_telaio: 'ZFA22300005123456',
-        tipoVeicolo: 'A', marca: 'FIAT', modello: 'Panda', marca_modello: 'FIAT Panda',
-        anno: '2010', colore: 'BIANCO', cilindrata: '1242', potenza: '51',
-        dataPrimaImmatricolazione: '2010-03-15', flagConsegnaForzeOrdine: 'N',
-        canaleNoPra: false, cic: '',
-        obbligoIscrizionePRA: 'S', demolizione_causale: 'D',
-        demolizione_data: new Date().toISOString().split('T')[0], demolizione_km: '185000',
-        demolizione_osservazioni: 'Veicolo incidentato, danni strutturali importanti',
-        proprietario_tipoPersona: 'PF', proprietario_nome: 'MARIO', proprietario_cognome: 'ROSSI',
-        proprietario_ragioneSociale: '', proprietario_cf: 'RSSMRA80A01B354Z',
-        proprietario_dataNascita: '1980-01-01',
-        proprietario_provinciaNascita: 'CA', proprietario_comuneNascita: 'Cagliari',
-        proprietario_codiceComuneNascita: '092009', proprietario_codiceProvinciaNascita: '092',
-        proprietario_statoNascita: 'IT',
-        proprietario_provinciaResidenza: 'CA', proprietario_comuneResidenza: 'Cagliari',
-        proprietario_codiceComuneResidenza: '092009', proprietario_codiceProvinciaResidenza: '092',
-        proprietario_indirizzoResidenza: 'Via Roma 15', proprietario_numeroCivicoResidenza: '15',
-        proprietario_capResidenza: '09124', proprietario_telefono: '3201234567',
-        proprietario_email: 'mario.rossi@test.it',
-        distinta_du: 'INSERITO', distinta_cdc: 'INSERITO', distinta_cdp: 'INSERITO',
-        distinta_documentoIntestatario: true, distinta_targaAnteriore: true, distinta_targaPosteriore: true,
-        noteAggiuntive: 'Test caso 1 - Fiat Panda rottamazione',
+        targa: 'AG004557', tipoVeicolo: 'T',
+        demolizione_causale: 'D', flagConsegnaForzeOrdine: 'N',
+        demolizione_data: new Date().toISOString().split('T')[0],
+        demolizione_osservazioni: 'Test formazione — AG004557 trattore',
+        proprietario_cf: 'NTSPRM71L20H501B',
+        distinta_du: 'DOCUMENTO', distinta_cdc: 'DOCUMENTO', distinta_cdp: 'ASSENTE',
+        distinta_foglioC: 'ASSENTE',
+        distinta_documentoIntestatario: true, distinta_documentoDetentore: false,
+        distinta_targaAnteriore: true, distinta_targaPosteriore: true,
+        distinta_targaDenuncia: false,
+        noteAggiuntive: 'Dopo aver caricato, usa "Cerca Veicolo" per popolare i dati da ACI',
       }
     },
     {
-      label: '2 - VW Golf (Verdi Luigi, Firenze)',
+      label: '2 - AG004559 (Trattore METALMEC, causale D) ✅ Verifica OK',
       data: {
-        targa: 'EF456GH', telaio: 'WVWZZZ3CZWE123456', numero_telaio: 'WVWZZZ3CZWE123456',
-        tipoVeicolo: 'A', marca: 'VOLKSWAGEN', modello: 'Golf', marca_modello: 'VOLKSWAGEN Golf',
-        anno: '2015', colore: 'GRIGIO', cilindrata: '1598', potenza: '77',
-        dataPrimaImmatricolazione: '2015-06-20', flagConsegnaForzeOrdine: 'N',
-        canaleNoPra: false, cic: '',
-        obbligoIscrizionePRA: 'S', demolizione_causale: 'D',
-        demolizione_data: new Date().toISOString().split('T')[0], demolizione_km: '220000',
-        demolizione_osservazioni: 'Fine vita utile, motore fuso',
-        proprietario_tipoPersona: 'PF', proprietario_nome: 'LUIGI', proprietario_cognome: 'VERDI',
-        proprietario_ragioneSociale: '', proprietario_cf: 'VRDLGI75B02D612X',
-        proprietario_dataNascita: '1975-02-02',
-        proprietario_provinciaNascita: 'FI', proprietario_comuneNascita: 'Firenze',
-        proprietario_codiceComuneNascita: '048017', proprietario_codiceProvinciaNascita: '048',
-        proprietario_statoNascita: 'IT',
-        proprietario_provinciaResidenza: 'FI', proprietario_comuneResidenza: 'Firenze',
-        proprietario_codiceComuneResidenza: '048017', proprietario_codiceProvinciaResidenza: '048',
-        proprietario_indirizzoResidenza: 'Viale Michelangelo 42', proprietario_numeroCivicoResidenza: '42',
-        proprietario_capResidenza: '50125', proprietario_telefono: '3339876543',
-        proprietario_email: 'luigi.verdi@email.com',
-        distinta_du: 'INSERITO', distinta_cdc: 'INSERITO', distinta_cdp: 'ASSENTE',
-        distinta_documentoIntestatario: true, distinta_targaAnteriore: true, distinta_targaPosteriore: true,
-        noteAggiuntive: 'Test caso 2 - Golf diesel fine vita',
+        targa: 'AG004559', tipoVeicolo: 'T',
+        demolizione_causale: 'D', flagConsegnaForzeOrdine: 'N',
+        demolizione_data: new Date().toISOString().split('T')[0],
+        demolizione_osservazioni: 'Test formazione — AG004559 METALMEC ME 35C',
+        proprietario_cf: 'MROBNI82B11H501L',
+        distinta_du: 'DOCUMENTO', distinta_cdc: 'DOCUMENTO', distinta_cdp: 'ASSENTE',
+        distinta_foglioC: 'ASSENTE',
+        distinta_documentoIntestatario: true, distinta_documentoDetentore: false,
+        distinta_targaAnteriore: true, distinta_targaPosteriore: true,
+        distinta_targaDenuncia: false,
+        noteAggiuntive: 'Dopo aver caricato, usa "Cerca Veicolo" per popolare i dati da ACI',
       }
     },
     {
-      label: '3 - Piaggio Liberty (Bianchi Lara, Bari) No PRA',
+      label: '3 - VA189AJ (Autoveicolo + CF per ricerca intestatario)',
       data: {
-        targa: 'LM789NO', telaio: 'ZCFC35A005D123456', numero_telaio: 'ZCFC35A005D123456',
-        tipoVeicolo: 'M', marca: 'PIAGGIO', modello: 'Liberty 125', marca_modello: 'PIAGGIO Liberty 125',
-        anno: '2018', colore: 'NERO', cilindrata: '124', potenza: '8',
-        dataPrimaImmatricolazione: '2018-09-10', flagConsegnaForzeOrdine: 'N',
-        canaleNoPra: true, cic: '',
-        obbligoIscrizionePRA: 'N', demolizione_causale: 'D',
-        demolizione_data: new Date().toISOString().split('T')[0], demolizione_km: '35000',
-        demolizione_osservazioni: 'Ciclomotore, gestione senza PRA (canale UMC)',
-        proprietario_tipoPersona: 'PF', proprietario_nome: 'LARA', proprietario_cognome: 'BIANCHI',
-        proprietario_ragioneSociale: '', proprietario_cf: 'BNCLRA90C43A662Y',
-        proprietario_dataNascita: '1990-03-03',
-        proprietario_provinciaNascita: 'BA', proprietario_comuneNascita: 'Bari',
-        proprietario_codiceComuneNascita: '072006', proprietario_codiceProvinciaNascita: '072',
-        proprietario_statoNascita: 'IT',
-        proprietario_provinciaResidenza: 'BA', proprietario_comuneResidenza: 'Bari',
-        proprietario_codiceComuneResidenza: '072006', proprietario_codiceProvinciaResidenza: '072',
-        proprietario_indirizzoResidenza: 'Corso Vittorio Emanuele 88', proprietario_numeroCivicoResidenza: '88',
-        proprietario_capResidenza: '70122', proprietario_telefono: '3281112233',
-        proprietario_email: 'lara.bianchi@pec.it',
-        distinta_du: 'INSERITO', distinta_cdc: 'INSERITO', distinta_cdp: 'ASSENTE',
-        distinta_documentoIntestatario: true, distinta_targaAnteriore: true, distinta_targaPosteriore: false,
-        noteAggiuntive: 'Test caso 3 - Scooter senza obbligo PRA',
+        targa: 'VA189AJ', tipoVeicolo: 'A',
+        demolizione_causale: 'D', flagConsegnaForzeOrdine: 'N',
+        demolizione_data: new Date().toISOString().split('T')[0],
+        demolizione_osservazioni: 'VA189AJ — usa "Cerca Veicolo" con CF per completare i dati',
+        proprietario_cf: 'NTSPRM71L20H501B',
+        distinta_du: 'DOCUMENTO', distinta_cdc: 'ASSENTE', distinta_cdp: 'ASSENTE',
+        distinta_foglioC: 'ASSENTE',
+        distinta_documentoIntestatario: true, distinta_documentoDetentore: false,
+        distinta_targaAnteriore: true, distinta_targaPosteriore: true,
+        distinta_targaDenuncia: false,
+        noteAggiuntive: 'Targa VA — registrazione potrebbe dare errore, ricerca funziona',
       }
     },
     {
-      label: '4 - Renault Clio (Autoricambi SRL, Milano) Azienda',
+      label: '4 - AG004561 (Trattore, nuova targa da testare)',
       data: {
-        targa: 'PQ012RS', telaio: 'VF1BB5308Y0654321', numero_telaio: 'VF1BB5308Y0654321',
-        tipoVeicolo: 'A', marca: 'RENAULT', modello: 'Clio', marca_modello: 'RENAULT Clio',
-        anno: '2012', colore: 'ROSSO', cilindrata: '1149', potenza: '55',
-        dataPrimaImmatricolazione: '2012-11-05', flagConsegnaForzeOrdine: 'N',
-        canaleNoPra: false, cic: '',
-        obbligoIscrizionePRA: 'S', demolizione_causale: 'D',
-        demolizione_data: new Date().toISOString().split('T')[0], demolizione_km: '310000',
-        demolizione_osservazioni: 'Veicolo aziendale dismesso, elevato chilometraggio',
-        proprietario_tipoPersona: 'PG', proprietario_nome: '', proprietario_cognome: '',
-        proprietario_ragioneSociale: 'AUTORICAMBI SRL', proprietario_cf: '12345678901',
-        proprietario_dataNascita: '',
-        proprietario_provinciaNascita: '', proprietario_comuneNascita: '',
-        proprietario_codiceComuneNascita: '', proprietario_codiceProvinciaNascita: '',
-        proprietario_statoNascita: 'IT',
-        proprietario_provinciaResidenza: 'MI', proprietario_comuneResidenza: 'Milano',
-        proprietario_codiceComuneResidenza: '015146', proprietario_codiceProvinciaResidenza: '015',
-        proprietario_indirizzoResidenza: 'Via Torino 120', proprietario_numeroCivicoResidenza: '120',
-        proprietario_capResidenza: '20123', proprietario_telefono: '0212345678',
-        proprietario_email: 'info@autoricambi-srl.it',
-        distinta_du: 'INSERITO', distinta_cdc: 'INSERITO', distinta_cdp: 'INSERITO',
-        distinta_documentoIntestatario: true, distinta_targaAnteriore: true, distinta_targaPosteriore: true,
-        noteAggiuntive: 'Test caso 4 - Persona giuridica (azienda)',
-      }
-    },
-    {
-      label: '5 - Ford Fiesta (Neri Anna, Roma) Forze Ordine',
-      data: {
-        targa: 'TU345VZ', telaio: 'WF0XXXGCX5Y987654', numero_telaio: 'WF0XXXGCX5Y987654',
-        tipoVeicolo: 'A', marca: 'FORD', modello: 'Fiesta', marca_modello: 'FORD Fiesta',
-        anno: '2005', colore: 'BLU', cilindrata: '1388', potenza: '59',
-        dataPrimaImmatricolazione: '2005-04-22', flagConsegnaForzeOrdine: 'S',
-        canaleNoPra: false, cic: '',
-        obbligoIscrizionePRA: 'S', demolizione_causale: 'D',
-        demolizione_data: new Date().toISOString().split('T')[0], demolizione_km: '0',
-        demolizione_osservazioni: 'Veicolo ritrovato dopo furto, consegnato da Forze Ordine, non riparabile',
-        proprietario_tipoPersona: 'PF', proprietario_nome: 'ANNA', proprietario_cognome: 'NERI',
-        proprietario_ragioneSociale: '', proprietario_cf: 'NRANNA85D45H501W',
-        proprietario_dataNascita: '1985-04-05',
-        proprietario_provinciaNascita: 'RM', proprietario_comuneNascita: 'Roma',
-        proprietario_codiceComuneNascita: '058091', proprietario_codiceProvinciaNascita: '058',
-        proprietario_statoNascita: 'IT',
-        proprietario_provinciaResidenza: 'RM', proprietario_comuneResidenza: 'Roma',
-        proprietario_codiceComuneResidenza: '058091', proprietario_codiceProvinciaResidenza: '058',
-        proprietario_indirizzoResidenza: 'Via Appia Nuova 500', proprietario_numeroCivicoResidenza: '500',
-        proprietario_capResidenza: '00179', proprietario_telefono: '3465554433',
-        proprietario_email: 'anna.neri@gmail.com',
-        distinta_du: 'ASSENTE', distinta_cdc: 'ASSENTE', distinta_cdp: 'ASSENTE',
-        distinta_foglioC: 'ASSENTE', distinta_targaDenuncia: true,
-        distinta_documentoIntestatario: true, distinta_targaAnteriore: false, distinta_targaPosteriore: false,
-        noteAggiuntive: 'Test caso 5 - Consegna Forze Ordine post furto, documenti assenti',
+        targa: 'AG004561', tipoVeicolo: 'T',
+        demolizione_causale: 'D', flagConsegnaForzeOrdine: 'N',
+        demolizione_data: new Date().toISOString().split('T')[0],
+        demolizione_osservazioni: 'Test formazione — AG004561 trattore',
+        proprietario_cf: 'NTSPRM71L20H501B',
+        distinta_du: 'DOCUMENTO', distinta_cdc: 'DOCUMENTO', distinta_cdp: 'ASSENTE',
+        distinta_foglioC: 'ASSENTE',
+        distinta_documentoIntestatario: true, distinta_documentoDetentore: false,
+        distinta_targaAnteriore: true, distinta_targaPosteriore: true,
+        distinta_targaDenuncia: false,
+        noteAggiuntive: 'Dopo aver caricato, usa "Cerca Veicolo" per popolare i dati da ACI',
       }
     },
   ];
@@ -476,8 +410,11 @@ const DemolizioneRVFUForm = () => {
     // Reset errori precedenti
     setSearchErrors({});
 
-    // Se non autenticato RVFU, usa mock locale
-    const useLocalMode = !isAuthenticated || !tokens;
+    // Richiede autenticazione RVFU
+    if (!isAuthenticated || !tokens || !authService) {
+      showError('Autenticazione RVFU richiesta. Accedi al sistema RVFU prima di cercare.');
+      return;
+    }
 
     // Validazione campi obbligatori
     const errors = {};
@@ -527,38 +464,23 @@ const DemolizioneRVFUForm = () => {
     try {
       let veicolo;
 
-      if (useLocalMode) {
-        // Modalità locale: usa mock
-        veicolo = await mockVerificaVeicolo({
-          targa: searchParams.targa?.trim() || undefined,
-          telaio: searchParams.telaio?.trim() || undefined,
-          codiceFiscale: searchParams.codiceFiscale?.trim() || undefined,
-        });
-        if (veicolo) {
-          showSuccess('Veicolo trovato (modalità locale)');
+      // Ricerca tramite API RVFU reale
+      const rvfuClient = createRVFUClient(authService, 'formation', true);
+      veicolo = await rvfuClient.verificaVeicolo({
+        causale: searchParams.causale,
+        tipoVeicolo: searchParams.tipoVeicolo,
+        codiceFiscale: searchParams.codiceFiscale?.trim() || undefined,
+        targa: searchParams.targa?.trim() || undefined,
+        telaio: searchParams.telaio?.trim() || undefined,
+      });
+      if (veicolo) {
+        const cfFornito = searchParams.codiceFiscale?.trim();
+        const intestatarioTrovato = veicolo.proprietario || veicolo.soggettoVeicolo;
+        if (cfFornito && !intestatarioTrovato) {
+          showInfo('Veicolo trovato, ma il CF inserito non corrisponde all\'intestatario. Compila i dati intestatario manualmente.');
+        } else {
+          showSuccess('Veicolo trovato!');
         }
-      } else if (authService) {
-        // Modalità RVFU: usa API reale
-        const rvfuClient = createRVFUClient(authService, 'formation', true);
-        veicolo = await rvfuClient.verificaVeicolo({
-          causale: searchParams.causale,
-          tipoVeicolo: searchParams.tipoVeicolo,
-          codiceFiscale: searchParams.codiceFiscale?.trim() || undefined,
-          targa: searchParams.targa?.trim() || undefined,
-          telaio: searchParams.telaio?.trim() || undefined,
-        });
-        if (veicolo) {
-          const cfFornito = searchParams.codiceFiscale?.trim();
-          const intestatarioTrovato = veicolo.proprietario || veicolo.soggettoVeicolo;
-          if (cfFornito && !intestatarioTrovato) {
-            showInfo('Veicolo trovato, ma il CF inserito non corrisponde all\'intestatario. Compila i dati intestatario manualmente.');
-          } else {
-            showSuccess('Veicolo trovato!');
-          }
-        }
-      } else {
-        showError('Autenticazione RVFU richiesta per ricerca online.');
-        return;
       }
 
       if (veicolo) {
@@ -580,33 +502,67 @@ const DemolizioneRVFUForm = () => {
     // Popola i campi del form con i dati del veicolo trovato
     const isPRA = veicolo.obbligoIscrizionePRA === 'S' || veicolo.obbligoIscrizionePraFlag === true;
 
+    // Traccia quali campi sono stati auto-popolati da ACI/PRA (read-only)
+    const newAciFields = new Set();
+    const setIfPresent = (field, value) => {
+      if (value) newAciFields.add(field);
+      return value;
+    };
+
     setFormData(prev => ({
       ...prev,
-      // Dati veicolo
-      targa: veicolo.targa || prev.targa,
-      telaio: veicolo.telaio || prev.telaio,
+      // Dati veicolo (da ACI/PRA — read-only)
+      targa: setIfPresent('targa', veicolo.targa) || prev.targa,
+      telaio: setIfPresent('telaio', veicolo.telaio) || prev.telaio,
       numero_telaio: veicolo.telaio || prev.numero_telaio,
-      marca: veicolo.marca || prev.marca,
-      modello: veicolo.modello || prev.modello,
+      marca: setIfPresent('marca', veicolo.marca) || prev.marca,
+      modello: setIfPresent('modello', veicolo.modello) || prev.modello,
       marca_modello: veicolo.marca_modello || `${veicolo.marca || ''} ${veicolo.modello || ''}`.trim() || prev.marca_modello,
-      cilindrata: veicolo.cilindrata?.toString() || prev.cilindrata,
-      potenza: veicolo.potenza?.toString() || prev.potenza,
-      dataPrimaImmatricolazione: veicolo.dataPrimaImmatricolazione || veicolo.dataImmatricolazione || prev.dataPrimaImmatricolazione,
-      tipoVeicolo: veicolo.tipoVeicolo || searchParams.tipoVeicolo || prev.tipoVeicolo,
+      cilindrata: setIfPresent('cilindrata', veicolo.cilindrata?.toString()) || prev.cilindrata,
+      potenza: setIfPresent('potenza', veicolo.potenza?.toString()) || prev.potenza,
+      dataPrimaImmatricolazione: setIfPresent('dataPrimaImmatricolazione', veicolo.dataPrimaImmatricolazione || veicolo.dataImmatricolazione) || prev.dataPrimaImmatricolazione,
+      tipoVeicolo: setIfPresent('tipoVeicolo', veicolo.tipoVeicolo) || searchParams.tipoVeicolo || prev.tipoVeicolo,
       demolizione_causale: searchParams.causale || prev.demolizione_causale,
-      cic: veicolo.cic || prev.cic,
-      // Campo PRA
+      cic: setIfPresent('cic', veicolo.cic) || prev.cic,
+      // Campo PRA (da ACI)
       obbligoIscrizionePRA: isPRA ? 'S' : 'N',
       canaleNoPra: !isPRA,
       // Dati intestatario (se disponibili dall'API — richiede codiceFiscale nella ricerca)
-      proprietario_cf: veicolo.proprietario?.codiceFiscale || searchParams.codiceFiscale || prev.proprietario_cf,
-      proprietario_nome: veicolo.proprietario?.nome || prev.proprietario_nome,
-      proprietario_cognome: veicolo.proprietario?.cognome || prev.proprietario_cognome,
-      proprietario_indirizzoResidenza: veicolo.proprietario?.indirizzo || prev.proprietario_indirizzoResidenza,
-      proprietario_dataNascita: veicolo.proprietario?.dataNascita || prev.proprietario_dataNascita,
-      proprietario_comuneNascita: veicolo.proprietario?.comuneNascita || prev.proprietario_comuneNascita,
-      proprietario_provinciaNascita: veicolo.proprietario?.provinciaNascita || prev.proprietario_provinciaNascita,
+      proprietario_cf: setIfPresent('proprietario_cf', veicolo.proprietario?.codiceFiscale) || searchParams.codiceFiscale || prev.proprietario_cf,
+      proprietario_nome: setIfPresent('proprietario_nome', veicolo.proprietario?.nome) || prev.proprietario_nome,
+      proprietario_cognome: setIfPresent('proprietario_cognome', veicolo.proprietario?.cognome) || prev.proprietario_cognome,
+      proprietario_dataNascita: setIfPresent('proprietario_dataNascita', veicolo.proprietario?.dataNascita) || prev.proprietario_dataNascita,
+      // Nascita
+      proprietario_comuneNascita: setIfPresent('proprietario_comuneNascita', veicolo.proprietario?.comuneNascita) || prev.proprietario_comuneNascita,
+      proprietario_codiceComuneNascita: setIfPresent('proprietario_codiceComuneNascita', veicolo.proprietario?.codiceComuneNascita) || prev.proprietario_codiceComuneNascita,
+      proprietario_provinciaNascita: setIfPresent('proprietario_provinciaNascita', veicolo.proprietario?.siglaProvinciaNascita) || prev.proprietario_provinciaNascita,
+      proprietario_codiceProvinciaNascita: setIfPresent('proprietario_codiceProvinciaNascita', veicolo.proprietario?.codiceProvinciaNascita) || prev.proprietario_codiceProvinciaNascita,
+      proprietario_statoNascita: veicolo.proprietario?.statoEsteroNascita || prev.proprietario_statoNascita || 'IT',
+      // Residenza
+      proprietario_comuneResidenza: setIfPresent('proprietario_comuneResidenza', veicolo.proprietario?.comuneResidenza) || prev.proprietario_comuneResidenza,
+      proprietario_codiceComuneResidenza: setIfPresent('proprietario_codiceComuneResidenza', veicolo.proprietario?.codiceComuneResidenza) || prev.proprietario_codiceComuneResidenza,
+      proprietario_provinciaResidenza: setIfPresent('proprietario_provinciaResidenza', veicolo.proprietario?.siglaProvinciaResidenza) || prev.proprietario_provinciaResidenza,
+      proprietario_codiceProvinciaResidenza: setIfPresent('proprietario_codiceProvinciaResidenza', veicolo.proprietario?.codiceProvinciaResidenza) || prev.proprietario_codiceProvinciaResidenza,
+      proprietario_indirizzoResidenza: setIfPresent('proprietario_indirizzoResidenza', veicolo.proprietario?.indirizzoResidenza) || prev.proprietario_indirizzoResidenza,
+      proprietario_numeroCivicoResidenza: setIfPresent('proprietario_numeroCivicoResidenza', veicolo.proprietario?.numeroCivicoResidenza) || prev.proprietario_numeroCivicoResidenza,
+      proprietario_capResidenza: setIfPresent('proprietario_capResidenza', veicolo.proprietario?.capResidenza) || prev.proprietario_capResidenza,
+      proprietario_dugResidenza: veicolo.proprietario?.dugResidenza || prev.proprietario_dugResidenza,
+      proprietario_toponimoResidenza: veicolo.proprietario?.toponimoResidenza || prev.proprietario_toponimoResidenza,
     }));
+
+    // Segna PRA come campo ACI
+    newAciFields.add('obbligoIscrizionePRA');
+    setAciFields(newAciFields);
+
+    // Carica i comuni per le province ricevute da ACI (necessario per i select)
+    const siglaProvNascita = veicolo.proprietario?.siglaProvinciaNascita;
+    const siglaProvResidenza = veicolo.proprietario?.siglaProvinciaResidenza;
+    if (siglaProvNascita) {
+      loadComuni(siglaProvNascita, 'nascita-intestatario');
+    }
+    if (siglaProvResidenza) {
+      loadComuni(siglaProvResidenza, 'residenza-intestatario');
+    }
 
     // Chiudi il modal di ricerca
     setShowSearchModal(false);
@@ -617,7 +573,111 @@ const DemolizioneRVFUForm = () => {
     if (!hasIntestatario) {
       msg += '\n\nNota: dati intestatario non disponibili. Per ottenerli, ripeti la ricerca inserendo anche il Codice Fiscale.';
     }
+    if (newAciFields.size > 0) {
+      msg += `\n\nI campi compilati da ACI/PRA (${newAciFields.size}) sono protetti.`;
+    }
     showSuccess(msg);
+  };
+
+  // ══════════════════════════════════════════════════════════════════
+  // Invio diretto a RVFU (API ACI) — costruisce il payload corretto
+  // ══════════════════════════════════════════════════════════════════
+  const handleSendToRVFU = async () => {
+    if (!isAuthenticated || !authService) {
+      showError('Autenticazione RVFU richiesta. Accedi al sistema RVFU prima.');
+      return;
+    }
+
+    // Validazioni obbligatorie
+    if (!formData.targa) { showError('Targa obbligatoria'); return; }
+    if (!formData.telaio && !formData.numero_telaio) { showError('Telaio obbligatorio'); return; }
+    if (!formData.proprietario_cf) { showError('Codice Fiscale intestatario obbligatorio'); return; }
+    if (!formData.demolizione_causale) { showError('Causale demolizione obbligatoria'); return; }
+    if (!formData.proprietario_codiceComuneResidenza) { showError('Codice comune residenza intestatario obbligatorio (codice ISTAT)'); return; }
+    if (!formData.proprietario_codiceProvinciaResidenza) { showError('Codice provincia residenza intestatario obbligatorio (codice ISTAT)'); return; }
+
+    setSendingToRVFU(true);
+    try {
+      const rvfuClient = createRVFUClient(authService, 'formation', true);
+      const causale = normalizeCausale(formData.demolizione_causale);
+
+      // Formato date per API ACI: YYYY-MM-DDT00:00:00Z
+      const toAciDate = (d) => {
+        if (!d) return '';
+        const base = d.includes('T') ? d.split('T')[0] : d;
+        return base + 'T00:00:00Z';
+      };
+
+      // Payload conforme all'API ACI POST /cr/VFU (formato testato in RVFUTestConsole)
+      const payload = {
+        causale,
+        dataRitiro: toAciDate(formData.demolizione_data || new Date().toISOString().split('T')[0]),
+        fabbrica: formData.marca_modello || `${formData.marca || ''} ${formData.modello || ''}`.trim() || 'SCONOSCIUTO',
+        flagConsegnaForzeOrdine: formData.flagConsegnaForzeOrdine || 'N',
+        flagIntestatarioForzato: 'S',
+        flagTipoRegime: '1',
+        forzaRegistrazione: 'N',
+        intestatario: {
+          codiceFiscale: formData.proprietario_cf.trim().toUpperCase(),
+          cognome: formData.proprietario_cognome || '',
+          nome: formData.proprietario_nome || '',
+          dataNascita: toAciDate(formData.proprietario_dataNascita),
+          codiceComuneResidenza: formData.proprietario_codiceComuneResidenza || '',
+          codiceProvinciaResidenza: formData.proprietario_codiceProvinciaResidenza || '',
+          indirizzoResidenza: formData.proprietario_indirizzoResidenza || '',
+          capResidenza: formData.proprietario_capResidenza || '',
+        },
+        obbligoIscrizionePRA: formData.obbligoIscrizionePRA || 'N',
+        targa: formData.targa.trim().toUpperCase(),
+        telaio: (formData.telaio || formData.numero_telaio || '').trim().toUpperCase(),
+        tipoVeicolo: formData.tipoVeicolo || 'A',
+      };
+
+      // CIC per ciclomotori
+      if (formData.cic) payload.cic = formData.cic;
+
+      console.log('[RVFU] Invio a RVFU — payload completo:', JSON.stringify(payload, null, 2));
+
+      const response = await rvfuClient.registraVFUConcessionario(payload);
+      const esito = response?.esito;
+
+      if (esito?.responseStatus === 'OK' || esito?.code === 'E000') {
+        const idVFU = response?.result?.idVFU || response?.result?.id;
+        const statoVFU = response?.result?.statoVFU || 'PRESO_IN_CARICO';
+        showSuccess(`Pratica VFU registrata con successo! ID: ${idVFU} — Stato: ${statoVFU}`);
+
+        // Salva anche localmente su Supabase con riferimento al VFU
+        if (orgId) {
+          try {
+            await supabase.from(TABLE).insert({
+              org_id: orgId,
+              targa: formData.targa,
+              telaio: formData.telaio || formData.numero_telaio,
+              marca_modello: formData.marca_modello || `${formData.marca || ''} ${formData.modello || ''}`.trim(),
+              anno: formData.anno || null,
+              note: formData.noteAggiuntive || formData.demolizione_osservazioni || null,
+              is_local_only: false,
+              processing_status: 'preso_in_carico',
+              meta: {
+                rvfu: { idVFU, statoVFU, causale, registeredAt: new Date().toISOString() },
+                intestatario: { codiceFiscale: formData.proprietario_cf, nome: formData.proprietario_nome, cognome: formData.proprietario_cognome },
+              },
+            });
+          } catch (dbErr) {
+            logger.error('[RVFU] Salvataggio locale post-registrazione fallito:', dbErr);
+          }
+        }
+
+        navigate('/demolizioni-rvfu');
+      } else {
+        throw new Error(esito?.message || `Errore registrazione VFU (code: ${esito?.code || 'N/A'})`);
+      }
+    } catch (error) {
+      console.error('[RVFU] Errore invio a RVFU:', error);
+      showError(`Errore invio RVFU: ${error.message}`);
+    } finally {
+      setSendingToRVFU(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -627,6 +687,21 @@ const DemolizioneRVFUForm = () => {
     if (!orgId) {
       console.log('[RVFU] No org selected');
       showError('Organizzazione non selezionata');
+      return;
+    }
+
+    // ─── Validazione campi obbligatori ACI ─────────────────────
+    const errors = [];
+    if (!formData.targa?.trim()) errors.push('Targa');
+    if (!formData.telaio?.trim() && !formData.numero_telaio?.trim()) errors.push('Numero di telaio');
+    if (!formData.demolizione_causale && !formData.causale) errors.push('Causale demolizione');
+    if (!formData.demolizione_data && !formData.dataRitiro) errors.push('Data ritiro veicolo');
+    if (!formData.proprietario_cf?.trim()) errors.push('Codice Fiscale intestatario');
+    if (!formData.proprietario_codiceComuneResidenza?.trim()) errors.push('Codice Comune residenza intestatario');
+    if (!formData.proprietario_codiceProvinciaResidenza?.trim()) errors.push('Codice Provincia residenza intestatario');
+
+    if (errors.length > 0) {
+      showError(`Campi obbligatori mancanti:\n• ${errors.join('\n• ')}`);
       return;
     }
 
@@ -913,16 +988,25 @@ const DemolizioneRVFUForm = () => {
                 <FiTruck className="w-4 h-4 text-blue-400" />
                 <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Dati Veicolo</h2>
               </div>
+              {aciFields.size > 0 && (
+                <div className="mb-3 p-2 bg-emerald-900/20 border border-emerald-600/40 rounded-lg flex items-center gap-2">
+                  <FiCheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-xs text-emerald-300">I campi con bordo verde sono stati compilati da ACI/PRA e non devono essere modificati.</span>
+                </div>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Targa *</label>
                   <input
                     type="text"
                     value={formData.targa || ''}
-                    onChange={(e) => handleInputChange('targa', e.target.value.toUpperCase())}
+                    onChange={(e) => !aciFields.has('targa') && handleInputChange('targa', e.target.value.toUpperCase())}
                     placeholder="AB123CD"
                     maxLength={7}
-                    className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
+                    readOnly={aciFields.has('targa')}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none transition-colors ${
+                      aciFields.has('targa') ? 'border-emerald-600/50 bg-emerald-900/10 cursor-not-allowed opacity-80' : 'border-[#243044] focus:border-blue-500/40'
+                    }`}
                     required
                   />
                 </div>
@@ -932,11 +1016,16 @@ const DemolizioneRVFUForm = () => {
                     type="text"
                     value={formData.telaio || formData.numero_telaio || ''}
                     onChange={(e) => {
-                      handleInputChange('telaio', e.target.value.toUpperCase());
-                      handleInputChange('numero_telaio', e.target.value.toUpperCase());
+                      if (!aciFields.has('telaio')) {
+                        handleInputChange('telaio', e.target.value.toUpperCase());
+                        handleInputChange('numero_telaio', e.target.value.toUpperCase());
+                      }
                     }}
                     placeholder="ZFA223..."
-                    className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
+                    readOnly={aciFields.has('telaio')}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none transition-colors ${
+                      aciFields.has('telaio') ? 'border-emerald-600/50 bg-emerald-900/10 cursor-not-allowed opacity-80' : 'border-[#243044] focus:border-blue-500/40'
+                    }`}
                     required
                   />
                 </div>
@@ -944,8 +1033,11 @@ const DemolizioneRVFUForm = () => {
                   <label className="block text-xs font-medium text-slate-400 mb-1">Tipo Veicolo *</label>
                   <select
                     value={formData.tipoVeicolo || ''}
-                    onChange={(e) => handleInputChange('tipoVeicolo', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
+                    onChange={(e) => !aciFields.has('tipoVeicolo') && handleInputChange('tipoVeicolo', e.target.value)}
+                    disabled={aciFields.has('tipoVeicolo')}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none transition-colors ${
+                      aciFields.has('tipoVeicolo') ? 'border-emerald-600/50 bg-emerald-900/10 cursor-not-allowed opacity-80' : 'border-[#243044] focus:border-blue-500/40'
+                    }`}
                     required
                   >
                     <option value="A">Autoveicolo</option>
@@ -968,9 +1060,12 @@ const DemolizioneRVFUForm = () => {
                   <input
                     type="text"
                     value={formData.marca || ''}
-                    onChange={(e) => handleInputChange('marca', e.target.value)}
+                    onChange={(e) => !aciFields.has('marca') && handleInputChange('marca', e.target.value)}
                     placeholder="FIAT"
-                    className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
+                    readOnly={aciFields.has('marca')}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none transition-colors ${
+                      aciFields.has('marca') ? 'border-emerald-600/50 bg-emerald-900/10 cursor-not-allowed opacity-80' : 'border-[#243044] focus:border-blue-500/40'
+                    }`}
                     required
                   />
                 </div>
@@ -979,9 +1074,12 @@ const DemolizioneRVFUForm = () => {
                   <input
                     type="text"
                     value={formData.modello || ''}
-                    onChange={(e) => handleInputChange('modello', e.target.value)}
+                    onChange={(e) => !aciFields.has('modello') && handleInputChange('modello', e.target.value)}
                     placeholder="Panda"
-                    className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
+                    readOnly={aciFields.has('modello')}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none transition-colors ${
+                      aciFields.has('modello') ? 'border-emerald-600/50 bg-emerald-900/10 cursor-not-allowed opacity-80' : 'border-[#243044] focus:border-blue-500/40'
+                    }`}
                     required
                   />
                 </div>
@@ -1012,10 +1110,13 @@ const DemolizioneRVFUForm = () => {
                   <input
                     type="number"
                     value={formData.cilindrata || ''}
-                    onChange={(e) => handleInputChange('cilindrata', e.target.value)}
+                    onChange={(e) => !aciFields.has('cilindrata') && handleInputChange('cilindrata', e.target.value)}
                     placeholder="1400"
                     min="0"
-                    className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
+                    readOnly={aciFields.has('cilindrata')}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none transition-colors ${
+                      aciFields.has('cilindrata') ? 'border-emerald-600/50 bg-emerald-900/10 cursor-not-allowed opacity-80' : 'border-[#243044] focus:border-blue-500/40'
+                    }`}
                   />
                 </div>
                 <div>
@@ -1023,11 +1124,14 @@ const DemolizioneRVFUForm = () => {
                   <input
                     type="number"
                     value={formData.potenza || ''}
-                    onChange={(e) => handleInputChange('potenza', e.target.value)}
+                    onChange={(e) => !aciFields.has('potenza') && handleInputChange('potenza', e.target.value)}
                     placeholder="75"
                     min="0"
                     step="0.1"
-                    className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
+                    readOnly={aciFields.has('potenza')}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg bg-[#1a2536] text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none transition-colors ${
+                      aciFields.has('potenza') ? 'border-emerald-600/50 bg-emerald-900/10 cursor-not-allowed opacity-80' : 'border-[#243044] focus:border-blue-500/40'
+                    }`}
                   />
                 </div>
                 <div>
@@ -1035,8 +1139,11 @@ const DemolizioneRVFUForm = () => {
                   <input
                     type="date"
                     value={formData.dataPrimaImmatricolazione || ''}
-                    onChange={(e) => handleInputChange('dataPrimaImmatricolazione', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
+                    onChange={(e) => !aciFields.has('dataPrimaImmatricolazione') && handleInputChange('dataPrimaImmatricolazione', e.target.value)}
+                    readOnly={aciFields.has('dataPrimaImmatricolazione')}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none transition-colors ${
+                      aciFields.has('dataPrimaImmatricolazione') ? 'border-emerald-600/50 bg-emerald-900/10 cursor-not-allowed opacity-80' : 'border-[#243044] focus:border-blue-500/40'
+                    }`}
                   />
                 </div>
                 <div>
@@ -1190,7 +1297,11 @@ const DemolizioneRVFUForm = () => {
                       <label className="block text-xs font-medium text-slate-400 mb-1">Provincia Nascita</label>
                       <select
                         value={formData.proprietario_provinciaNascita || ''}
-                        onChange={(e) => handleInputChange('proprietario_provinciaNascita', e.target.value)}
+                        onChange={(e) => {
+                          handleInputChange('proprietario_provinciaNascita', e.target.value);
+                          const prov = province.find(p => p.sigla === e.target.value);
+                          if (prov) handleInputChange('proprietario_codiceProvinciaNascita', prov.codice);
+                        }}
                         className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
                       >
                         <option value="">Seleziona</option>
@@ -1206,11 +1317,10 @@ const DemolizioneRVFUForm = () => {
                       <select
                         value={formData.proprietario_codiceComuneNascita || ''}
                         onChange={(e) => {
-                          const comune = comuniNascitaIntestatario.find(c => c.codice_istat === e.target.value || c.codice === e.target.value);
+                          const comune = comuniNascitaIntestatario.find(c => c.codice === e.target.value || c.codice_istat === e.target.value);
                           handleInputChange('proprietario_codiceComuneNascita', e.target.value);
                           if (comune) {
                             handleInputChange('proprietario_comuneNascita', comune.denominazione);
-                            handleInputChange('proprietario_codiceProvinciaNascita', comune.sigla_provincia);
                           }
                         }}
                         className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
@@ -1218,7 +1328,7 @@ const DemolizioneRVFUForm = () => {
                       >
                         <option value="">Seleziona comune</option>
                         {comuniNascitaIntestatario.map((comune) => (
-                          <option key={comune.codice_istat || comune.codice} value={comune.codice_istat || comune.codice}>
+                          <option key={comune.codice || comune.codice_istat} value={comune.codice}>
                             {comune.denominazione}
                           </option>
                         ))}
@@ -1236,7 +1346,13 @@ const DemolizioneRVFUForm = () => {
                     <label className="block text-xs font-medium text-slate-400 mb-1">Provincia Residenza *</label>
                     <select
                       value={formData.proprietario_provinciaResidenza || ''}
-                      onChange={(e) => handleInputChange('proprietario_provinciaResidenza', e.target.value)}
+                      onChange={(e) => {
+                        handleInputChange('proprietario_provinciaResidenza', e.target.value);
+                        const prov = province.find(p => p.sigla === e.target.value);
+                        if (prov) {
+                          handleInputChange('proprietario_codiceProvinciaResidenza', prov.codice);
+                        }
+                      }}
                       className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
                       required
                     >
@@ -1253,11 +1369,10 @@ const DemolizioneRVFUForm = () => {
                     <select
                       value={formData.proprietario_codiceComuneResidenza || ''}
                       onChange={(e) => {
-                        const comune = comuniResidenzaIntestatario.find(c => c.codice_istat === e.target.value || c.codice === e.target.value);
+                        const comune = comuniResidenzaIntestatario.find(c => c.codice === e.target.value || c.codice_istat === e.target.value);
                         handleInputChange('proprietario_codiceComuneResidenza', e.target.value);
                         if (comune) {
                           handleInputChange('proprietario_comuneResidenza', comune.denominazione);
-                          handleInputChange('proprietario_codiceProvinciaResidenza', comune.sigla_provincia);
                         }
                       }}
                       className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
@@ -1266,7 +1381,7 @@ const DemolizioneRVFUForm = () => {
                     >
                       <option value="">Seleziona comune</option>
                       {comuniResidenzaIntestatario.map((comune) => (
-                        <option key={comune.codice_istat || comune.codice} value={comune.codice_istat || comune.codice}>
+                        <option key={comune.codice || comune.codice_istat} value={comune.codice}>
                           {comune.denominazione}
                         </option>
                       ))}
@@ -1534,7 +1649,11 @@ const DemolizioneRVFUForm = () => {
                           <label className="block text-xs font-medium text-slate-400 mb-1">Provincia Nascita</label>
                           <select
                             value={formData.detentore_provinciaNascita || ''}
-                            onChange={(e) => handleInputChange('detentore_provinciaNascita', e.target.value)}
+                            onChange={(e) => {
+                              handleInputChange('detentore_provinciaNascita', e.target.value);
+                              const prov = province.find(p => p.sigla === e.target.value);
+                              if (prov) handleInputChange('detentore_codiceProvinciaNascita', prov.codice);
+                            }}
                             className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
                           >
                             <option value="">Seleziona</option>
@@ -1550,11 +1669,10 @@ const DemolizioneRVFUForm = () => {
                           <select
                             value={formData.detentore_codiceComuneNascita || ''}
                             onChange={(e) => {
-                              const comune = comuniNascitaDetentore.find(c => c.codice_istat === e.target.value || c.codice === e.target.value);
+                              const comune = comuniNascitaDetentore.find(c => c.codice === e.target.value || c.codice_istat === e.target.value);
                               handleInputChange('detentore_codiceComuneNascita', e.target.value);
                               if (comune) {
                                 handleInputChange('detentore_comuneNascita', comune.denominazione);
-                                handleInputChange('detentore_codiceProvinciaNascita', comune.sigla_provincia);
                               }
                             }}
                             className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
@@ -1562,7 +1680,7 @@ const DemolizioneRVFUForm = () => {
                           >
                             <option value="">Seleziona comune</option>
                             {comuniNascitaDetentore.map((comune) => (
-                              <option key={comune.codice_istat || comune.codice} value={comune.codice_istat || comune.codice}>
+                              <option key={comune.codice || comune.codice_istat} value={comune.codice}>
                                 {comune.denominazione}
                               </option>
                             ))}
@@ -1580,7 +1698,11 @@ const DemolizioneRVFUForm = () => {
                         <label className="block text-xs font-medium text-slate-400 mb-1">Provincia Residenza</label>
                         <select
                           value={formData.detentore_provinciaResidenza || ''}
-                          onChange={(e) => handleInputChange('detentore_provinciaResidenza', e.target.value)}
+                          onChange={(e) => {
+                            handleInputChange('detentore_provinciaResidenza', e.target.value);
+                            const prov = province.find(p => p.sigla === e.target.value);
+                            if (prov) handleInputChange('detentore_codiceProvinciaResidenza', prov.codice);
+                          }}
                           className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
                         >
                           <option value="">Seleziona</option>
@@ -1596,11 +1718,10 @@ const DemolizioneRVFUForm = () => {
                         <select
                           value={formData.detentore_codiceComuneResidenza || ''}
                           onChange={(e) => {
-                            const comune = comuniResidenzaDetentore.find(c => c.codice_istat === e.target.value || c.codice === e.target.value);
+                            const comune = comuniResidenzaDetentore.find(c => c.codice === e.target.value || c.codice_istat === e.target.value);
                             handleInputChange('detentore_codiceComuneResidenza', e.target.value);
                             if (comune) {
                               handleInputChange('detentore_comuneResidenza', comune.denominazione);
-                              handleInputChange('detentore_codiceProvinciaResidenza', comune.sigla_provincia);
                             }
                           }}
                           className="w-full px-3 py-2 text-sm border border-[#243044] rounded-lg bg-[#1a2536] text-white focus:ring-1 focus:ring-blue-500/40 outline-none/40/40 focus:border-blue-500/40 transition-colors"
@@ -1608,7 +1729,7 @@ const DemolizioneRVFUForm = () => {
                         >
                           <option value="">Seleziona comune</option>
                           {comuniResidenzaDetentore.map((comune) => (
-                            <option key={comune.codice_istat || comune.codice} value={comune.codice_istat || comune.codice}>
+                            <option key={comune.codice || comune.codice_istat} value={comune.codice}>
                               {comune.denominazione}
                             </option>
                           ))}
@@ -1852,6 +1973,63 @@ const DemolizioneRVFUForm = () => {
                 <DocumentManager />
               </div>
             )}
+
+            {/* ════════ Azioni di salvataggio ════════ */}
+            <div className="mt-8 pt-6 border-t border-[#243044]">
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-end">
+                {/* Salva locale */}
+                <LoadingButton
+                  onClick={handleSubmit}
+                  loading={saving}
+                  className="px-6 py-2.5 bg-[#1a2536] text-blue-400 border border-[#243044] rounded-lg hover:bg-blue-500/10 text-sm transition-colors font-medium"
+                >
+                  <FiCheck className="w-4 h-4 mr-2" />
+                  {isEdit ? 'Salva Modifiche' : 'Salva Locale'}
+                </LoadingButton>
+
+                {/* Invia a RVFU (solo se autenticati) */}
+                {isAuthenticated && !isEdit && (
+                  <LoadingButton
+                    onClick={handleSendToRVFU}
+                    loading={sendingToRVFU}
+                    className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm transition-colors font-medium shadow-lg shadow-emerald-600/20"
+                  >
+                    <FiSend className="w-4 h-4 mr-2" />
+                    Crea Pratica RVFU
+                  </LoadingButton>
+                )}
+              </div>
+
+              {/* Info invio RVFU */}
+              {isAuthenticated && !isEdit && (
+                <div className="mt-3 p-3 bg-emerald-900/20 border border-emerald-600/30 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <FiShield className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <div className="text-xs text-emerald-300">
+                      <p className="font-medium">Connesso al sistema RVFU</p>
+                      <p className="mt-1 text-emerald-400/70">
+                        "Crea Pratica RVFU" invia i dati direttamente al sistema ACI/RVFU e crea la pratica ufficiale.
+                        "Salva Locale" salva solo nel database locale senza inviare a RVFU.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!isAuthenticated && !isEdit && (
+                <div className="mt-3 p-3 bg-amber-900/20 border border-amber-600/30 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <FiAlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                    <div className="text-xs text-amber-300">
+                      <p className="font-medium">Modalità offline</p>
+                      <p className="mt-1 text-amber-400/70">
+                        Non sei connesso al sistema RVFU. I dati verranno salvati solo localmente.
+                        Per inviare a RVFU, effettua prima l'accesso dal menu Sistema &gt; RVFU.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </form>
       </div>
@@ -1882,13 +2060,17 @@ const DemolizioneRVFUForm = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      const testTarghe = ['VA054AJ', 'VA056AJ', 'VA058AJ', 'VA060AJ', 'VA062AJ', 'VA064AJ', 'VA066AJ'];
-                      const randomTarga = testTarghe[Math.floor(Math.random() * testTarghe.length)];
+                      const testTarghe = [
+                        { targa: 'AG004557', tipo: 'T' }, { targa: 'AG004559', tipo: 'T' },
+                        { targa: 'AG004561', tipo: 'T' }, { targa: 'AG004563', tipo: 'T' },
+                        { targa: 'VA189AJ', tipo: 'A' }, { targa: 'VA227AJ', tipo: 'A' },
+                      ];
+                      const random = testTarghe[Math.floor(Math.random() * testTarghe.length)];
                       setSearchParams({
-                        codiceFiscale: '',
-                        targa: randomTarga,
+                        codiceFiscale: random.tipo === 'A' ? 'NTSPRM71L20H501B' : '',
+                        targa: random.targa,
                         telaio: '',
-                        tipoVeicolo: 'A',
+                        tipoVeicolo: random.tipo,
                         causale: 'D'
                       });
                       setSearchErrors({});
@@ -1900,11 +2082,12 @@ const DemolizioneRVFUForm = () => {
                   <select
                     onChange={(e) => {
                       if (e.target.value) {
+                        const [targa, tipo] = e.target.value.split('|');
                         setSearchParams({
-                          codiceFiscale: '',
-                          targa: e.target.value,
+                          codiceFiscale: tipo === 'A' ? 'NTSPRM71L20H501B' : '',
+                          targa,
                           telaio: '',
-                          tipoVeicolo: 'A',
+                          tipoVeicolo: tipo,
                           causale: 'D'
                         });
                         setSearchErrors({});
@@ -1915,13 +2098,18 @@ const DemolizioneRVFUForm = () => {
                     defaultValue=""
                   >
                     <option value="">Seleziona targa test...</option>
-                    <option value="VA054AJ">VA054AJ</option>
-                    <option value="VA056AJ">VA056AJ</option>
-                    <option value="VA058AJ">VA058AJ</option>
-                    <option value="VA060AJ">VA060AJ</option>
-                    <option value="VA062AJ">VA062AJ</option>
-                    <option value="VA064AJ">VA064AJ</option>
-                    <option value="VA066AJ">VA066AJ</option>
+                    <optgroup label="AG - Trattori (tipoVeicolo T)">
+                      <option value="AG004557|T">AG004557 (Registraz. OK)</option>
+                      <option value="AG004559|T">AG004559 (VALIDATO)</option>
+                      <option value="AG004561|T">AG004561</option>
+                      <option value="AG004563|T">AG004563</option>
+                    </optgroup>
+                    <optgroup label="VA - Autoveicoli con CF (tipoVeicolo A)">
+                      <option value="VA189AJ|A">VA189AJ + CF</option>
+                      <option value="VA227AJ|A">VA227AJ + CF</option>
+                      <option value="VA229AJ|A">VA229AJ + CF</option>
+                      <option value="VA231AJ|A">VA231AJ + CF</option>
+                    </optgroup>
                   </select>
                 </div>
               </div>

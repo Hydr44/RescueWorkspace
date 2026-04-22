@@ -286,6 +286,30 @@ export default function RVFUTestConsole() {
     setDocumenti(docs);
   }, [client, apiCall]);
 
+  const downloadDocumentoPDF = useCallback(async (doc) => {
+    if (!client) return;
+    const { idAciDocumento, idFascicolo, progressivoDocumento, tipoDocumento } = doc;
+    const endpoint = `/cr/documentoVFU?idAci=${idAciDocumento}&idFascicolo=${idFascicolo}&progressivoDocumento=${progressivoDocumento}`;
+    setLoading(true);
+    try {
+      const response = await client.downloadDocumento({ idAci: idAciDocumento, idFascicolo, progressivoDocumento });
+      const esito = response?.esito;
+      const ok = esito?.responseStatus === 'OK' || esito?.code === 'E000';
+      log('GET', endpoint, response, ok);
+      if (ok && response?.result?.file) {
+        const title = `${tipoDocumento || 'Documento'} #${idFascicolo}`;
+        if (tryDecodePDF(response.result, title)) {
+          log('PDF', endpoint, { esito: { code: 'OK', message: `PDF ${tipoDocumento} decodificato`, responseStatus: 'OK' } }, true);
+        }
+      } else if (!ok) {
+        log('PDF', endpoint, { esito: { code: 'ERR', message: 'Download fallito: ' + (esito?.message || 'file assente'), responseStatus: 'KO' } }, false);
+      }
+    } catch (err) {
+      log('PDF', endpoint, { esito: { code: 'ERR', message: err.message, responseStatus: 'KO' } }, false);
+    }
+    setLoading(false);
+  }, [client, log, tryDecodePDF]);
+
   // === PDF ===
 
   const viewPDF = useCallback(async (fetchFn, title, method, endpoint) => {
@@ -613,10 +637,18 @@ export default function RVFUTestConsole() {
                             <div key={i} className="text-xs bg-[#141c27] rounded p-2 border border-[#243044] flex items-center justify-between">
                               <div>
                                 <span className="font-semibold text-slate-300">{doc.tipoDocumento || doc.tipo || `Doc #${i+1}`}</span>
-                                {doc.dataCreazione && <span className="text-slate-500 ml-2">{new Date(doc.dataCreazione).toLocaleString('it-IT')}</span>}
-                                {doc.stato && <span className="ml-2 text-slate-400">({doc.stato})</span>}
+                                {doc.dataInserimento && <span className="text-slate-500 ml-2">{new Date(doc.dataInserimento).toLocaleString('it-IT')}</span>}
+                                <span className="ml-2 text-slate-400">({doc.statoDocumento || doc.stato || '-'})</span>
                               </div>
-                              {doc.id && <span className="text-slate-600 font-mono">#{doc.id}</span>}
+                              <div className="flex items-center gap-2">
+                                {doc.idAciDocumento && <span className="text-slate-600 font-mono">idAci:{doc.idAciDocumento}</span>}
+                                {doc.statoDocumentoEnum === 'FIRMATO' && (
+                                  <button onClick={() => downloadDocumentoPDF(doc)} disabled={loading}
+                                    className="px-1.5 py-0.5 text-[10px] bg-blue-600/10 text-blue-400 border border-blue-500/20 rounded hover:bg-blue-600/20 disabled:opacity-50 flex items-center gap-1">
+                                    <FiDownload className="h-2.5 w-2.5" /> PDF
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>

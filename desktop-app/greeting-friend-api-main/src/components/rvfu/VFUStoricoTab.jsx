@@ -1,6 +1,6 @@
 import React from 'react';
 import { FiClock, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
-import { getStatoLabel, getStatoBadgeColor } from '@/lib/vfu-state-machine';
+import { getStatoLabel, getStatoColors } from '@/lib/vfu-state-machine';
 
 const VFUStoricoTab = ({ vfuData }) => {
   const eventi = [];
@@ -136,14 +136,14 @@ const VFUStoricoTab = ({ vfuData }) => {
           {/* Events */}
           <div className="space-y-6">
             {eventi.map((evento, idx) => {
-              const color = getStatoBadgeColor(evento.tipo);
+              const colors = getStatoColors(evento.tipo);
               const IconComponent = evento.icon === 'check' ? FiCheckCircle : FiAlertCircle;
 
               return (
                 <div key={idx} className="relative flex gap-4 items-start">
                   {/* Icon */}
-                  <div className={`relative z-10 w-10 h-10 rounded-full bg-${color}-600/20 border-2 border-${color}-600 flex items-center justify-center`}>
-                    <IconComponent className={`w-5 h-5 text-${color}-400`} />
+                  <div className={`relative z-10 w-10 h-10 rounded-full ${colors.bgLight} border-2 ${colors.bg} flex items-center justify-center`}>
+                    <IconComponent className={`w-5 h-5 ${colors.text}`} />
                   </div>
 
                   {/* Content */}
@@ -163,7 +163,7 @@ const VFUStoricoTab = ({ vfuData }) => {
                           })}
                         </div>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-medium bg-${color}-600/20 text-${color}-400 border border-${color}-500/30 whitespace-nowrap`}>
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${colors.badge} whitespace-nowrap`}>
                         {getStatoLabel(evento.tipo)}
                       </span>
                     </div>

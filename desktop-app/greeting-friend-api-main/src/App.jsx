@@ -94,6 +94,8 @@ const Reports = lazyPage(() => import("./pages/Reports"), "Reports");
 const Quotes = lazyPage(() => import("./pages/Quotes"), "Quotes");
 const QuoteNew = lazyPage(() => import("./pages/QuoteNew"), "QuoteNew");
 const DemolizioniRVFU = lazyPage(() => import("./pages/DemolizioniRVFU"), "DemolizioniRVFU");
+const DelegheRVFU = lazyPage(() => import("./pages/DelegheRVFU"), "DelegheRVFU");
+const PagoPARVFU = lazyPage(() => import("./pages/PagoPARVFU"), "PagoPARVFU");
 const DemolizioneRVFUForm = lazyPage(() => import("./pages/DemolizioneRVFUForm"), "DemolizioneRVFUForm");
 const DemolizioneRVFUDettaglio = lazyPage(() => import("./pages/DemolizioneRVFUDettaglioNew"), "DemolizioneRVFUDettaglioNew");
 const RVFUTestConsole = lazyPage(() => import("./pages/RVFUTestConsole"), "RVFUTestConsole");
@@ -311,6 +313,8 @@ export default function App() {
               {/* Demolizioni — protetto da modulo rvfu */}
               <Route path="/demolizioni-rvfu" element={<Protected><ModuleGuard module="rvfu"><DemolizioniRVFU /></ModuleGuard></Protected>} />
               <Route path="/demolizioni-rvfu/new" element={<Protected><ModuleGuard module="rvfu"><DemolizioneRVFUForm /></ModuleGuard></Protected>} />
+              <Route path="/demolizioni-rvfu/deleghe" element={<Protected><ModuleGuard module="rvfu"><DelegheRVFU /></ModuleGuard></Protected>} />
+              <Route path="/demolizioni-rvfu/pagopa" element={<Protected><ModuleGuard module="rvfu"><PagoPARVFU /></ModuleGuard></Protected>} />
               <Route path="/demolizioni-rvfu/dettaglio/:id" element={<Protected><ModuleGuard module="rvfu"><DemolizioneRVFUDettaglio /></ModuleGuard></Protected>} />
               <Route path="/demolizioni-rvfu/:id" element={<Protected><ModuleGuard module="rvfu"><DemolizioneRVFUForm /></ModuleGuard></Protected>} />
               <Route path="/rvfu-test" element={<Protected><RVFUTestConsole /></Protected>} />
