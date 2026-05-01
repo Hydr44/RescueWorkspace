@@ -1,8 +1,6 @@
-// src/components/Shell.jsx
-import { NavLink, Link, useLocation } from "react-router-dom";
+import { NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import logoUrl from "@/logos/logo-principale-a-colori.svg";
-import rvfuSidebarIcon from "@/assets/icons/icons8/icons8-auto-50-13.png";
 import ricambiSidebarIcon from "@/assets/icons/icons8/icons8-auto-50.png";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { signOutAndGo } from "@/lib/auth";
@@ -16,6 +14,7 @@ import "@/styles/header-fix.css";
 import "@/styles/split-design.css";
 import AiAssistantPanel from "./AiAssistantPanel";
 import NotificationDropdown from "./NotificationDropdown";
+import { useOnboarding } from "@/hooks/useOnboarding";
 
 import {
   FiHome, FiTruck, FiCalendar,
@@ -25,20 +24,11 @@ import {
   FiSearch, FiChevronRight, FiX, FiCommand, FiTrash2,
   FiNavigation, FiMenu, FiTerminal
 } from "react-icons/fi";
+import { MdRecycling } from "react-icons/md";
 import PropTypes from "prop-types";
 
 function RVFUSidebarIcon({ className }) {
-  return (
-    <span
-      className={`${className} inline-flex items-center justify-center rounded-md bg-white/10 border border-white/15 p-0.5`}
-    >
-      <img
-        src={rvfuSidebarIcon}
-        alt=""
-        className="w-full h-full object-contain invert brightness-200 contrast-200 drop-shadow-[0_0_2px_rgba(0,0,0,0.65)]"
-      />
-    </span>
-  );
+  return <MdRecycling className={className} />;
 }
 
 function RicambiSidebarIcon({ className }) {
@@ -80,6 +70,10 @@ function readStoredUser() {
 export default function Shell({ children }) {
   const [open, setOpen] = useState(false);
   const [me, setMe] = useState(() => readStoredUser());
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isComplete, loading: onboardingLoading } = useOnboarding();
+
   const [appearance, setAppearance] = useState(() => {
     try {
       const stored = localStorage.getItem("rm-appearance");
@@ -88,6 +82,30 @@ export default function Shell({ children }) {
       return {};
     }
   });
+
+  // Redirect to setup if not complete — solo su pagine non escluse
+  useEffect(() => {
+    if (onboardingLoading) return;
+    if (isComplete) return;
+
+    // Fallback: controlla direttamente localStorage per evitare race condition
+    // (Shell e SetupWizard hanno istanze separate di useOnboarding, lo stato
+    //  React di Shell potrebbe non aver ricevuto ancora l'aggiornamento)
+    try {
+      const stored = localStorage.getItem("rm-onboarding-progress");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.checks?.skipped) return; // Già skippato, non redirectare
+      }
+    } catch { /* ignore */ }
+
+    const path = location.pathname;
+    const excluded = ['/setup', '/login', '/auth-callback', '/settings', '/diagnostica'];
+    if (excluded.some(p => path.startsWith(p))) return;
+
+    console.log('[Shell] Setup not complete, redirecting to /setup');
+    navigate('/setup', { replace: true });
+  }, [isComplete, onboardingLoading, location.pathname, navigate]);
   const [globalSearch, setGlobalSearch] = useState("");
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -97,13 +115,63 @@ export default function Shell({ children }) {
     transports: 0,
     quotes: 0
   });
-  const location = useLocation();
+  const [appVersion, setAppVersion] = useState('2.4.1');
+  const [orgPiva, setOrgPiva] = useState('');
+  const [syncStatus, setSyncStatus] = useState('checking');
   const { toast, hideToast } = useToastContext();
 
   const { orgName, orgId, isAdmin } = useOrg();
   const { activeModules, plan, statusInfo, daysLeft } = useSubscription();
   const { isDemo } = useDemo();
   const supabase = supabaseBrowser();
+
+  // Carica versione app, P.IVA org e Sync status
+  useEffect(() => {
+    // Versione app da package.json (fallback a 2.4.1)
+    try {
+      const version = window.__APP_VERSION__ || '2.4.1';
+      console.log('[Shell] App version:', version);
+      setAppVersion(version);
+    } catch (e) {
+      console.error('[Shell] Error getting app version:', e);
+      setAppVersion('2.4.1');
+    }
+
+    // P.IVA org da Supabase
+    if (orgId) {
+      supabase
+        .from('org_settings')
+        .select('value')
+        .eq('org_id', orgId)
+        .eq('key', 'company')
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (data?.value?.vat) {
+            console.log('[Shell] Setting P.IVA:', data.value.vat);
+            setOrgPiva(data.value.vat);
+          }
+        })
+        .catch((err) => {
+          console.error('[Shell] Error fetching P.IVA:', err);
+        });
+    }
+
+    // Sync status check
+    const checkSync = async () => {
+      try {
+        const session = await supabase.auth.getSession();
+        const status = session?.data?.session ? 'ok' : 'offline';
+        console.log('[Shell] Sync status:', status);
+        setSyncStatus(status);
+      } catch (e) {
+        console.error('[Shell] Error checking sync:', e);
+        setSyncStatus('error');
+      }
+    };
+    checkSync();
+    const syncInterval = setInterval(checkSync, 30000); // Check ogni 30s
+    return () => clearInterval(syncInterval);
+  }, [orgId, supabase]);
 
   // Deriva modalità sidebar e densità interfaccia dalle impostazioni Appearance
   const sidebarMode = appearance.sidebar === "collapsed" ? "collapsed" : "expanded";
@@ -405,6 +473,23 @@ export default function Shell({ children }) {
   }, [location.pathname, location.search]);
 
   // Classi derivate da sidebar / densità
+  const isSetupPage = location.pathname === '/setup';
+
+  if (isSetupPage) {
+    return (
+      <div className="flex flex-col h-screen bg-[#0c1420]">
+        <main className="flex-1 overflow-auto">{children}</main>
+        <Toast
+          show={toast.show}
+          text={toast.text}
+          type={toast.type}
+          duration={toast.duration}
+          onClose={hideToast}
+        />
+      </div>
+    );
+  }
+
   const sidebarWidthClass = sidebarMode === "collapsed" ? "w-20" : "w-[250px]";
   const contentMarginClass = sidebarMode === "collapsed" ? "md:ml-20" : "md:ml-[250px]";
   const contentPaddingClass = density === "compact" ? "p-2 md:p-3" : "p-4 md:p-6";
@@ -499,9 +584,13 @@ export default function Shell({ children }) {
           )}
 
           <Section title="Sistema" collapsed={sidebarMode === "collapsed"}>
-            {isAdmin && <SideLink to="/utenti" icon={FiUsers} label="Utenti & Ruoli" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />}
+            {isAdmin && (
+              <>
+                <SideLink to="/utenti" icon={FiUsers} label="Utenti & Ruoli" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+                <SideLink to="/diagnostica" icon={FiTerminal}  label="Diagnostica"   onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+              </>
+            )}
             <SideLink to="/settings" icon={FiSettings}  label="Impostazioni"   onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
-            <SideLink to="/rvfu-test" icon={FiTerminal}  label="RVFU Test"   onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
           </Section>
         </nav>
 
@@ -631,16 +720,22 @@ export default function Shell({ children }) {
         <div className="flex items-center gap-1.5">
           <span className="text-white/20">{orgName || 'Organizzazione'}</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-white/30">Sync: <span className="text-emerald-400">OK</span></span>
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-white/40">Sync: <span className={syncStatus === 'ok' ? 'text-emerald-400 font-semibold' : syncStatus === 'checking' ? 'text-yellow-400' : 'text-red-400'}>{syncStatus === 'ok' ? 'OK' : syncStatus === 'checking' ? '...' : 'ERR'}</span></span>
           <div className="w-px h-3 bg-white/10" />
+          {orgPiva && (
+            <span className="text-blue-300 font-semibold" title={`P.IVA: ${orgPiva}`}>
+              P.IVA: <span className="text-blue-200 font-mono">{orgPiva}</span>
+            </span>
+          )}
+          {orgPiva && <div className="w-px h-3 bg-white/10" />}
           {isDemo ? (
             <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 leading-none animate-pulse">Demo</span>
           ) : (
             <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 leading-none">Beta</span>
           )}
           <div className="w-px h-3 bg-white/10" />
-          <span className="text-white/20 font-mono">v2.4.1</span>
+          <span className="text-white/40 font-mono">v{appVersion}</span>
         </div>
       </footer>
 

@@ -533,6 +533,57 @@ export class CompanySettingsService {
   /**
    * Ottiene configurazioni per export (ottimizzate)
    */
+  /**
+   * Carica i dati "Info Azienda" autoritativi da org_settings.key='company'.
+   * Questa è la fonte UFFICIALE da Maggio 2026 (vedi tab Settings → Organizzazione → Info Azienda).
+   * Schema esempio: { company_name, vat, tax_code, address: {street, civico, city, zip, province, country}, regime_fiscale }
+   * o nel formato vecchio piatto.
+   */
+  private static async _getOrgInfoAzienda(orgId: string): Promise<any | null> {
+    try {
+      const { data, error } = await supabase
+        .from('org_settings')
+        .select('value')
+        .eq('org_id', orgId)
+        .eq('key', 'company')
+        .maybeSingle();
+      if (error || !data?.value) return null;
+      const v: any = data.value;
+      // Normalizza schema: address può essere stringa o oggetto
+      let street = '';
+      let city = v.city || '';
+      let zip = v.zip || '';
+      let province = v.province || '';
+      let country = v.country || 'IT';
+      if (v.address && typeof v.address === 'object') {
+        street = [v.address.street, v.address.civico].filter(Boolean).join(' ').trim();
+        city = city || v.address.city || '';
+        zip = zip || v.address.zip || '';
+        province = province || v.address.province || '';
+        country = country || v.address.country || 'IT';
+      } else if (typeof v.address === 'string') {
+        street = v.address;
+      }
+      return {
+        company_name: v.company_name || null,
+        vat_number: v.vat || v.piva || null,
+        tax_code: v.tax_code || v.codice_fiscale || null,
+        address_street: street || null,
+        address_city: city || null,
+        address_postal_code: zip || null,
+        address_province: province || null,
+        address_country: country || 'IT',
+        phone: v.phone || null,
+        email: v.email || null,
+        pec: v.pec || null,
+        sdi_recipient_code: v.codice_destinatario || null,
+        regime_fiscale: v.regime_fiscale || null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   static async getForExport(orgId: string): Promise<{
     company_name: string;
     logo_base64?: string;
@@ -550,45 +601,54 @@ export class CompanySettingsService {
     address_street?: string;
     address_city?: string;
     address_postal_code?: string;
+    address_province?: string;
     phone?: string;
     email?: string;
+    pec?: string;
+    sdi_recipient_code?: string;
   }> {
-    const settings = await this.get(orgId);
-    
-    if (!settings) {
-      // Restituisci valori di default se non ci sono impostazioni
-      return {
-        company_name: 'RescueManager',
-        primary_color: '#3B82F6',
-        secondary_color: '#1E40AF',
-        accent_color: '#F59E0B',
-        text_color: '#374151',
-        background_color: '#FFFFFF',
-        font_family: 'Inter',
-        font_size_base: 12,
-        font_size_heading: 18
-      };
-    }
-    
+    // 1. Fonte AUTORITATIVA: org_settings.key='company' (Info Azienda)
+    const orgInfo = await this._getOrgInfoAzienda(orgId);
+    // 2. Fonte BRANDING (legacy): tabella company_settings (logo, colori, font, footer)
+    const branding = await this.get(orgId);
+
+    // Default branding values
+    const defaults = {
+      primary_color: '#3B82F6',
+      secondary_color: '#1E40AF',
+      accent_color: '#F59E0B',
+      text_color: '#374151',
+      background_color: '#FFFFFF',
+      font_family: 'Inter',
+      font_size_base: 12,
+      font_size_heading: 18,
+    };
+
+    // Merge: prevalgono SEMPRE i dati da Info Azienda (orgInfo) per anagrafica;
+    // company_settings è fallback per legacy + fonte unica per branding
     return {
-      company_name: settings.company_name,
-      logo_base64: settings.logo_base64,
-      primary_color: settings.primary_color || '#3B82F6',
-      secondary_color: settings.secondary_color || '#1E40AF',
-      accent_color: settings.accent_color || '#F59E0B',
-      text_color: settings.text_color || '#374151',
-      background_color: settings.background_color || '#FFFFFF',
-      font_family: settings.font_family || 'Inter',
-      font_size_base: settings.font_size_base || 12,
-      font_size_heading: settings.font_size_heading || 18,
-      legal_notes: settings.legal_notes,
-      vat_number: settings.vat_number,
-      tax_code: settings.tax_code,
-      address_street: settings.address_street,
-      address_city: settings.address_city,
-      address_postal_code: settings.address_postal_code,
-      phone: settings.phone,
-      email: settings.email
+      company_name: orgInfo?.company_name || branding?.company_name || 'RescueManager',
+      vat_number: orgInfo?.vat_number || branding?.vat_number || undefined,
+      tax_code: orgInfo?.tax_code || branding?.tax_code || undefined,
+      address_street: orgInfo?.address_street || branding?.address_street || undefined,
+      address_city: orgInfo?.address_city || branding?.address_city || undefined,
+      address_postal_code: orgInfo?.address_postal_code || branding?.address_postal_code || undefined,
+      address_province: orgInfo?.address_province || branding?.address_province || undefined,
+      phone: orgInfo?.phone || branding?.phone || undefined,
+      email: orgInfo?.email || branding?.email || undefined,
+      pec: orgInfo?.pec || branding?.pec || undefined,
+      sdi_recipient_code: orgInfo?.sdi_recipient_code || branding?.sdi_recipient_code || undefined,
+      // Branding (sempre da company_settings, fallback ai default)
+      logo_base64: branding?.logo_base64,
+      primary_color: branding?.primary_color || defaults.primary_color,
+      secondary_color: branding?.secondary_color || defaults.secondary_color,
+      accent_color: branding?.accent_color || defaults.accent_color,
+      text_color: branding?.text_color || defaults.text_color,
+      background_color: branding?.background_color || defaults.background_color,
+      font_family: branding?.font_family || defaults.font_family,
+      font_size_base: branding?.font_size_base || defaults.font_size_base,
+      font_size_heading: branding?.font_size_heading || defaults.font_size_heading,
+      legal_notes: branding?.legal_notes,
     };
   }
 

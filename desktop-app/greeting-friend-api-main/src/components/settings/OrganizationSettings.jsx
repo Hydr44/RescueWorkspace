@@ -5,7 +5,7 @@ import {
   FiUsers, FiTruck, FiFileText, FiEdit3, FiCheck, FiX, FiCopy,
   FiRefreshCw, FiTrash2, FiShield, FiActivity, FiCalendar, FiClock,
   FiMapPin, FiPhone, FiMail, FiGlobe,
-  FiAlertTriangle, FiHash
+  FiAlertTriangle, FiHash, FiInfo
 } from "react-icons/fi";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { useOrg } from "@/context/OrgContext";
@@ -47,13 +47,14 @@ export default function OrganizationSettings({ showToast }) {
         .maybeSingle();
       setOrgDetails(org);
 
-      // Load org_settings
-      const { data: settings } = await supabase
+      // Load org_settings (key: company)
+      const { data: settingsRow } = await supabase
         .from("org_settings")
-        .select("*")
+        .select("value")
         .eq("org_id", orgId)
+        .eq("key", "company")
         .maybeSingle();
-      setOrgSettings(settings || {});
+      setOrgSettings(settingsRow?.value || {});
 
       // Load stats in parallel (each wrapped to avoid crash if table missing)
       const safeCount = async (table) => {
@@ -121,19 +122,14 @@ export default function OrganizationSettings({ showToast }) {
         .from("org_settings")
         .upsert({
           org_id: orgId,
-          ...fields,
+          key: "company",
+          value: updatedSettings,
           updated_at: new Date().toISOString(),
         }, {
-          onConflict: "org_id"
+          onConflict: "org_id,key"
         });
 
-      if (error) {
-        const { error: updateErr } = await supabase
-          .from("org_settings")
-          .update({ ...fields, updated_at: new Date().toISOString() })
-          .eq("org_id", orgId);
-        if (updateErr) throw updateErr;
-      }
+      if (error) throw error;
       showToast?.("success", "Impostazioni salvate");
     } catch (err) {
       console.error("[OrganizationSettings] Save settings error:", err);
@@ -549,9 +545,7 @@ function OrgInfoForm({ settings, onSave, saving }) {
     company_name: settings?.company_name || "",
     vat: settings?.vat || "",
     tax_code: settings?.tax_code || "",
-    regime_fiscale: settings?.regime_fiscale || "RF01",
     iban: settings?.iban || "",
-    bank_name: settings?.bank_name || "",
     invoice_prefix: settings?.invoice_prefix || "",
     invoice_footer: settings?.invoice_footer || "",
   });
@@ -561,22 +555,11 @@ function OrgInfoForm({ settings, onSave, saving }) {
       company_name: settings?.company_name || "",
       vat: settings?.vat || "",
       tax_code: settings?.tax_code || "",
-      regime_fiscale: settings?.regime_fiscale || "RF01",
       iban: settings?.iban || "",
-      bank_name: settings?.bank_name || "",
       invoice_prefix: settings?.invoice_prefix || "",
       invoice_footer: settings?.invoice_footer || "",
     });
   }, [settings]);
-
-  const REGIMI = [
-    { value: "RF01", label: "RF01 - Ordinario" },
-    { value: "RF02", label: "RF02 - Contribuenti minimi" },
-    { value: "RF04", label: "RF04 - Agricoltura e pesca" },
-    { value: "RF14", label: "RF14 - Rivendita beni usati" },
-    { value: "RF18", label: "RF18 - Altro" },
-    { value: "RF19", label: "RF19 - Forfettario" },
-  ];
 
   const handleSave = () => {
     onSave(form);
@@ -592,61 +575,62 @@ function OrgInfoForm({ settings, onSave, saving }) {
           <Field label="Denominazione / Ragione Sociale" required className="col-span-4">
             <input
               type="text"
-              className={inputClass}
+              readOnly
+              className={inputClass + " opacity-70 cursor-not-allowed"}
               placeholder="La Tua Azienda Srl"
               value={form.company_name}
-              onChange={(e) => setForm(p => ({ ...p, company_name: e.target.value }))}
+              title="Modificabile solo tramite Onboarding Wizard"
             />
           </Field>
           <Field label="Partita IVA" required className="col-span-2">
             <input
               type="text"
-              className={inputClass + " font-mono"}
+              readOnly
+              className={inputClass + " font-mono opacity-70 cursor-not-allowed"}
               placeholder="IT12345678901"
               value={form.vat}
-              onChange={(e) => setForm(p => ({ ...p, vat: e.target.value.toUpperCase() }))}
+              title="Modificabile solo tramite Onboarding Wizard"
             />
           </Field>
           <Field label="Codice Fiscale" className="col-span-2">
             <input
               type="text"
-              className={inputClass + " font-mono"}
+              readOnly
+              className={inputClass + " font-mono opacity-70 cursor-not-allowed"}
               placeholder="Se diverso da P.IVA"
               value={form.tax_code}
-              onChange={(e) => setForm(p => ({ ...p, tax_code: e.target.value.toUpperCase() }))}
+              title="Modificabile solo tramite Onboarding Wizard"
             />
           </Field>
-          <Field label="Regime Fiscale" required className="col-span-4">
-            <select
-              className={inputClass}
-              value={form.regime_fiscale}
-              onChange={(e) => setForm(p => ({ ...p, regime_fiscale: e.target.value }))}
-            >
-              {REGIMI.map(rf => <option key={rf.value} value={rf.value}>{rf.label}</option>)}
-            </select>
-          </Field>
+        </div>
+        
+        <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <FiInfo className="w-4 h-4 text-blue-400" />
+            <span className="text-xs text-slate-300">I dati aziendali principali si gestiscono dal <strong>Wizard di Onboarding</strong>.</span>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.removeItem("rm-app-onboarding-dismissed");
+              window.location.reload();
+            }}
+            className="px-3 py-1.5 text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+          >
+            AVVIA WIZARD
+          </button>
         </div>
       </div>
 
       <div>
         <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Dati Bancari</h3>
         <div className="grid grid-cols-6 gap-x-3 gap-y-3">
-          <Field label="IBAN" className="col-span-4">
+          <Field label="IBAN" className="col-span-6">
             <input
               type="text"
               className={inputClass + " font-mono"}
               placeholder="IT60X0542811101000000123456"
               value={form.iban}
               onChange={(e) => setForm(p => ({ ...p, iban: e.target.value.replaceAll(/\s+/g, "").toUpperCase() }))}
-            />
-          </Field>
-          <Field label="Banca" className="col-span-2">
-            <input
-              type="text"
-              className={inputClass}
-              placeholder="Nome banca"
-              value={form.bank_name}
-              onChange={(e) => setForm(p => ({ ...p, bank_name: e.target.value }))}
             />
           </Field>
         </div>
@@ -668,12 +652,15 @@ function OrgInfoForm({ settings, onSave, saving }) {
             <textarea
               className={inputClass + " resize-none"}
               rows={2}
-              placeholder="Es: Capitale Sociale € 10.000 i.v. - REA RM-123456"
+              placeholder="Es: Capitale Sociale € 10.000 i.v."
               value={form.invoice_footer}
               onChange={(e) => setForm(p => ({ ...p, invoice_footer: e.target.value }))}
             />
           </Field>
         </div>
+        <p className="text-[10px] text-slate-500 mt-2 italic">
+          Per Codice Destinatario SDI, PEC e Regime Fiscale vai su <strong>Impostazioni → Fatturazione SDI</strong>.
+        </p>
       </div>
 
       <div className="flex justify-end pt-2">
@@ -701,11 +688,12 @@ function SedeForm({ settings, onSave, saving }) {
   const addr = typeof settings?.address === "object" ? settings.address : {};
   const [form, setForm] = useState({
     phone: settings?.phone || "",
+    mobile: settings?.mobile || "",
     email: settings?.email || "",
-    pec: settings?.pec || "",
     website: settings?.website || "",
     address: {
       street: addr.street || "",
+      civico: addr.civico || "",
       city: addr.city || "",
       zip: addr.zip || "",
       province: addr.province || "",
@@ -717,11 +705,12 @@ function SedeForm({ settings, onSave, saving }) {
     const a = typeof settings?.address === "object" ? settings.address : {};
     setForm({
       phone: settings?.phone || "",
+      mobile: settings?.mobile || "",
       email: settings?.email || "",
-      pec: settings?.pec || "",
       website: settings?.website || "",
       address: {
         street: a.street || "",
+        civico: a.civico || "",
         city: a.city || "",
         zip: a.zip || "",
         province: a.province || "",
@@ -733,8 +722,8 @@ function SedeForm({ settings, onSave, saving }) {
   const handleSave = () => {
     onSave({
       phone: form.phone,
+      mobile: form.mobile,
       email: form.email,
-      pec: form.pec,
       website: form.website,
       address: form.address,
     });
@@ -747,49 +736,58 @@ function SedeForm({ settings, onSave, saving }) {
       <div>
         <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Sede Legale</h3>
         <div className="grid grid-cols-6 gap-x-3 gap-y-3">
-          <Field label="Indirizzo" required className="col-span-4">
+          <Field label="Indirizzo" required className="col-span-3">
             <input
               type="text"
-              className={inputClass}
-              placeholder="Via Roma 123"
+              readOnly
+              className={inputClass + " opacity-70 cursor-not-allowed"}
+              placeholder="Via Roma"
               value={form.address.street}
-              onChange={(e) => setForm(p => ({ ...p, address: { ...p.address, street: e.target.value } }))}
+            />
+          </Field>
+          <Field label="Civico" className="col-span-1">
+            <input
+              type="text"
+              readOnly
+              className={inputClass + " opacity-70 cursor-not-allowed"}
+              placeholder="123"
+              value={form.address.civico}
             />
           </Field>
           <Field label="CAP" required className="col-span-1">
             <input
               type="text"
-              className={inputClass}
+              readOnly
+              className={inputClass + " opacity-70 cursor-not-allowed"}
               placeholder="00100"
               maxLength={5}
               value={form.address.zip}
-              onChange={(e) => setForm(p => ({ ...p, address: { ...p.address, zip: e.target.value } }))}
             />
           </Field>
           <Field label="Nazione" className="col-span-1">
             <input
               type="text"
-              className={inputClass}
+              readOnly
+              className={inputClass + " opacity-70 cursor-not-allowed"}
               placeholder="IT"
               maxLength={2}
               value={form.address.country}
-              onChange={(e) => setForm(p => ({ ...p, address: { ...p.address, country: e.target.value.toUpperCase() } }))}
             />
           </Field>
           <Field label="Comune" required className="col-span-3">
             <input
               type="text"
-              className={inputClass}
+              readOnly
+              className={inputClass + " opacity-70 cursor-not-allowed"}
               placeholder="Roma"
               value={form.address.city}
-              onChange={(e) => setForm(p => ({ ...p, address: { ...p.address, city: e.target.value } }))}
             />
           </Field>
           <Field label="Provincia" required className="col-span-1">
             <select
-              className={inputClass}
+              disabled
+              className={inputClass + " opacity-70 cursor-not-allowed"}
               value={form.address.province}
-              onChange={(e) => setForm(p => ({ ...p, address: { ...p.address, province: e.target.value } }))}
             >
               <option value="">--</option>
               {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
@@ -813,6 +811,18 @@ function SedeForm({ settings, onSave, saving }) {
               />
             </div>
           </Field>
+          <Field label="Cellulare" className="col-span-2">
+            <div className="relative">
+              <FiPhone className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
+              <input
+                type="tel"
+                className={inputClass + " pl-7"}
+                placeholder="+39 333 0000000"
+                value={form.mobile}
+                onChange={(e) => setForm(p => ({ ...p, mobile: e.target.value }))}
+              />
+            </div>
+          </Field>
           <Field label="Email" className="col-span-2">
             <div className="relative">
               <FiMail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
@@ -825,19 +835,7 @@ function SedeForm({ settings, onSave, saving }) {
               />
             </div>
           </Field>
-          <Field label="PEC" tooltip="Posta Elettronica Certificata" className="col-span-2">
-            <div className="relative">
-              <FiMail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
-              <input
-                type="email"
-                className={inputClass + " pl-7"}
-                placeholder="azienda@pec.it"
-                value={form.pec}
-                onChange={(e) => setForm(p => ({ ...p, pec: e.target.value }))}
-              />
-            </div>
-          </Field>
-          <Field label="Sito Web" className="col-span-3">
+          <Field label="Sito Web" className="col-span-2">
             <div className="relative">
               <FiGlobe className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
               <input

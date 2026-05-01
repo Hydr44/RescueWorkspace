@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { FiSave, FiUpload, FiDownload, FiTrash2, FiBell, FiImage, FiGlobe, FiDatabase, FiStar, FiPlus, FiUsers, FiFileText, FiRefreshCw, FiCheck, FiX, FiAlertCircle, FiInfo, FiEdit3, FiDownload as FiDownloadIcon, FiUser, FiCreditCard, FiLock, FiMenu, FiSettings, FiNavigation, FiTruck, FiGrid, FiClipboard, FiCalendar, FiBookOpen, FiMapPin, FiSmartphone } from "react-icons/fi";
 import RifiutiLimitiSettings from "./RifiutiLimitiSettings";
 import MarketplaceSettings from "../components/settings/MarketplaceSettings";
@@ -19,10 +19,11 @@ import GpsTrackingSettings from "../components/settings/GpsTrackingSettings";
 import SecuritySettings from "../components/settings/SecuritySettings";
 import NotificationSettings from "../components/settings/NotificationSettings";
 import DemolizioneSettings from "../components/settings/DemolizioneSettings";
+import RentriDeviceOnboarding from "../components/settings/RentriDeviceOnboarding";
+import FrantumatoriPreset from "../components/settings/FrantumatoriPreset";
+import SdiSettings from "../components/settings/SdiSettings";
 import { supabaseBrowser } from "../lib/supabase-browser";
 import { useOrg } from "../context/OrgContext";
-import { CompanySettingsService } from "../lib/services/companySettingsService";
-import { ExportTemplateService } from "../lib/services/exportTemplateService";
 import { filterTabsByRole } from "../lib/permissions";
 import Modal from "../components/Modal";
 import PropTypes from "prop-types";
@@ -74,14 +75,6 @@ const ALL_TABS = [
     icon: FiUsers,
     description: "Invita membri, gestisci ruoli",
     requiredPermission: "settings.team",
-    group: "organizzazione",
-  },
-  {
-    key: "company",
-    label: "Azienda & Fatturazione",
-    icon: FiFileText,
-    description: "Dati aziendali per documenti e SDI",
-    requiredPermission: "settings.company",
     group: "organizzazione",
   },
   {
@@ -180,14 +173,7 @@ const ALL_TABS = [
     requiredPermission: "settings.general",
     group: "sistema",
   },
-  {
-    key: "appearance",
-    label: "Aspetto & Branding",
-    icon: FiGlobe,
-    description: "Tema e personalizzazione grafica",
-    requiredPermission: "settings.appearance",
-    group: "sistema",
-  },
+
   {
     key: "notifications",
     label: "Notifiche",
@@ -211,6 +197,14 @@ const ALL_TABS = [
     description: "Esporta e importa impostazioni",
     requiredPermission: "settings.data",
     group: "sistema",
+  },
+  {
+    key: "sdi",
+    label: "Fatturazione SDI",
+    icon: FiFileText,
+    description: "Configurazione credenziali e invio SDI",
+    requiredPermission: "settings.company",
+    group: "moduli",
   },
 ];
 
@@ -393,6 +387,10 @@ export default function Settings() {
   const [dirty, setDirty] = useState(false);
   const [toast, setToast] = useState({ type: "success", msg: "" });
 
+  // Stato modifica voci preimpostate
+  const [editingInvoicePresetIdx, setEditingInvoicePresetIdx] = useState(null);
+  const [editingQuotePresetIdx, setEditingQuotePresetIdx] = useState(null);
+
   // Toast auto-dismiss
   const toastTimerRef = useRef(null);
   const showToast = useCallback((type, msg) => {
@@ -420,6 +418,7 @@ export default function Settings() {
   const [calendario, setCalendario] = useState(DEFAULTS.calendario);
   const [crmClienti, setCrmClienti] = useState(DEFAULTS.crmClienti);
   const [notify, setNotify] = useState(DEFAULTS.notify);
+  const [sdi, setSdi] = useState({ sdi_code: "", pec: "", test_mode: false });
 
   // Stato ambiente RENTRI
   const [rentriEnv, setRentriEnv] = useState('demo');
@@ -432,29 +431,7 @@ export default function Settings() {
   const [editingFirmaEnv, setEditingFirmaEnv] = useState(null); // 'demo' | 'prod' | null
   const [firmaDeviceInputs, setFirmaDeviceInputs] = useState([]);
   const [savingFirmaDev, setSavingFirmaDev] = useState(false);
-
-  // Stato personalizzazione aziendale
-  const [companySettings, setCompanySettings] = useState(null);
-  const [templates, setTemplates] = useState([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
-
-  // Stato modal creazione template
-  const [showCreateTemplateModal, setShowCreateTemplateModal] = useState(false);
-  const [templateForm, setTemplateForm] = useState({
-    name: '',
-    description: '',
-    category: 'transports',
-    document_type: 'pdf',
-    template_config: {},
-    fields_config: {},
-    styling_config: {},
-    layout_config: {},
-    data_source: 'transports'
-  });
-  const [savingTemplate, setSavingTemplate] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState(null);
-  const [editTemplateForm, setEditTemplateForm] = useState({ name: '', description: '' });
-  const [savingEditTemplate, setSavingEditTemplate] = useState(false);
+  const [showRentriOnboarding, setShowRentriOnboarding] = useState(null); // 'demo' | 'prod' | null
 
   // Carica ambiente RENTRI corrente
   const loadRentriEnvironment = useCallback(async () => {
@@ -638,11 +615,6 @@ export default function Settings() {
           setNotify({ ...DEFAULTS.notify, ...parsed.notify });
         }
 
-        // Carica impostazioni aziendali da Supabase
-        if (currentOrg) {
-          await loadCompanySettings();
-          await loadTemplates();
-        }
       } catch (err) {
         console.error("Error loading settings:", err);
         showToast("error", "Errore durante il caricamento delle impostazioni");
@@ -664,144 +636,6 @@ export default function Settings() {
     }
   }, [appearance]);
 
-  // Carica impostazioni aziendali
-  const loadCompanySettings = async () => {
-    if (!currentOrg) return;
-
-    try {
-      const settings = await CompanySettingsService.get(currentOrg);
-      setCompanySettings(settings);
-    } catch (error) {
-      console.error("Error loading company settings:", error);
-    }
-  };
-
-  // Carica template
-  const loadTemplates = async () => {
-    if (!currentOrg) return;
-
-    try {
-      setLoadingTemplates(true);
-      const templatesData = await ExportTemplateService.getAll(currentOrg);
-      setTemplates(templatesData);
-    } catch (error) {
-      console.error("Error loading templates:", error);
-      showToast("error", "Errore durante il caricamento dei template");
-    } finally {
-      setLoadingTemplates(false);
-    }
-  };
-
-  // Crea nuovo template
-  const handleCreateTemplate = async () => {
-    if (!currentOrg) {
-      showToast("error", "Organizzazione non selezionata");
-      return;
-    }
-
-    // Validazione
-    if (!templateForm.name || !templateForm.name.trim()) {
-      showToast("error", "Il nome del template è obbligatorio");
-      return;
-    }
-
-    try {
-      setSavingTemplate(true);
-
-      // Determina data_source basato sulla categoria
-      const dataSourceMap = {
-        'transports': 'transports',
-        'clients': 'clients',
-        'quotes': 'quotes',
-        'invoices': 'invoices',
-        'yard': 'yard',
-        'spare_parts': 'spare_parts',
-        'drivers': 'drivers',
-        'vehicles': 'vehicles'
-      };
-
-      const templateData = {
-        name: templateForm.name.trim(),
-        description: templateForm.description.trim() || undefined,
-        category: templateForm.category,
-        document_type: templateForm.document_type,
-        template_config: templateForm.template_config,
-        fields_config: templateForm.fields_config,
-        styling_config: templateForm.styling_config,
-        layout_config: templateForm.layout_config,
-        data_source: dataSourceMap[templateForm.category] || 'transports'
-      };
-
-      // Valida prima di salvare
-      const errors = ExportTemplateService.validateTemplate(templateData);
-      if (errors.length > 0) {
-        showToast("error", `Errori di validazione: ${errors.join(', ')}`);
-        return;
-      }
-
-      await ExportTemplateService.create(currentOrg, templateData);
-
-      showToast("success", "Template creato con successo!");
-      setShowCreateTemplateModal(false);
-      setTemplateForm({
-        name: '',
-        description: '',
-        category: 'transports',
-        document_type: 'pdf',
-        template_config: {},
-        fields_config: {},
-        styling_config: {},
-        layout_config: {},
-        data_source: 'transports'
-      });
-
-      // Ricarica template
-      await loadTemplates();
-    } catch (error) {
-      console.error("Error creating template:", error);
-      showToast("error", error.message || "Errore durante la creazione del template");
-    } finally {
-      setSavingTemplate(false);
-    }
-  };
-
-  const openEditTemplateModal = (template) => {
-    if (!template) return;
-    setEditingTemplate(template);
-    setEditTemplateForm({
-      name: template.name || '',
-      description: template.description || ''
-    });
-  };
-
-  const handleUpdateTemplate = async () => {
-    if (!editingTemplate) return;
-
-    const trimmedName = editTemplateForm.name.trim();
-    if (!trimmedName) {
-      showToast("error", "Il nome del template è obbligatorio");
-      return;
-    }
-
-    try {
-      setSavingEditTemplate(true);
-      await ExportTemplateService.update(editingTemplate.id, {
-        name: trimmedName,
-        description: editTemplateForm.description.trim() || null
-      });
-
-      showToast("success", "Template aggiornato con successo");
-      setEditingTemplate(null);
-      await loadTemplates();
-    } catch (error) {
-      console.error("Error updating template:", error);
-      showToast("error", error.message || "Errore durante l'aggiornamento del template");
-    } finally {
-      setSavingEditTemplate(false);
-    }
-  };
-
-
   // Tracking modifiche
   const snapshot = useMemo(() => JSON.stringify({
     company, appearance, general, quotes, invoices, piazzale, trasporti, calendario, crmClienti, notify
@@ -820,48 +654,40 @@ export default function Settings() {
     setDirty(snapshot !== lastSavedRef.current && !loading);
   }, [snapshot, loading]);
 
-  // Funzioni per gestire le impostazioni aziendali
-  const updateCompanySetting = async (field, value) => {
-    if (!currentOrg) return;
+  // ===== Blocco navigazione se dirty (compatibile con HashRouter) =====
+  const [showDirtyModal, setShowDirtyModal] = useState(false);
+  const [pendingNavUrl, setPendingNavUrl] = useState(null);
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
 
-    try {
-      const updatedSettings = await CompanySettingsService.update(currentOrg, {
-        [field]: value
-      });
-      setCompanySettings(updatedSettings);
-      showToast("success", "Impostazione aggiornata");
-    } catch (error) {
-      console.error("Error updating company setting:", error);
-      showToast("error", "Errore durante l'aggiornamento");
-    }
-  };
+  useEffect(() => {
+    const handleHashChange = (e) => {
+      if (dirtyRef.current) {
+        // Blocca navigazione: torna alla pagina settings
+        const confirmed = window.confirm('Hai modifiche non salvate nelle impostazioni. Vuoi uscire senza salvare?');
+        if (!confirmed) {
+          // Ripristina l'hash precedente
+          e.preventDefault();
+          window.history.pushState(null, '', e.oldURL);
+        }
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
-  const handleLogoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !currentOrg) return;
-
-    try {
-      const logoUrl = await CompanySettingsService.uploadLogo(file, currentOrg);
-      setCompanySettings(prev => ({ ...prev, logo_url: logoUrl }));
-      showToast("success", "Logo caricato con successo");
-    } catch (error) {
-      console.error("Error uploading logo:", error);
-      showToast("error", "Errore durante il caricamento del logo");
-    }
-  };
-
-  const handleLogoDelete = async () => {
-    if (!currentOrg || !companySettings?.logo_url) return;
-
-    try {
-      await CompanySettingsService.deleteLogo(currentOrg, companySettings.logo_url);
-      setCompanySettings(prev => ({ ...prev, logo_url: null }));
-      showToast("success", "Logo rimosso");
-    } catch (error) {
-      console.error("Error deleting logo:", error);
-      showToast("error", "Errore durante la rimozione del logo");
-    }
-  };
+  // Blocca uscita da Settings se dirty (non salvato)
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = 'Hai modifiche non salvate. Sei sicuro di voler uscire?';
+        return 'Hai modifiche non salvate. Sei sicuro di voler uscire?';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [dirty]);
 
   // Salvataggio
   const saveAll = async () => {
@@ -1191,221 +1017,12 @@ export default function Settings() {
             <DemolizioneSettings showToast={showToast} />
           )}
 
-          {/* Company Tab */}
-          {activeTab === "company" && (
-            <Section title="Profilo Aziendale" desc="Dati aziendali per fatturazione elettronica e branding">
-              <div className="space-y-5">
-                {/* Dati Anagrafici */}
-                <div>
-                  <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Dati Anagrafici</h3>
-                  <div className="grid grid-cols-6 gap-x-3 gap-y-3">
-                    <Field label="Denominazione / Ragione sociale" required className="col-span-4">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        placeholder="La Tua Azienda Srl"
-                        value={company.name}
-                        onChange={(e) => setCompany(prev => ({ ...prev, name: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="Partita IVA" required className="col-span-2">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        placeholder="IT12345678901"
-                        value={company.vat}
-                        onChange={(e) => setCompany(prev => ({ ...prev, vat: e.target.value.toUpperCase() }))}
-                      />
-                    </Field>
-                    <Field label="Codice Fiscale" tooltip="Se diverso dalla Partita IVA" className="col-span-2">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        placeholder="Se diverso da P.IVA"
-                        value={company.taxCode}
-                        onChange={(e) => setCompany(prev => ({ ...prev, taxCode: e.target.value.toUpperCase() }))}
-                      />
-                    </Field>
-                    <Field label="Regime Fiscale" required className="col-span-4">
-                      <select
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        value={company.regimeFiscale}
-                        onChange={(e) => setCompany(prev => ({ ...prev, regimeFiscale: e.target.value }))}
-                      >
-                        {REGIMI_FISCALI.map(rf => (
-                          <option key={rf.value} value={rf.value}>{rf.label}</option>
-                        ))}
-                      </select>
-                    </Field>
-
-                  </div>
-                </div>
-
-                {/* Sede Legale */}
-                <div>
-                  <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Sede Legale</h3>
-                  <div className="grid grid-cols-6 gap-x-3 gap-y-3">
-                    <Field label="Indirizzo" required className="col-span-4">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        placeholder="Via Roma 123"
-                        value={company.address}
-                        onChange={(e) => setCompany(prev => ({ ...prev, address: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="CAP" required className="col-span-1">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        placeholder="00100"
-                        value={company.zip}
-                        maxLength={5}
-                        onChange={(e) => setCompany(prev => ({ ...prev, zip: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="Nazione" className="col-span-1">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        placeholder="IT"
-                        value={company.country || 'IT'}
-                        maxLength={2}
-                        onChange={(e) => setCompany(prev => ({ ...prev, country: e.target.value.toUpperCase() }))}
-                      />
-                    </Field>
-                    <Field label="Comune" required className="col-span-2">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        placeholder="Roma"
-                        value={company.city}
-                        onChange={(e) => setCompany(prev => ({ ...prev, city: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="Provincia" required className="col-span-1">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        placeholder="RM"
-                        value={company.province}
-                        maxLength={2}
-                        onChange={(e) => setCompany(prev => ({ ...prev, province: e.target.value.toUpperCase() }))}
-                      />
-                    </Field>
-
-                  </div>
-                </div>
-
-                {/* Contatti */}
-                <div>
-                  <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Contatti</h3>
-                  <div className="grid grid-cols-6 gap-x-3 gap-y-3">
-                    <Field label="Telefono" className="col-span-2">
-                      <input
-                        type="tel"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        placeholder="+39 06 000000"
-                        value={company.phone}
-                        onChange={(e) => setCompany(prev => ({ ...prev, phone: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="Email" className="col-span-2">
-                      <input
-                        type="email"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        placeholder="info@azienda.it"
-                        value={company.email}
-                        onChange={(e) => setCompany(prev => ({ ...prev, email: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="PEC" tooltip="Posta Elettronica Certificata" className="col-span-2">
-                      <input
-                        type="email"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        placeholder="azienda@pec.it"
-                        value={company.pec || ''}
-                        onChange={(e) => setCompany(prev => ({ ...prev, pec: e.target.value }))}
-                      />
-                    </Field>
-                  </div>
-                </div>
-
-                {/* Fatturazione Elettronica SDI */}
-                <div>
-                  <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Fatturazione Elettronica (SDI)</h3>
-                  <div className="grid grid-cols-6 gap-x-3 gap-y-3">
-                    <Field label="Codice Destinatario SDI" tooltip="7 caratteri alfanumerici per ricezione fatture" className="col-span-2">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none font-mono"
-                        placeholder="T04ZHR3"
-                        value={company.codiceDestinatario || ''}
-                        maxLength={7}
-                        onChange={(e) => setCompany(prev => ({ ...prev, codiceDestinatario: e.target.value.toUpperCase() }))}
-                      />
-                    </Field>
-                    <Field label="IBAN" tooltip="Per pagamenti bonifico" className="col-span-4">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none font-mono"
-                        placeholder="IT60X0542811101000000123456"
-                        value={company.iban || ''}
-                        onChange={(e) => setCompany(prev => ({ ...prev, iban: e.target.value.replace(/\s+/g, '').toUpperCase() }))}
-                      />
-                    </Field>
-                    <Field label="Note Legali" tooltip="Appariranno in fondo alle fatture (es. capitale sociale, REA, ecc.)" className="col-span-6">
-                      <textarea
-                        className="w-full px-3 py-2 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none resize-vertical"
-                        placeholder="Es: Capitale Sociale € 10.000 i.v. - REA RM-123456 - Registro Imprese di Roma"
-                        rows={2}
-                        value={company.legalNotes || ''}
-                        onChange={(e) => setCompany(prev => ({ ...prev, legalNotes: e.target.value }))}
-                      />
-                    </Field>
-                  </div>
-                </div>
-
-                {/* Branding */}
-                <div>
-                  <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Branding</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-3 p-3 bg-[#141c27] rounded-lg border border-[#243044]">
-                      <div className="h-12 w-12 rounded-lg border border-[#243044] bg-[#1a2536] overflow-hidden flex items-center justify-center shrink-0">
-                        {company.logoUrl ? (
-                          <img src={company.logoUrl} alt="Logo" className="h-full w-full object-contain" />
-                        ) : (
-                          <FiImage className="w-5 h-5 text-slate-600" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-medium text-slate-300 mb-1">Logo Aziendale</div>
-                        <label className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-medium text-slate-400 bg-[#1a2536] border border-[#243044] rounded hover:bg-[#243044] transition-colors cursor-pointer">
-                          <FiUpload className="w-3 h-3" />
-                          Carica
-                          <input type="file" accept="image/*" className="hidden" onChange={onLogoChange} />
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 p-3 bg-[#141c27] rounded-lg border border-[#243044]">
-                      <input
-                        type="color"
-                        value={company.brandColor}
-                        onChange={(e) => setCompany(prev => ({ ...prev, brandColor: e.target.value }))}
-                        className="h-12 w-12 rounded-lg border border-[#243044] bg-transparent cursor-pointer shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <div className="text-xs font-medium text-slate-300">Colore Brand</div>
-                        <div className="text-[10px] font-mono text-slate-500">{company.brandColor}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Section>
+          {/* SDI Tab */}
+          {activeTab === "sdi" && (
+            <SdiSettings showToast={showToast} />
           )}
 
+          {/* Company Tab */}
           {/* Rifiuti Tab */}
           {activeTab === "rifiuti" && (
             <Section
@@ -1517,9 +1134,36 @@ export default function Settings() {
                   )}
                 </div>
 
-                {/* Gestione Limiti */}
-                <div>
-                  <RifiutiLimitiSettings />
+                {/* Limiti Rifiuti — Link a pagina dedicata */}
+                <div className="bg-[#1a2536] rounded-lg border border-[#243044] p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Limiti Quantità Rifiuti</h3>
+                      <p className="text-[10px] text-slate-500 mt-1">Gestisci i limiti annuali di rifiuti smaltibili e le soglie alert.</p>
+                    </div>
+                    <button
+                      onClick={() => navigate("/rentri/limiti")}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Gestisci Limiti
+                    </button>
+                  </div>
+                </div>
+
+                {/* Frantumatori — Link a pagina dedicata */}
+                <div className="bg-[#1a2536] rounded-lg border border-[#243044] p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Frantumatori Presalvati</h3>
+                      <p className="text-[10px] text-slate-500 mt-1">Gestisci i frantumatori abituali per il conferimento VFU.</p>
+                    </div>
+                    <button
+                      onClick={() => navigate("/rentri/frantumatori")}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Gestisci Frantumatori
+                    </button>
+                  </div>
                 </div>
 
                 {/* Certificati e Configurazione */}
@@ -1540,7 +1184,7 @@ export default function Settings() {
                     </button>
                     <button
                       onClick={() => navigate("/rifiuti/certificati/upload")}
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-400 bg-blue-500/10 rounded-lg hover:bg-blue-500/10 transition-colors"
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-400 bg-blue-500/10 rounded-lg hover:bg-blue-500/15 transition-colors"
                     >
                       <FiUpload className="h-4 w-4" />
                       Carica Nuovo Certificato
@@ -1548,441 +1192,53 @@ export default function Settings() {
                   </div>
                 </div>
 
-                {/* Dispositivi Firma Remota — DEMO + PROD separati */}
+                {/* Dispositivi Firma Remota — Link a pagina dedicata */}
                 <div className="bg-[#1a2536] rounded-lg border border-[#243044] p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <FiSmartphone className="w-4 h-4 text-purple-400" />
-                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Dispositivi Firma Remota</h3>
-                  </div>
-
-                  {['demo', 'prod'].map(env => {
-                    const envData = firmaDevices[env];
-                    const isEditing = editingFirmaEnv === env;
-                    const envLabel = env === 'demo' ? 'DEMO' : 'PROD';
-                    const envColor = env === 'demo'
-                      ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                      : 'bg-green-500/10 text-green-400 border-green-500/20';
-                    return (
-                      <div key={env} className="mb-3 last:mb-0 p-3 bg-[#141c27]/60 border border-[#1e2d44] rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${envColor}`}>{envLabel}</span>
-                          {envData && !isEditing && (
-                            <button onClick={() => startEditFirmaEnv(env)} className="flex items-center gap-1 px-2 py-0.5 text-[10px] text-slate-400 hover:text-slate-200 bg-[#1e2d44] hover:bg-[#243044] rounded transition-colors">
-                              <FiEdit3 className="w-3 h-3" />
-                              {envData.devices.length > 0 ? 'Modifica' : 'Aggiungi'}
-                            </button>
-                          )}
-                        </div>
-
-                        {!envData ? (
-                          <p className="text-[10px] text-slate-600">
-                            Nessun cert. firma remota {envLabel}. <button onClick={() => navigate('/rifiuti/certificati/upload')} className="text-blue-400 underline">Carica certificato</button>.
-                          </p>
-                        ) : isEditing ? (
-                          <div className="space-y-2">
-                            <p className="text-[10px] text-slate-500">
-                              Portale <a href="https://demooperatori.rentri.gov.it" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">RENTRI Operatori</a> → Firma Remota → Dispositivi → copia il credentials_id.
-                            </p>
-                            {firmaDeviceInputs.map((dev, idx) => (
-                              <div key={idx} className="flex gap-2 items-center">
-                                <input value={dev.name} onChange={e => setFirmaDeviceInputs(prev => prev.map((d, i) => i === idx ? { ...d, name: e.target.value } : d))} placeholder="Nome" className="w-28 px-2 py-1.5 bg-[#0f1623] border border-[#243044] rounded text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none" />
-                                <input value={dev.id} onChange={e => setFirmaDeviceInputs(prev => prev.map((d, i) => i === idx ? { ...d, id: e.target.value.toUpperCase() } : d))} placeholder="credentials_id" className="flex-1 px-2 py-1.5 bg-[#0f1623] border border-[#243044] rounded text-[11px] font-mono text-slate-200 placeholder-slate-600 focus:outline-none" />
-                                {idx === 0 && <span className="text-[9px] text-purple-400 whitespace-nowrap">Primary</span>}
-                                <button onClick={() => setFirmaDeviceInputs(prev => prev.filter((_, i) => i !== idx))} className="p-1 text-slate-600 hover:text-red-400"><FiX className="w-3.5 h-3.5" /></button>
-                              </div>
-                            ))}
-                            <div className="flex gap-2 pt-1">
-                              <button onClick={() => setFirmaDeviceInputs(prev => [...prev, { name: `Dispositivo ${prev.length + 1}`, id: '' }])} className="flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 hover:text-slate-200 bg-[#1e2d44] rounded">
-                                <FiPlus className="w-3 h-3" /> Aggiungi
-                              </button>
-                              <button onClick={saveFirmaDevices} disabled={savingFirmaDev} className="flex items-center gap-1 px-3 py-1 text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white rounded disabled:opacity-50 ml-auto">
-                                <FiSave className="w-3 h-3" /> {savingFirmaDev ? 'Salvo...' : 'Salva'}
-                              </button>
-                              <button onClick={() => setEditingFirmaEnv(null)} className="p-1.5 text-slate-500 hover:text-slate-300 bg-[#1e2d44] rounded"><FiX className="w-3.5 h-3.5" /></button>
-                            </div>
-                          </div>
-                        ) : envData.devices.length > 0 ? (
-                          <div className="space-y-1">
-                            {envData.devices.map((dev, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <span className="text-[9px] text-slate-600 w-10 flex-shrink-0">{idx === 0 ? 'Primary' : `Alt ${idx}`}</span>
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 rounded text-[11px]">
-                                  <FiSmartphone className="w-3 h-3 text-purple-400" />
-                                  <span className="text-slate-400">{dev.name}</span>
-                                  <span className="text-purple-300 font-mono font-medium">{dev.id}</span>
-                                </span>
-                                {idx === 0 && <FiCheck className="w-3 h-3 text-green-400" />}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-amber-300 flex items-center gap-1"><FiAlertCircle className="w-3 h-3" /> Nessun dispositivo configurato.</p>
-                        )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-purple-600/10 rounded-xl flex items-center justify-center">
+                        <FiSmartphone className="w-5 h-5 text-purple-400" />
                       </div>
-                    );
-                  })}
-                </div>
-
-              </div>
-            </Section>
-          )}
-
-          {/* Branding / Aspetto avanzato (tenuto ma nascosto dal menu principale) */}
-          {activeTab === "branding" && (
-            <Section title="Personalizzazione Aziendale" desc="Configura logo, colori e font per il branding completo">
-              <div className="space-y-4">
-                {/* Logo Aziendale */}
-                <div>
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Logo Aziendale</h3>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <Field label="Logo Principale">
-                      <div className="flex items-center gap-4">
-                        <div className="h-16 w-16 rounded-lg border border-[#243044] bg-[#141c27] overflow-hidden flex items-center justify-center">
-                          {companySettings?.logo_url ? (
-                            <img src={companySettings.logo_url} alt="Logo" className="h-full w-full object-contain" />
-                          ) : (
-                            <FiImage className="w-8 h-8 text-slate-500" />
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <label className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-300 bg-[#141c27] rounded-lg hover:bg-[#243044] transition-colors cursor-pointer">
-                            <FiUpload className="w-4 h-4" />
-                            Carica Logo
-                            <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                          </label>
-                          {companySettings?.logo_url && (
-                            <button
-                              onClick={handleLogoDelete}
-                              className="flex items-center gap-2 px-3 py-1 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                            >
-                              <FiTrash2 className="w-3 h-3" />
-                              Rimuovi Logo
-                            </button>
-                          )}
-                        </div>
+                      <div>
+                        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Dispositivi Firma Remota</h3>
+                        <p className="text-[10px] text-slate-500 mt-1">Gestisci i credentials_id per la firma mobile RENTRI.</p>
                       </div>
-                    </Field>
-
-                    <Field label="Anteprima Logo">
-                      <div className="p-4 border border-[#243044] rounded-lg bg-[#1a2536]">
-                        <div className="text-xs text-slate-500 mb-2">Come apparirà nei documenti:</div>
-                        <div className="h-16 bg-[#141c27] rounded border flex items-center justify-center">
-                          {companySettings?.logo_url ? (
-                            <img src={companySettings.logo_url} alt="Preview" className="h-12 w-auto object-contain" />
-                          ) : (
-                            <span className="text-slate-500 text-sm">Nessun logo caricato</span>
-                          )}
-                        </div>
-                      </div>
-                    </Field>
-                  </div>
-                </div>
-
-                {/* Colori Aziendali */}
-                <div>
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Palette Colori</h3>
-                  <div className="grid md:grid-cols-3 gap-3">
-                    <Field label="Colore Primario">
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="color"
-                          value={companySettings?.primary_color || '#3B82F6'}
-                          onChange={(e) => updateCompanySetting('primary_color', e.target.value)}
-                          className="h-10 w-16 rounded-lg border border-[#243044] bg-transparent cursor-pointer"
-                        />
-                        <div className="text-xs text-slate-500">
-                          <div className="font-medium">Colore principale</div>
-                          <div className="text-xs font-mono">{companySettings?.primary_color || '#3B82F6'}</div>
-                        </div>
-                      </div>
-                    </Field>
-
-                    <Field label="Colore Secondario">
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="color"
-                          value={companySettings?.secondary_color || '#6B7280'}
-                          onChange={(e) => updateCompanySetting('secondary_color', e.target.value)}
-                          className="h-10 w-16 rounded-lg border border-[#243044] bg-transparent cursor-pointer"
-                        />
-                        <div className="text-xs text-slate-500">
-                          <div className="font-medium">Colore secondario</div>
-                          <div className="text-xs font-mono">{companySettings?.secondary_color || '#6B7280'}</div>
-                        </div>
-                      </div>
-                    </Field>
-
-                    <Field label="Colore Accent">
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="color"
-                          value={companySettings?.accent_color || '#EC4899'}
-                          onChange={(e) => updateCompanySetting('accent_color', e.target.value)}
-                          className="h-10 w-16 rounded-lg border border-[#243044] bg-transparent cursor-pointer"
-                        />
-                        <div className="text-xs text-slate-500">
-                          <div className="font-medium">Colore accent</div>
-                          <div className="text-xs font-mono">{companySettings?.accent_color || '#EC4899'}</div>
-                        </div>
-                      </div>
-                    </Field>
-                  </div>
-                </div>
-
-                {/* Font e Tipografia */}
-                <div>
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Tipografia</h3>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <Field label="Font Family">
-                      <select
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        value={companySettings?.font_family || 'Inter, sans-serif'}
-                        onChange={(e) => updateCompanySetting('font_family', e.target.value)}
-                      >
-                        <option value="Inter, sans-serif">Inter (Default)</option>
-                        <option value="Roboto, sans-serif">Roboto</option>
-                        <option value="Open Sans, sans-serif">Open Sans</option>
-                        <option value="Lato, sans-serif">Lato</option>
-                        <option value="Montserrat, sans-serif">Montserrat</option>
-                        <option value="Poppins, sans-serif">Poppins</option>
-                      </select>
-                    </Field>
-
-                    <Field label="Dimensione Font Base">
-                      <select
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        value={companySettings?.font_size_base || '14px'}
-                        onChange={(e) => updateCompanySetting('font_size_base', e.target.value)}
-                      >
-                        <option value="12px">12px (Piccolo)</option>
-                        <option value="14px">14px (Standard)</option>
-                        <option value="16px">16px (Grande)</option>
-                        <option value="18px">18px (Molto Grande)</option>
-                      </select>
-                    </Field>
-                  </div>
-                </div>
-
-                {/* Note Legali */}
-                <div>
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Note Legali</h3>
-                  <Field label="Note da includere nei documenti" tooltip="Queste note verranno incluse automaticamente nei documenti generati">
-                    <textarea
-                      rows={4}
-                      className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none resize-none"
-                      placeholder="Es. P.IVA: IT12345678901 - Capitale Sociale: €10.000,00 i.v."
-                      value={companySettings?.legal_notes || ''}
-                      onChange={(e) => updateCompanySetting('legal_notes', e.target.value)}
-                    />
-                  </Field>
-                </div>
-              </div>
-            </Section>
-          )}
-
-          {/* Templates Tab */}
-          {activeTab === "templates" && (
-            <Section title="Template Export" desc="Gestisci i template per l'export di documenti">
-              <div className="space-y-4">
-                {/* Statistiche Template */}
-                <div className="grid md:grid-cols-4 gap-3">
-                  <Card title="Template Totali">
-                    <div className="text-lg font-semibold text-blue-400">
-                      {templates.length}
                     </div>
-                    <div className="text-xs text-slate-500">
-                      Template disponibili
-                    </div>
-                  </Card>
-
-                  <Card title="Template PDF">
-                    <div className="text-lg font-semibold text-red-400">
-                      {templates.filter(t => t.document_type === 'pdf').length}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      Template PDF
-                    </div>
-                  </Card>
-
-                  <Card title="Template CSV">
-                    <div className="text-lg font-semibold text-emerald-400">
-                      {templates.filter(t => t.document_type === 'csv').length}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      Template CSV
-                    </div>
-                  </Card>
-
-                  <Card title="Template Default">
-                    <div className="text-lg font-semibold text-purple-400">
-                      {templates.filter(t => t.is_default).length}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      Template predefiniti
-                    </div>
-                  </Card>
-                </div>
-
-                {/* Lista Template */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Template Disponibili</h3>
                     <button
-                      onClick={() => setShowCreateTemplateModal(true)}
+                      onClick={() => navigate("/rentri/dispositivi")}
                       className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                     >
-                      <FiPlus className="w-4 h-4" />
-                      Nuovo Template
+                      Gestisci Dispositivi
                     </button>
                   </div>
-
-                  {loadingTemplates ? (
-                    <div className="flex items-center justify-center py-8">
-                      <FiRefreshCw className="w-6 h-6 animate-spin text-blue-400" />
-                      <span className="ml-2 text-slate-400">Caricamento template...</span>
-                    </div>
-                  ) : templates.length > 0 ? (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {templates.map(template => (
-                        <div
-                          key={template.id}
-                          className="border border-[#243044] rounded-lg p-4 hover:bg-[#1a2536] transition-colors"
-                        >
-                          <div className="flex items-center gap-3 mb-3">
-                            {template.document_type === 'pdf' ? (
-                              <FiFileText className="w-5 h-5 text-red-400" />
-                            ) : (
-                              <FiDownloadIcon className="w-5 h-5 text-emerald-400" />
-                            )}
-                            <div>
-                              <h4 className="font-semibold text-slate-200">
-                                {template.name}
-                                {template.is_default && (
-                                  <span className="ml-2 text-xs bg-blue-500/10 text-blue-400 px-2 py-1 rounded-full">
-                                    Default
-                                  </span>
-                                )}
-                              </h4>
-                              <p className="text-xs text-slate-500">
-                                {template.category} • {template.document_type.toUpperCase()}
-                              </p>
-                            </div>
-                          </div>
-
-                          {template.description && (
-                            <p className="text-xs text-slate-500 mb-2">
-                              {template.description}
-                            </p>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs text-slate-500">
-                              <span>Versione {template.version}</span>
-                              <span className="ml-2">•</span>
-                              <span className="ml-2">{new Date(template.updated_at).toLocaleDateString('it-IT')}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => openEditTemplateModal(template)}
-                                className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
-                                title="Modifica template"
-                              >
-                                <FiEdit3 className="w-4 h-4" />
-                              </button>
-                              {!template.is_default && (
-                                <button
-                                  onClick={async () => {
-                                    if (confirm(`Vuoi impostare "${template.name}" come template predefinito?`)) {
-                                      try {
-                                        await ExportTemplateService.setAsDefault(template.id, currentOrg);
-                                        showToast("success", "Template impostato come predefinito");
-                                        await loadTemplates();
-                                      } catch (error) {
-                                        showToast("error", "Errore durante l'operazione");
-                                      }
-                                    }
-                                  }}
-                                  className="p-1.5 text-slate-400 hover:text-purple-400 hover:bg-purple-500/10 rounded transition-colors"
-                                  title="Imposta come default"
-                                >
-                                  <FiStar className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <FiFileText className="w-6 h-6 text-slate-500 mx-auto mb-2" />
-                      <h3 className="text-sm font-semibold text-slate-200 mb-1">
-                        Nessun template trovato
-                      </h3>
-                      <p className="text-xs text-slate-500 mb-3">
-                        Crea il tuo primo template personalizzato per l'export di documenti
-                      </p>
-                      <button
-                        onClick={() => setShowCreateTemplateModal(true)}
-                        className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        Crea Template
-                      </button>
-                    </div>
-                  )}
                 </div>
+
               </div>
+
+              {/* RENTRI Device Onboarding Modal */}
+              {showRentriOnboarding && (
+                <RentriDeviceOnboarding
+                  firmaDevices={firmaDevices}
+                  onSave={async (env, validDevices) => {
+                    const certId = firmaDevices[env]?.certId;
+                    if (!certId) { showToast('error', `Nessun certificato trovato per ${env === 'prod' ? 'PRODUZIONE' : 'DEMO'}. Caricane uno prima.`); return; }
+                    const jsonVal = validDevices.length > 0 ? JSON.stringify(validDevices) : null;
+                    const { error } = await supabase
+                      .from('rentri_org_certificates')
+                      .update({ credentials_id_mobile: jsonVal, note: validDevices.length > 0 ? `credentials_id_mobile:${validDevices[0].id}` : null })
+                      .eq('id', certId).eq('org_id', currentOrg);
+                    if (error) { showToast('error', 'Errore salvataggio: ' + error.message); return; }
+                    showToast('success', `${validDevices.length} dispositivo/i configurato/i con successo!`);
+                    setShowRentriOnboarding(null);
+                    await loadFirmaDevice();
+                  }}
+                  onClose={() => setShowRentriOnboarding(null)}
+                />
+              )}
             </Section>
           )}
 
-          {/* Appearance Tab */}
-          {activeTab === "appearance" && (
-            <Section title="Personalizzazione Aspetto" desc="Configura densità e layout dell'interfaccia">
-              <div className="grid md:grid-cols-2 gap-3">
-                <Card title="Densità Interfaccia">
-                  <div className="space-y-3">
-                    {[
-                      { value: "comfortable", label: "Confortevole", desc: "Spaziature ampie e rilassanti" },
-                      { value: "compact", label: "Compatta", desc: "Spaziature ridotte per più contenuto" }
-                    ].map((density) => (
-                      <button
-                        key={density.value}
-                        onClick={() => setAppearance(prev => ({ ...prev, density: density.value }))}
-                        className={`w-full text-left p-3 rounded-lg border transition-colors ${appearance.density === density.value
-                          ? "border-blue-500 bg-blue-500/10"
-                          : "border-[#243044] hover:bg-[#141c27]"
-                          }`}
-                      >
-                        <div className="font-medium text-slate-200">{density.label}</div>
-                        <div className="text-xs text-slate-500">{density.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </Card>
 
-                <Card title="Sidebar">
-                  <div className="space-y-3">
-                    {[
-                      { value: "expanded", label: "Estesa", desc: "Sidebar sempre visibile" },
-                      { value: "collapsed", label: "Compatta", desc: "Sidebar collassabile" }
-                    ].map((sidebar) => (
-                      <button
-                        key={sidebar.value}
-                        onClick={() => setAppearance(prev => ({ ...prev, sidebar: sidebar.value }))}
-                        className={`w-full text-left p-3 rounded-lg border transition-colors ${appearance.sidebar === sidebar.value
-                          ? "border-blue-500 bg-blue-500/10"
-                          : "border-[#243044] hover:bg-[#141c27]"
-                          }`}
-                      >
-                        <div className="font-medium text-slate-200">{sidebar.label}</div>
-                        <div className="text-xs text-slate-500">{sidebar.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </Card>
-              </div>
-            </Section>
-          )}
 
           {/* General Tab */}
           {activeTab === "general" && (
@@ -2261,20 +1517,46 @@ export default function Settings() {
                     </p>
                     <div className="space-y-2 mb-3">
                       {(invoices.presets || []).map((preset, idx) => (
-                        <div key={idx} className="flex items-center gap-2 p-2 bg-[#141c27] rounded-lg border border-[#243044]">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-medium text-slate-200">{preset.description}</div>
-                            <div className="text-[10px] text-slate-500">
-                              €{preset.unitPrice?.toFixed(2)} × {preset.quantity} {preset.unit} — IVA {preset.vatRate}%
+                        editingInvoicePresetIdx === idx ? (
+                          <InvoicePresetForm
+                            key={`edit-${idx}`}
+                            initial={preset}
+                            onAdd={(updated) => {
+                              setInvoices(p => ({
+                                ...p,
+                                presets: (p.presets || []).map((it, i) => i === idx ? updated : it),
+                              }));
+                              setEditingInvoicePresetIdx(null);
+                            }}
+                            onCancel={() => setEditingInvoicePresetIdx(null)}
+                          />
+                        ) : (
+                          <div key={idx} className="flex items-center gap-2 p-2 bg-[#141c27] rounded-lg border border-[#243044]">
+                            <span className="px-2 py-1 text-[10px] font-mono font-bold uppercase bg-[#0c1929] text-blue-400 rounded border border-[#243044] shrink-0">
+                              {preset.code || presetCodeFromDescription(preset.description)}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-medium text-slate-200">{preset.description}</div>
+                              <div className="text-[10px] text-slate-500">
+                                €{preset.unitPrice?.toFixed(2)} × {preset.quantity} {preset.unit} — IVA {preset.vatRate}%
+                              </div>
                             </div>
+                            <button
+                              onClick={() => setEditingInvoicePresetIdx(idx)}
+                              className="p-1 text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
+                              title="Modifica voce"
+                            >
+                              <FiEdit3 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => setInvoices(p => ({ ...p, presets: p.presets.filter((_, i) => i !== idx) }))}
+                              className="p-1 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                              title="Elimina voce"
+                            >
+                              <FiTrash2 className="w-3 h-3" />
+                            </button>
                           </div>
-                          <button
-                            onClick={() => setInvoices(p => ({ ...p, presets: p.presets.filter((_, i) => i !== idx) }))}
-                            className="p-1 text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                          >
-                            <FiTrash2 className="w-3 h-3" />
-                          </button>
-                        </div>
+                        )
                       ))}
                       {(invoices.presets || []).length === 0 && (
                         <div className="text-center py-4 text-[10px] text-slate-600">
@@ -2282,7 +1564,9 @@ export default function Settings() {
                         </div>
                       )}
                     </div>
-                    <InvoicePresetForm onAdd={(preset) => setInvoices(p => ({ ...p, presets: [...(p.presets || []), preset] }))} />
+                    {editingInvoicePresetIdx === null && (
+                      <InvoicePresetForm onAdd={(preset) => setInvoices(p => ({ ...p, presets: [...(p.presets || []), preset] }))} />
+                    )}
                   </Card>
 
                   {/* Campi visibili */}
@@ -2363,20 +1647,46 @@ export default function Settings() {
                     </p>
                     <div className="space-y-2 mb-3">
                       {(quotes.presets || []).map((preset, idx) => (
-                        <div key={idx} className="flex items-center gap-2 p-2 bg-[#141c27] rounded-lg border border-[#243044]">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-medium text-slate-200">{preset.description}</div>
-                            <div className="text-[10px] text-slate-500">
-                              €{preset.unitPrice?.toFixed(2)} × {preset.quantity} {preset.unit} — IVA {preset.vatRate}%
+                        editingQuotePresetIdx === idx ? (
+                          <InvoicePresetForm
+                            key={`edit-q-${idx}`}
+                            initial={preset}
+                            onAdd={(updated) => {
+                              setQuotes(p => ({
+                                ...p,
+                                presets: (p.presets || []).map((it, i) => i === idx ? updated : it),
+                              }));
+                              setEditingQuotePresetIdx(null);
+                            }}
+                            onCancel={() => setEditingQuotePresetIdx(null)}
+                          />
+                        ) : (
+                          <div key={idx} className="flex items-center gap-2 p-2 bg-[#141c27] rounded-lg border border-[#243044]">
+                            <span className="px-2 py-1 text-[10px] font-mono font-bold uppercase bg-[#0c1929] text-blue-400 rounded border border-[#243044] shrink-0">
+                              {preset.code || presetCodeFromDescription(preset.description)}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-medium text-slate-200">{preset.description}</div>
+                              <div className="text-[10px] text-slate-500">
+                                €{preset.unitPrice?.toFixed(2)} × {preset.quantity} {preset.unit} — IVA {preset.vatRate}%
+                              </div>
                             </div>
+                            <button
+                              onClick={() => setEditingQuotePresetIdx(idx)}
+                              className="p-1 text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
+                              title="Modifica voce"
+                            >
+                              <FiEdit3 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => setQuotes(p => ({ ...p, presets: p.presets.filter((_, i) => i !== idx) }))}
+                              className="p-1 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                              title="Elimina voce"
+                            >
+                              <FiTrash2 className="w-3 h-3" />
+                            </button>
                           </div>
-                          <button
-                            onClick={() => setQuotes(p => ({ ...p, presets: p.presets.filter((_, i) => i !== idx) }))}
-                            className="p-1 text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                          >
-                            <FiTrash2 className="w-3 h-3" />
-                          </button>
-                        </div>
+                        )
                       ))}
                       {(quotes.presets || []).length === 0 && (
                         <div className="text-center py-4 text-[10px] text-slate-600">
@@ -2384,7 +1694,9 @@ export default function Settings() {
                         </div>
                       )}
                     </div>
-                    <InvoicePresetForm onAdd={(preset) => setQuotes(p => ({ ...p, presets: [...(p.presets || []), preset] }))} />
+                    {editingQuotePresetIdx === null && (
+                      <InvoicePresetForm onAdd={(preset) => setQuotes(p => ({ ...p, presets: [...(p.presets || []), preset] }))} />
+                    )}
                   </Card>
                 </div>
               </Section>
@@ -2968,164 +2280,7 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Modal Creazione Template */}
-      <Modal
-        open={showCreateTemplateModal}
-        onClose={() => setShowCreateTemplateModal(false)}
-        title="Crea Nuovo Template"
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowCreateTemplateModal(false)}
-              className="px-3 py-1.5 text-xs font-medium text-slate-300 bg-[#141c27] rounded-lg hover:bg-[#243044] transition-colors"
-            >
-              Annulla
-            </button>
-            <button
-              type="button"
-              onClick={handleCreateTemplate}
-              disabled={savingTemplate || !templateForm.name.trim()}
-              className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {savingTemplate ? (
-                <>
-                  <FiRefreshCw className="w-4 h-4 inline mr-2 animate-spin" />
-                  Creazione...
-                </>
-              ) : (
-                <>
-                  <FiCheck className="w-4 h-4 inline mr-2" />
-                  Crea Template
-                </>
-              )}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <Field label="Nome Template" required>
-            <input
-              type="text"
-              className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none"
-              placeholder="Es. Lista Trasporti Base"
-              value={templateForm.name}
-              onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
-            />
-          </Field>
 
-          <Field label="Descrizione" tooltip="Breve descrizione del template">
-            <textarea
-              rows={2}
-              className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none resize-none"
-              placeholder="Es. Template base per esportare liste di trasporti in PDF"
-              value={templateForm.description}
-              onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })}
-            />
-          </Field>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <Field label="Categoria" required>
-              <select
-                className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                value={templateForm.category}
-                onChange={(e) => setTemplateForm({ ...templateForm, category: e.target.value })}
-              >
-                <option value="transports">Trasporti</option>
-                <option value="clients">Clienti</option>
-                <option value="quotes">Preventivi</option>
-                <option value="invoices">Fatture</option>
-                <option value="yard">Piazzale</option>
-                <option value="spare_parts">Ricambi</option>
-                <option value="drivers">Autisti</option>
-                <option value="vehicles">Veicoli</option>
-              </select>
-            </Field>
-
-            <Field label="Tipo Documento" required>
-              <select
-                className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                value={templateForm.document_type}
-                onChange={(e) => setTemplateForm({ ...templateForm, document_type: e.target.value })}
-              >
-                <option value="pdf">PDF</option>
-                <option value="csv">CSV</option>
-                <option value="xlsx">Excel (XLSX)</option>
-                <option value="html">HTML</option>
-              </select>
-            </Field>
-          </div>
-
-          <div className="mt-4 p-4 bg-blue-500/10 rounded-lg">
-            <p className="text-sm text-blue-400">
-              <FiInfo className="w-4 h-4 inline mr-2" />
-              Il template sarà creato con configurazioni di base. Potrai personalizzarlo successivamente modificandolo.
-            </p>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal Modifica Template */}
-      <Modal
-        open={Boolean(editingTemplate)}
-        onClose={() => setEditingTemplate(null)}
-        title={editingTemplate ? `Modifica ${editingTemplate.name}` : "Modifica Template"}
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setEditingTemplate(null)}
-              className="px-3 py-1.5 text-xs font-medium text-slate-300 bg-[#141c27] rounded-lg hover:bg-[#243044] transition-colors"
-            >
-              Annulla
-            </button>
-            <button
-              type="button"
-              onClick={handleUpdateTemplate}
-              disabled={savingEditTemplate || !editTemplateForm.name.trim()}
-              className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {savingEditTemplate ? (
-                <>
-                  <FiRefreshCw className="w-4 h-4 inline mr-2 animate-spin" />
-                  Salvataggio...
-                </>
-              ) : (
-                <>
-                  <FiCheck className="w-4 h-4 inline mr-2" />
-                  Aggiorna Template
-                </>
-              )}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <Field label="Nome Template" required>
-            <input
-              type="text"
-              className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none"
-              value={editTemplateForm.name}
-              onChange={(e) => setEditTemplateForm(prev => ({ ...prev, name: e.target.value }))}
-            />
-          </Field>
-
-          <Field label="Descrizione">
-            <textarea
-              rows={3}
-              className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none resize-none"
-              value={editTemplateForm.description}
-              onChange={(e) => setEditTemplateForm(prev => ({ ...prev, description: e.target.value }))}
-            />
-          </Field>
-
-          {editingTemplate?.updated_at && (
-            <div className="text-sm text-slate-500 border border-[#243044] rounded-lg p-3 bg-[#141c27]/30">
-              Ultima modifica: {new Date(editingTemplate.updated_at).toLocaleString('it-IT')}
-            </div>
-          )}
-        </div>
-      </Modal>
 
       {/* Toast Notification — auto-dismiss */}
       {toast.msg && (
@@ -3274,39 +2429,111 @@ OrgList.propTypes = {
 };
 
 // --- Helper: Form per aggiungere voce preimpostata fattura/preventivo ---
-function InvoicePresetForm({ onAdd }) {
-  const [desc, setDesc] = useState("");
-  const [price, setPrice] = useState("");
-  const [qty, setQty] = useState("1");
-  const [unit, setUnit] = useState("pz");
-  const [vat, setVat] = useState("22");
+/* Genera un codice articolo breve da una descrizione (slug 12 char max) */
+function presetCodeFromDescription(desc) {
+  if (!desc) return "ART";
+  const words = String(desc)
+    .toUpperCase()
+    .replace(/[^A-Z0-9 ]/g, "")
+    .split(/\s+/)
+    .filter(w => w.length >= 2);
+  if (words.length === 0) return "ART";
+  return words.slice(0, 3).map(w => w.slice(0, 3)).join("").slice(0, 12) || "ART";
+}
+
+function InvoicePresetForm({ onAdd, initial = null, onCancel = null }) {
+  const [code, setCode] = useState(initial?.code || "");
+  const [codeAuto, setCodeAuto] = useState(!initial?.code); // se code esiste → manuale
+  const [desc, setDesc] = useState(initial?.description || "");
+  const [price, setPrice] = useState(initial ? String(initial.unitPrice ?? "") : "");
+  const [qty, setQty] = useState(initial ? String(initial.quantity ?? 1) : "1");
+  const [unit, setUnit] = useState(initial?.unit || "pz");
+  const [vat, setVat] = useState(initial ? String(initial.vatRate ?? 22) : "22");
+
+  const effectiveCode = codeAuto ? presetCodeFromDescription(desc) : code.trim().toUpperCase();
 
   function handleAdd() {
     if (!desc.trim() || !price) return;
     onAdd({
+      code: effectiveCode || presetCodeFromDescription(desc),
       description: desc.trim(),
       unitPrice: parseFloat(price) || 0,
       quantity: parseFloat(qty) || 1,
       unit,
       vatRate: parseFloat(vat) || 22,
     });
-    setDesc("");
-    setPrice("");
-    setQty("1");
-    setUnit("pz");
-    setVat("22");
+    if (!initial) {
+      setCode("");
+      setCodeAuto(true);
+      setDesc("");
+      setPrice("");
+      setQty("1");
+      setUnit("pz");
+      setVat("22");
+    }
   }
 
   return (
     <div className="border border-dashed border-[#243044] rounded-lg p-3 space-y-2">
-      <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Nuova voce</div>
-      <input
-        type="text"
-        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
-        placeholder="Descrizione (es: Smontaggio motore, Trasporto veicolo...)"
-        value={desc}
-        onChange={e => setDesc(e.target.value)}
-      />
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{initial ? "Modifica voce" : "Nuova voce"}</div>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-[10px] text-slate-500 hover:text-slate-300"
+          >
+            Annulla
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-[180px_1fr] gap-2">
+        <div>
+          <div className="flex items-center justify-between mb-0.5">
+            <label className="text-[10px] text-slate-500">Codice articolo</label>
+            <button
+              type="button"
+              onClick={() => {
+                if (codeAuto) {
+                  // Passa a manuale precompilato col valore auto corrente
+                  setCode(presetCodeFromDescription(desc));
+                  setCodeAuto(false);
+                } else {
+                  // Torna ad auto, svuota
+                  setCode("");
+                  setCodeAuto(true);
+                }
+              }}
+              className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition ${codeAuto ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30" : "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"}`}
+              title={codeAuto ? "Passa a inserimento manuale" : "Torna a generazione automatica"}
+            >
+              {codeAuto ? "AUTO" : "MANUALE"}
+            </button>
+          </div>
+          <input
+            type="text"
+            className="w-full px-3 py-1.5 text-xs font-mono uppercase border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
+            placeholder="es: SMOMOT, RIC-001"
+            value={codeAuto ? effectiveCode : code}
+            onChange={e => {
+              // Qualsiasi modifica disattiva l'auto-generazione
+              setCodeAuto(false);
+              setCode(e.target.value.toUpperCase());
+            }}
+            maxLength={20}
+          />
+        </div>
+        <div>
+          <label className="text-[10px] text-slate-500 mb-0.5 block">Descrizione prodotto/servizio</label>
+          <input
+            type="text"
+            className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
+            placeholder="Es: Smontaggio motore, Trasporto veicolo..."
+            value={desc}
+            onChange={e => setDesc(e.target.value)}
+          />
+        </div>
+      </div>
       <div className="grid grid-cols-4 gap-2">
         <div>
           <label className="text-[10px] text-slate-500 mb-0.5 block">Prezzo unit.</label>
@@ -3366,7 +2593,7 @@ function InvoicePresetForm({ onAdd }) {
         disabled={!desc.trim() || !price}
         className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
       >
-        <FiPlus className="w-3 h-3" /> Aggiungi Voce
+        {initial ? <><FiCheck className="w-3 h-3" /> Salva modifiche</> : <><FiPlus className="w-3 h-3" /> Aggiungi Voce</>}
       </button>
     </div>
   );
@@ -3374,6 +2601,8 @@ function InvoicePresetForm({ onAdd }) {
 
 InvoicePresetForm.propTypes = {
   onAdd: PropTypes.func.isRequired,
+  initial: PropTypes.object,
+  onCancel: PropTypes.func,
 };
 
 // --- Helper: Form per aggiungere zona piazzale ---

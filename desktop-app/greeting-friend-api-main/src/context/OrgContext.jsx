@@ -78,7 +78,10 @@ async function loadMyOrganizations(supabase, userId) {
   const ids = Array.from(new Set((mem || []).map(m => m.org_id))).filter(Boolean);
   
   if (ids.length === 0) {
-    // Fallback: prova profiles.current_org se org_members è vuoto (RLS o dati mancanti)
+    // Fallback: profiles.current_org può essere settato (es. invito appena accettato
+    // ma org_members non visibile per RLS race) — proviamo a recuperare l'org.
+    // ATTENZIONE: NON assegniamo role hardcoded "owner". Se l'utente non è in
+    // org_members, leggiamo il role direttamente per evitare escalation accidentale.
     console.warn("[OrgContext] org_members vuoto, fallback a profiles.current_org");
     const { data: profile } = await supabase
       .from("profiles")
@@ -92,8 +95,16 @@ async function loadMyOrganizations(supabase, userId) {
         .eq("id", profile.current_org)
         .maybeSingle();
       if (fallbackOrg) {
-        console.log("[OrgContext] Fallback org trovata:", fallbackOrg.name);
-        return [norm(fallbackOrg.id, fallbackOrg.name, "owner", fallbackOrg.number)];
+        // Tenta di recuperare il role reale (potrebbe essere RLS race su read precedente)
+        const { data: roleRow } = await supabase
+          .from("org_members")
+          .select("role")
+          .eq("org_id", profile.current_org)
+          .eq("user_id", userId)
+          .maybeSingle();
+        const realRole = roleRow?.role || null; // null = ruolo sconosciuto, NON owner per default
+        console.log("[OrgContext] Fallback org trovata:", fallbackOrg.name, "role:", realRole);
+        return [norm(fallbackOrg.id, fallbackOrg.name, realRole, fallbackOrg.number)];
       }
     }
     return [];
@@ -294,6 +305,7 @@ export function OrgProvider({ children }) {
     refresh();
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        lastRefreshTime.current = 0; // Bypass debounce for auth events
         refresh({ keepLoading: true });
       }
       if (event === "SIGNED_OUT") {
@@ -316,7 +328,8 @@ export function OrgProvider({ children }) {
     // Listener immediato per evento custom quando OAuth salva i token
     function onOAuthTokensSaved() {
       console.log("[OrgContext] OAuth tokens saved event received, refreshing immediately...");
-      refresh({ keepLoading: true });
+      lastRefreshTime.current = 0; // Bypass debounce
+      refresh();
     }
     
     window.addEventListener("storage", onStorage);

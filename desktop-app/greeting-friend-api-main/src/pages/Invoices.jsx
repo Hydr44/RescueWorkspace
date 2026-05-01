@@ -1,11 +1,11 @@
 // src/pages/Invoices.jsx
 import { useEffect, useMemo, useState, useCallback, memo } from "react";
-import { FiPlus, FiSearch, FiRefreshCcw, FiFileText, FiEdit, FiDownload, FiChevronLeft, FiChevronRight, FiBarChart2, FiInbox, FiSend, FiUnlock, FiX, FiCheckCircle, FiAlertTriangle, FiInfo, FiCalendar, FiAlertCircle, FiTrash2, FiTag, FiRotateCcw } from "react-icons/fi";
+import { FiPlus, FiSearch, FiRefreshCcw, FiFileText, FiEdit, FiDownload, FiChevronLeft, FiChevronRight, FiBarChart2, FiInbox, FiSend, FiX, FiCheckCircle, FiInfo, FiCalendar, FiAlertCircle, FiTrash2, FiTag, FiRotateCcw } from "react-icons/fi";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { useOrg } from "@/context/OrgContext";
 import { useNavigate } from "react-router-dom";
-import { getIncomingInvoices, decryptIncomingInvoice } from "@/lib/sdi";
-import { generatePdfFromXml } from "@/lib/invoicePdfGenerator";
+import { getIncomingInvoices, getIncomingInvoiceXml } from "@/lib/sdi";
+import { downloadFatturaPaPdf } from "@/lib/fatturaPaPdfGenerator";
 import { checkOverdueInvoices } from "@/lib/invoiceReminders";
 import { getInvoiceDescription } from "@/lib/invoiceSummary";
 
@@ -17,7 +17,7 @@ const MONEY = (val) =>
 
 const SELECT_COLS = [
   "id","org_id","customer_name","number","date",
-  "total","sdi_status","provider_ext_id","created_at","note_external","tags"
+  "total","sdi_status","provider_ext_id","created_at","note_external","tags","meta"
 ].join(",");
 
 // Nota: invoice_items non è incluso qui perché è una relazione separata
@@ -29,9 +29,12 @@ const STATUS_LABELS = {
   "tutti": "Tutti gli stati",
   "draft": "Bozza",
   "validated": "Validata",
-  "sent": "Inviata",
+  "sent": "Inviata a SDI",
+  "transmitted": "Trasmessa",
   "delivered": "Consegnata",
-  "rejected": "Rifiutata",
+  "not_delivered": "Mancata consegna",
+  "rejected": "Scartata SDI",
+  "term_expired": "Decorrenza termini",
   "archived": "Archiviata"
 };
 
@@ -41,12 +44,16 @@ const StatusBadge = memo(({ status }) => {
       case "delivered":
       case "archived":
         return "bg-green-500/10 text-green-400";
+      case "transmitted":
       case "sent":
         return "bg-blue-500/10 text-blue-400";
       case "validated":
         return "bg-yellow-500/10 text-yellow-400";
       case "rejected":
         return "bg-red-500/10 text-red-400";
+      case "not_delivered":
+      case "term_expired":
+        return "bg-amber-500/10 text-amber-400";
       case "draft":
         return "bg-[#141c27] text-slate-200";
       default:
@@ -61,6 +68,43 @@ const StatusBadge = memo(({ status }) => {
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}>
       {getStatusLabel(status)}
+    </span>
+  );
+});
+
+/* Timer invio fattura: countdown 12 giorni dalla data fattura */
+const SendTimer = memo(({ date, status }) => {
+  if (status !== "draft" || !date) return null;
+  const invDate = new Date(date);
+  const deadline = new Date(invDate.getTime() + 12 * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const diffMs = deadline - now;
+  const daysLeft = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+
+  if (daysLeft <= 0) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-red-500/15 text-red-400 border border-red-500/25 animate-pulse" title="Termine invio SDI scaduto!">
+        <FiAlertCircle className="w-2.5 h-2.5" /> Scaduto
+      </span>
+    );
+  }
+  if (daysLeft <= 2) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-red-500/15 text-red-400 border border-red-500/25" title={`Inviare entro ${deadline.toLocaleDateString('it-IT')}`}>
+        <FiCalendar className="w-2.5 h-2.5" /> {daysLeft}g
+      </span>
+    );
+  }
+  if (daysLeft <= 5) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/25" title={`Inviare entro ${deadline.toLocaleDateString('it-IT')}`}>
+        <FiCalendar className="w-2.5 h-2.5" /> {daysLeft}g
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-500/10 text-emerald-400/70" title={`Inviare entro ${deadline.toLocaleDateString('it-IT')}`}>
+      <FiCalendar className="w-2.5 h-2.5" /> {daysLeft}g
     </span>
   );
 });
@@ -98,7 +142,18 @@ const InvoiceRow = memo(function InvoiceRow({ invoice, onEdit, onView, isSelecte
         {MONEY(invoice.total)}
       </td>
       <td className="px-4 py-3">
-        <StatusBadge status={invoice.sdi_status} />
+        <div className="flex items-center gap-1.5">
+          <StatusBadge status={invoice.sdi_status} />
+          <SendTimer date={invoice.date} status={invoice.sdi_status} />
+          {invoice.sdi_status === "rejected" && invoice.meta?.sdi_rejection_code && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-500/15 text-red-300 border border-red-500/25 cursor-help"
+              title={`Cod. ${invoice.meta.sdi_rejection_code}: ${invoice.meta.sdi_rejection_description || ''}${invoice.meta.sdi_rejection_suggestion ? '\n\n' + invoice.meta.sdi_rejection_suggestion : ''}`}
+            >
+              <FiAlertCircle className="w-2.5 h-2.5" /> {invoice.meta.sdi_rejection_code}
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-3 text-sm text-slate-400">
         <div className="max-w-xs truncate" title={getInvoiceDescription(invoice) || "Nessuna descrizione"}>
@@ -181,9 +236,8 @@ export default function Invoices() {
   const [incomingFiles, setIncomingFiles] = useState([]);
   const [incomingLoading, setIncomingLoading] = useState(false);
 
-  // Modale dettaglio FO decifrato
-  const [decryptedModal, setDecryptedModal] = useState(null); // { filename, xml_files, invoice_data }
-  const [decrypting, setDecrypting] = useState(null); // filename in corso
+  // Modale dettaglio fattura passiva
+  const [decryptedModal, setDecryptedModal] = useState(null);
 
   // filtri
   const [q, setQ] = useState("");
@@ -561,19 +615,23 @@ export default function Invoices() {
     clearSelection();
   }, [stato, debouncedQ, dateFrom, dateTo, currentPage, clearSelection]);
 
-  // Carica fatture ricevute (file FO)
+  // Stato summary classificazione FO
+  const [foSummary, setFoSummary] = useState(null);
+
+  // Carica fatture ricevute (solo fatture passive, server filtra le conferme)
   const loadIncomingInvoices = useCallback(async () => {
     if (!orgId) {
-      console.warn('[Invoices] orgId non disponibile per caricamento fatture ricevute');
       setIncomingFiles([]);
       return;
     }
     
     try {
       setIncomingLoading(true);
-      const result = await getIncomingInvoices({ testMode: false, limit: 100, orgId });
+      const result = await getIncomingInvoices({ limit: 100, orgId });
+      // Il server ora ritorna solo fatture passive (type=incoming), le conferme sono filtrate
       setIncomingFiles(result.files || []);
-      console.log('[Invoices] Fatture ricevute caricate:', result.files?.length || 0, 'file per org', orgId);
+      setFoSummary(result.summary || null);
+      console.log('[Invoices] Fatture passive caricate:', result.files?.length || 0, '| Summary:', result.summary);
     } catch (error) {
       console.error('[Invoices] Errore caricamento fatture ricevute:', error);
       setErrMsg('Errore caricamento fatture ricevute: ' + error.message);
@@ -599,27 +657,29 @@ export default function Invoices() {
     return () => clearInterval(timer);
   }, [orgId, loadIncomingInvoices]);
 
-  // Decifra una fattura ricevuta e mostra dettagli nel modale
-  const handleDecryptInvoice = useCallback(async (filename) => {
+  // Apri dettaglio fattura passiva (dati già classificati dal server)
+  const handleViewIncoming = useCallback((file) => {
+    setDecryptedModal({
+      filename: file.filename,
+      classification: file.classification || 'incoming',
+      invoice_data: file.invoice_data || null,
+      xml_files_info: file.invoice_data?.xml_files_info || [],
+      has_xml_cache: file.invoice_data?.has_xml_cache || false,
+      loading_xml: false,
+      xml_content: null,
+    });
+  }, []);
+
+  // Carica XML da cache VPS per download PDF/XML
+  const handleLoadIncomingXml = useCallback(async (filename) => {
     try {
-      setDecrypting(filename);
-      const result = await decryptIncomingInvoice(filename, { testMode: false });
-      console.log('[Invoices] Fattura decifrata:', result);
-      
-      if (result.xml_files && result.xml_files.length > 0) {
-        setDecryptedModal({
-          filename,
-          xml_files: result.xml_files.filter(f => f.content && f.content.length > 0),
-          invoice_data: result.invoice_data,
-        });
-      } else {
-        setErrMsg('Nessun file XML trovato nella fattura decifrata');
-      }
+      setDecryptedModal(prev => prev ? { ...prev, loading_xml: true } : null);
+      const result = await getIncomingInvoiceXml(filename);
+      setDecryptedModal(prev => prev ? { ...prev, loading_xml: false, xml_content: result.xml } : null);
     } catch (error) {
-      console.error('[Invoices] Errore decifratura fattura:', error);
-      setErrMsg('Errore decifratura fattura: ' + error.message);
-    } finally {
-      setDecrypting(null);
+      console.error('[Invoices] Errore caricamento XML:', error);
+      setErrMsg('Errore caricamento XML: ' + error.message);
+      setDecryptedModal(prev => prev ? { ...prev, loading_xml: false } : null);
     }
   }, []);
 
@@ -638,17 +698,6 @@ export default function Invoices() {
     setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 1000);
   }, []);
 
-  // Genera e scarica PDF da XML FatturaPA
-  const handleViewPdf = useCallback((xmlFile, invoiceData) => {
-    try {
-      const pdfDoc = generatePdfFromXml(xmlFile.content, invoiceData || {});
-      const fileName = (xmlFile.name || 'fattura').replace('.xml', '.pdf');
-      pdfDoc.save(fileName);
-    } catch (error) {
-      console.error('[Invoices] Errore generazione PDF:', error);
-      setErrMsg('Errore generazione PDF: ' + error.message);
-    }
-  }, []);
 
   // Export CSV fatture filtrate
   const exportCSV = useCallback(() => {
@@ -771,108 +820,111 @@ export default function Invoices() {
 
         {/* Contenuto Tab Ricevute */}
         {activeTab === "ricevute" && (
-          <div className="space-y-6">
-            {/* Controlli */}
-            <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
-              <div className="flex items-center justify-end">
-                <button
-                  onClick={loadIncomingInvoices}
-                  disabled={incomingLoading}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <FiRefreshCcw className={`w-4 h-4 ${incomingLoading ? 'animate-spin' : ''}`} />
-                  {incomingLoading ? 'Caricamento...' : 'Sincronizza Fatture Ricevute'}
-                </button>
+          <div className="space-y-4">
+            {/* Header con sync + summary */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-200">Fatture Ricevute</h2>
+                {foSummary && (
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {foSummary.total_fo_count} file FO totali
+                    {foSummary.confirmation_count > 0 && ` · ${foSummary.confirmation_count} conferme nostre fatture`}
+                    {foSummary.incoming_count > 0 && ` · ${foSummary.incoming_count} fatture passive`}
+                  </p>
+                )}
               </div>
+              <button
+                onClick={loadIncomingInvoices}
+                disabled={incomingLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <FiRefreshCcw className={`w-4 h-4 ${incomingLoading ? 'animate-spin' : ''}`} />
+                {incomingLoading ? 'Sincronizzazione...' : 'Sincronizza'}
+              </button>
             </div>
 
-            {/* Lista File FO */}
-            <div className="bg-[#1a2536] rounded-xl border border-[#243044]">
-              <div className="px-6 py-4 border-b border-[#243044]">
-                <h2 className="text-lg font-semibold text-slate-200">
-                  File FO Ricevuti ({incomingFiles.length})
-                </h2>
-              </div>
-              <div className="overflow-x-auto">
-                {incomingLoading ? (
-                  <div className="px-6 py-10 text-center text-slate-500">
-                    Caricamento fatture ricevute...
-                  </div>
-                ) : incomingFiles.length > 0 ? (
+            {/* Tabella fatture passive — stile identico a Fatture Inviate */}
+            <div className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden">
+              {incomingLoading ? (
+                <div className="px-6 py-16 text-center">
+                  <FiRefreshCcw className="w-6 h-6 text-slate-500 animate-spin mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">Analisi e classificazione file FO in corso...</p>
+                  <p className="text-xs text-slate-600 mt-1">I file vengono aperti, classificati e i dati estratti automaticamente</p>
+                </div>
+              ) : incomingFiles.length > 0 ? (
+                <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-[#141c27]">
                       <tr>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Nome File</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Dimensione</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Data Ricezione</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Stato</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">N. Fattura</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Fornitore</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Data</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Importo</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Tipo</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Ricevuta</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Azioni</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#243044]">
-                      {incomingFiles.map((file) => (
-                        <tr key={file.filename} className="hover:bg-[#141c27] transition-colors">
-                          <td className="px-4 py-3 text-sm font-mono text-slate-200">
-                            {file.filename}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-400">
-                            {(file.size / 1024).toFixed(2)} KB
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-400">
-                            {file.received_at ? new Date(file.received_at).toLocaleString('it-IT') : '—'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              file.status === 'unprocessed'
-                                ? 'bg-yellow-500/10 text-yellow-400'
-                                : 'bg-green-500/10 text-green-400'
-                            }`}>
-                              {file.status === 'unprocessed' ? 'Non processata' : 'Processata'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
+                      {incomingFiles.map((file) => {
+                        const d = file.invoice_data || {};
+                        const TIPO = { TD01: 'Fattura', TD02: 'Acconto', TD04: 'Nota Credito', TD05: 'Nota Debito', TD06: 'Parcella', TD24: 'Differita', TD25: 'Differita' };
+                        return (
+                          <tr
+                            key={file.filename}
+                            onClick={() => handleViewIncoming(file)}
+                            className="hover:bg-[#141c27] transition-colors cursor-pointer"
+                          >
+                            <td className="px-4 py-3 text-sm font-medium text-slate-200">{d.numero || '—'}</td>
+                            <td className="px-4 py-3">
+                              <div className="text-sm text-slate-200">{d.cedente_name || '—'}</div>
+                              <div className="text-[10px] text-slate-500 font-mono">{d.cedente_vat ? `P.IVA ${d.cedente_vat}` : ''}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-slate-400">{d.data || '—'}</td>
+                            <td className="px-4 py-3 text-sm font-semibold text-emerald-400">{d.importo > 0 ? MONEY(d.importo) : '—'}</td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400">
+                                {TIPO[d.tipo_documento] || d.tipo_documento || '—'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-500">{file.received_at ? new Date(file.received_at).toLocaleDateString('it-IT') : '—'}</td>
+                            <td className="px-4 py-3">
                               <button
-                                onClick={() => handleDecryptInvoice(file.filename)}
-                                disabled={decrypting === file.filename}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-300 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#243044] hover:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                title="Decifra e visualizza"
+                                onClick={(e) => { e.stopPropagation(); handleViewIncoming(file); }}
+                                className="p-1 text-slate-500 hover:text-blue-400 transition-colors"
+                                title="Dettagli"
                               >
-                                {decrypting === file.filename ? (
-                                  <><FiRefreshCcw className="w-3.5 h-3.5 animate-spin" /> Decifratura...</>
-                                ) : (
-                                  <><FiUnlock className="w-3.5 h-3.5" /> Apri</>
-                                )}
+                                <FiFileText className="w-4 h-4" />
                               </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
-                ) : (
-                  <div className="px-6 py-12">
-                    <div className="text-center">
-                      <div className="w-16 h-16 bg-[#141c27] rounded-full flex items-center justify-center mx-auto mb-4">
-                        <FiInbox className="w-8 h-8 text-slate-500" />
-                      </div>
-                      <h3 className="text-lg font-medium text-slate-200 mb-2">
-                        Nessuna fattura ricevuta
-                      </h3>
-                      <p className="text-sm text-slate-500 mb-4">
-                        Le fatture passive ricevute da SDI appariranno qui dopo la sincronizzazione
-                      </p>
-                      <button
-                        onClick={loadIncomingInvoices}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                      >
-                        <FiRefreshCcw className="w-4 h-4" />
-                        Sincronizza Ora
-                      </button>
-                    </div>
+                </div>
+              ) : (
+                <div className="px-6 py-16 text-center">
+                  <div className="w-16 h-16 bg-[#141c27] rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FiInbox className="w-8 h-8 text-slate-600" />
                   </div>
-                )}
-              </div>
+                  <h3 className="text-base font-medium text-slate-300 mb-1">Nessuna fattura passiva</h3>
+                  <p className="text-sm text-slate-500 mb-1">Non ci sono fatture da altri fornitori nella casella SFTP.</p>
+                  {foSummary && foSummary.confirmation_count > 0 && (
+                    <p className="text-xs text-blue-400 mb-4">
+                      {foSummary.confirmation_count} conferme delle tue fatture emesse sono visibili nel dettaglio di ogni fattura.
+                    </p>
+                  )}
+                  {(!foSummary || foSummary.confirmation_count === 0) && (
+                    <button
+                      onClick={loadIncomingInvoices}
+                      className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition-colors"
+                    >
+                      <FiRefreshCcw className="w-4 h-4" /> Sincronizza Ora
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1248,139 +1300,173 @@ export default function Invoices() {
           </div>
         )}
 
-        {/* Modale Dettaglio FO Decifrato */}
-        {decryptedModal && (
+        {/* Modale Dettaglio Fattura Passiva */}
+        {decryptedModal && (() => {
+          const d = decryptedModal.invoice_data || {};
+          const TIPO_DOC = { TD01: 'Fattura', TD02: 'Acconto/Anticipo', TD04: 'Nota di Credito', TD05: 'Nota di Debito', TD06: 'Parcella', TD24: 'Fattura Differita', TD25: 'Differita art.21', TD20: 'Autofattura' };
+          const MOD_PAG = { MP01: 'Contanti', MP02: 'Assegno', MP05: 'Bonifico', MP08: 'Carta', MP12: 'RIBA', MP16: 'Domiciliazione bancaria', MP19: 'SEPA DD', MP23: 'PagoPA' };
+          return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDecryptedModal(null)}>
-            <div className="bg-[#1a2536] border border-[#243044] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
-              {/* Header modale */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[#243044]">
-                <div>
-                  <h3 className="text-base font-semibold text-slate-100">Contenuto File FO</h3>
-                  <p className="text-xs text-slate-500 mt-0.5 font-mono">{decryptedModal.filename}</p>
+            <div className="bg-[#1a2536] border border-[#243044] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[#243044] bg-[#141c27]">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <FiFileText className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                    <h3 className="text-base font-semibold text-slate-100 truncate">
+                      {TIPO_DOC[d.tipo_documento] || 'Fattura'} N. {d.numero || '—'}
+                    </h3>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 flex-shrink-0">PASSIVA</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5 font-mono truncate">{decryptedModal.filename}</p>
                 </div>
-                <button onClick={() => setDecryptedModal(null)} className="p-1.5 text-slate-500 hover:text-slate-200 transition-colors">
+                <button onClick={() => setDecryptedModal(null)} className="p-1.5 text-slate-500 hover:text-slate-200 transition-colors flex-shrink-0 ml-3">
                   <FiX className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Contenuto modale */}
-              <div className="overflow-y-auto max-h-[calc(85vh-130px)] p-6 space-y-4">
-                {/* Riepilogo dati */}
-                {decryptedModal.invoice_data && (
+              {/* Contenuto */}
+              <div className="overflow-y-auto max-h-[calc(90vh-140px)] p-6 space-y-5">
+
+                {/* Importo hero */}
+                {d.importo > 0 && (
+                  <div className="text-center py-2">
+                    <p className="text-3xl font-bold text-emerald-400">{MONEY(d.importo)}</p>
+                    <p className="text-xs text-slate-500 mt-1">{d.data || ''} · {d.divisa || 'EUR'}</p>
+                  </div>
+                )}
+
+                {/* Cedente / Cessionario */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Cedente (Fornitore) */}
                   <div className="bg-[#141c27] rounded-xl border border-[#243044] p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      {decryptedModal.invoice_data.tipo === 'fattura' && <FiFileText className="w-4 h-4 text-emerald-400" />}
-                      {decryptedModal.invoice_data.tipo === 'ricevuta_consegna' && <FiCheckCircle className="w-4 h-4 text-emerald-400" />}
-                      {decryptedModal.invoice_data.tipo === 'metadati' && <FiInfo className="w-4 h-4 text-blue-400" />}
-                      {(decryptedModal.invoice_data.tipo === 'notifica_scarto' || decryptedModal.invoice_data.tipo === 'notifica_mancata_consegna') && <FiAlertTriangle className="w-4 h-4 text-amber-400" />}
-                      <span className="text-sm font-semibold text-slate-200">
-                        {{
-                          fattura: 'Fattura Elettronica',
-                          ricevuta_consegna: 'Ricevuta di Consegna (RC)',
-                          metadati: 'Metadati SDI',
-                          notifica_scarto: 'Notifica di Scarto',
-                          notifica_mancata_consegna: 'Mancata Consegna',
-                        }[decryptedModal.invoice_data.tipo] || decryptedModal.invoice_data.tipo}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      {decryptedModal.invoice_data.identificativo_sdi && (
-                        <div><span className="text-slate-500">Id SDI</span><p className="text-slate-200 font-mono mt-0.5">{decryptedModal.invoice_data.identificativo_sdi}</p></div>
-                      )}
-                      {decryptedModal.invoice_data.nome_file && (
-                        <div><span className="text-slate-500">File Originale</span><p className="text-slate-200 font-mono mt-0.5">{decryptedModal.invoice_data.nome_file}</p></div>
-                      )}
-                      {decryptedModal.invoice_data.cedente && (
-                        <div><span className="text-slate-500">Cedente</span><p className="text-slate-200 mt-0.5">{decryptedModal.invoice_data.cedente}</p></div>
-                      )}
-                      {decryptedModal.invoice_data.numero && (
-                        <div><span className="text-slate-500">Numero</span><p className="text-slate-200 mt-0.5">{decryptedModal.invoice_data.numero}</p></div>
-                      )}
-                      {decryptedModal.invoice_data.data && (
-                        <div><span className="text-slate-500">Data</span><p className="text-slate-200 mt-0.5">{decryptedModal.invoice_data.data}</p></div>
-                      )}
-                      {decryptedModal.invoice_data.importo_totale > 0 && (
-                        <div><span className="text-slate-500">Importo</span><p className="text-emerald-400 font-semibold mt-0.5">{MONEY(decryptedModal.invoice_data.importo_totale)}</p></div>
-                      )}
-                      {decryptedModal.invoice_data.data_ricezione && (
-                        <div><span className="text-slate-500">Ricevuto SDI</span><p className="text-slate-200 mt-0.5">{new Date(decryptedModal.invoice_data.data_ricezione).toLocaleString('it-IT')}</p></div>
-                      )}
-                      {decryptedModal.invoice_data.data_consegna && (
-                        <div><span className="text-slate-500">Consegnato</span><p className="text-emerald-400 mt-0.5">{new Date(decryptedModal.invoice_data.data_consegna).toLocaleString('it-IT')}</p></div>
-                      )}
-                      {decryptedModal.invoice_data.codice_destinatario && (
-                        <div><span className="text-slate-500">Cod. Destinatario</span><p className="text-slate-200 font-mono mt-0.5">{decryptedModal.invoice_data.codice_destinatario}</p></div>
-                      )}
-                      {decryptedModal.invoice_data.message_id && (
-                        <div><span className="text-slate-500">Message ID</span><p className="text-slate-200 font-mono mt-0.5">{decryptedModal.invoice_data.message_id}</p></div>
-                      )}
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2">Cedente / Fornitore</p>
+                    <p className="text-sm font-semibold text-slate-200">{d.cedente_name || '—'}</p>
+                    {d.cedente_vat && <p className="text-xs text-slate-400 font-mono mt-1">P.IVA {d.cedente_vat}</p>}
+                    {d.cedente_cf && <p className="text-xs text-slate-400 font-mono">C.F. {d.cedente_cf}</p>}
+                    {d.cedente_indirizzo && (
+                      <p className="text-xs text-slate-500 mt-1.5">
+                        {d.cedente_indirizzo}{d.cedente_cap ? `, ${d.cedente_cap}` : ''} {d.cedente_comune || ''}{d.cedente_provincia ? ` (${d.cedente_provincia})` : ''}
+                      </p>
+                    )}
+                  </div>
+                  {/* Cessionario (Noi) */}
+                  <div className="bg-[#141c27] rounded-xl border border-[#243044] p-4">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2">Cessionario / Committente</p>
+                    <p className="text-sm font-semibold text-slate-200">{d.cessionario_name || '—'}</p>
+                    {d.cessionario_vat && <p className="text-xs text-slate-400 font-mono mt-1">P.IVA {d.cessionario_vat}</p>}
+                    {d.cessionario_cf && <p className="text-xs text-slate-400 font-mono">C.F. {d.cessionario_cf}</p>}
+                    {d.cessionario_indirizzo && (
+                      <p className="text-xs text-slate-500 mt-1.5">
+                        {d.cessionario_indirizzo}{d.cessionario_cap ? `, ${d.cessionario_cap}` : ''} {d.cessionario_comune || ''}{d.cessionario_provincia ? ` (${d.cessionario_provincia})` : ''}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dati Documento */}
+                <div className="bg-[#141c27] rounded-xl border border-[#243044] p-4">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-3">Dati Documento</p>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div><span className="text-slate-500">Tipo</span><p className="text-slate-200 mt-0.5">{TIPO_DOC[d.tipo_documento] || d.tipo_documento || '—'}</p></div>
+                    <div><span className="text-slate-500">Numero</span><p className="text-slate-200 font-mono mt-0.5">{d.numero || '—'}</p></div>
+                    <div><span className="text-slate-500">Data</span><p className="text-slate-200 mt-0.5">{d.data || '—'}</p></div>
+                    {d.causale && <div className="col-span-3"><span className="text-slate-500">Causale</span><p className="text-slate-200 mt-0.5">{d.causale}</p></div>}
+                  </div>
+                </div>
+
+                {/* Pagamento */}
+                {(d.modalita_pagamento || d.scadenza_pagamento || d.iban) && (
+                  <div className="bg-[#141c27] rounded-xl border border-[#243044] p-4">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-3">Pagamento</p>
+                    <div className="grid grid-cols-3 gap-3 text-xs">
+                      {d.modalita_pagamento && <div><span className="text-slate-500">Modalità</span><p className="text-slate-200 mt-0.5">{MOD_PAG[d.modalita_pagamento] || d.modalita_pagamento}</p></div>}
+                      {d.scadenza_pagamento && <div><span className="text-slate-500">Scadenza</span><p className="text-slate-200 mt-0.5">{d.scadenza_pagamento}</p></div>}
+                      {d.iban && <div className="col-span-3"><span className="text-slate-500">IBAN</span><p className="text-slate-200 font-mono mt-0.5">{d.iban}</p></div>}
                     </div>
                   </div>
                 )}
 
-                {/* Lista file XML */}
-                <div>
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">File XML Contenuti ({decryptedModal.xml_files.length})</h4>
-                  <div className="space-y-2">
-                    {decryptedModal.xml_files.map((xmlFile, idx) => {
-                      const typeLabels = {
-                        fattura: { label: 'Fattura', color: 'text-emerald-400 bg-emerald-500/10' },
-                        ricevuta_consegna: { label: 'RC', color: 'text-emerald-400 bg-emerald-500/10' },
-                        notifica_scarto: { label: 'Scarto', color: 'text-red-400 bg-red-500/10' },
-                        notifica_decorrenza: { label: 'Decorrenza', color: 'text-amber-400 bg-amber-500/10' },
-                        notifica_esito: { label: 'Esito', color: 'text-blue-400 bg-blue-500/10' },
-                        notifica_mancata_consegna: { label: 'MC', color: 'text-amber-400 bg-amber-500/10' },
-                        metadati: { label: 'Metadati', color: 'text-blue-400 bg-blue-500/10' },
-                        quadratura: { label: 'Quadratura', color: 'text-slate-400 bg-slate-500/10' },
-                      };
-                      const t = typeLabels[xmlFile.type] || { label: xmlFile.type, color: 'text-slate-400 bg-slate-500/10' };
-                      return (
-                        <div key={idx} className="flex items-center justify-between bg-[#141c27] border border-[#243044] rounded-lg px-4 py-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <FiFileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-sm text-slate-200 font-mono truncate">{xmlFile.name}</p>
-                              <p className="text-xs text-slate-500">{(xmlFile.size / 1024).toFixed(1)} KB</p>
+                {/* File contenuti nel FO */}
+                {decryptedModal.xml_files_info && decryptedModal.xml_files_info.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2">File contenuti ({decryptedModal.xml_files_info.length})</p>
+                    <div className="space-y-1.5">
+                      {decryptedModal.xml_files_info.map((f, idx) => {
+                        const tl = { fattura: { l: 'Fattura', c: 'text-emerald-400 bg-emerald-500/10' }, metadati: { l: 'Metadati', c: 'text-blue-400 bg-blue-500/10' }, quadratura: { l: 'Quadratura', c: 'text-slate-400 bg-slate-500/10' }, ricevuta_consegna: { l: 'RC', c: 'text-emerald-400 bg-emerald-500/10' } };
+                        const t = tl[f.type] || { l: f.type || '?', c: 'text-slate-400 bg-slate-500/10' };
+                        return (
+                          <div key={idx} className="flex items-center justify-between bg-[#0f1722] border border-[#1e2b3d] rounded-lg px-3 py-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FiFileText className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
+                              <span className="text-xs text-slate-300 font-mono truncate">{f.name}</span>
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${t.c}`}>{t.l}</span>
+                              <span className="text-[10px] text-slate-600">{(f.size / 1024).toFixed(1)} KB</span>
                             </div>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${t.color}`}>{t.label}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            {xmlFile.type === 'fattura' && (
-                              <button
-                                onClick={() => handleViewPdf(xmlFile, decryptedModal.invoice_data)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
-                              >
-                                <FiFileText className="w-3.5 h-3.5" />
-                                PDF
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleDownloadXml(xmlFile)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 bg-[#1a2536] border border-[#243044] rounded-lg hover:bg-[#243044] hover:text-emerald-400 transition-colors"
-                            >
-                              <FiDownload className="w-3.5 h-3.5" />
-                              XML
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
-              {/* Footer modale */}
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#243044]">
+              {/* Footer con azioni download */}
+              <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[#243044] bg-[#141c27]">
+                <div className="flex items-center gap-2">
+                  {decryptedModal.has_xml_cache && !decryptedModal.xml_content && (
+                    <button
+                      onClick={() => handleLoadIncomingXml(decryptedModal.filename)}
+                      disabled={decryptedModal.loading_xml}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                    >
+                      {decryptedModal.loading_xml
+                        ? <><FiRefreshCcw className="w-3.5 h-3.5 animate-spin" /> Caricamento...</>
+                        : <><FiDownload className="w-3.5 h-3.5" /> Carica XML per Download</>
+                      }
+                    </button>
+                  )}
+                  {decryptedModal.xml_content && (
+                    <>
+                      <button
+                        onClick={() => {
+                          try {
+                            downloadFatturaPaPdf(decryptedModal.xml_content, `Fattura_${(d.numero || 'NONUM').replace(/\//g, '-')}_${(d.cedente_name || '').replace(/\s+/g, '_')}`, { foFilename: decryptedModal.filename });
+                          } catch (e) { setErrMsg('Errore generazione PDF: ' + e.message); }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+                      >
+                        <FiFileText className="w-3.5 h-3.5" /> Scarica PDF
+                      </button>
+                      <button
+                        onClick={() => {
+                          const blob = new Blob([decryptedModal.xml_content], { type: 'application/xml' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `Fattura_${(d.numero || 'NONUM').replace(/\//g, '-')}_${(d.cedente_name || '').replace(/\s+/g, '_')}.xml`;
+                          document.body.appendChild(a);
+                          a.click();
+                          setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-300 bg-[#1a2536] border border-[#243044] rounded-lg hover:bg-[#243044] transition-colors"
+                      >
+                        <FiDownload className="w-3.5 h-3.5" /> Scarica XML
+                      </button>
+                    </>
+                  )}
+                </div>
                 <button
                   onClick={() => setDecryptedModal(null)}
-                  className="px-4 py-2 text-xs font-medium text-slate-300 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#243044] transition-colors"
+                  className="px-4 py-2 text-xs font-medium text-slate-300 bg-[#1a2536] border border-[#243044] rounded-lg hover:bg-[#243044] transition-colors"
                 >
                   Chiudi
                 </button>
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
     </div>
   );
 }

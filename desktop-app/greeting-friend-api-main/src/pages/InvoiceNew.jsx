@@ -1,5 +1,5 @@
 // src/pages/InvoiceNew.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { useOrg } from "@/context/OrgContext";
@@ -22,6 +22,7 @@ import { searchComuni, getComuneByName } from "@/lib/comuniItaliani";
 import { generateAccountingEntriesForInvoice, saveAccountingEntries, initChartOfAccounts } from "@/lib/accounting";
 import { autoFillFromPIVA } from "@/lib/agenzia-entrate";
 import OpenAPIDataModal from "@/components/OpenAPIDataModal";
+import { getSdiConfig } from "@/lib/sdi";
 
 /* ---------- Helpers ---------- */
 const asNum = (v) => (isFinite(Number(v)) ? Number(v) : 0);
@@ -120,6 +121,14 @@ export default function InvoiceNew() {
 
   /* ---------- Cedente/Prestatore (Azienda emittente) - caricato da Settings ---------- */
   const [companyData, setCompanyData] = useState(null);
+
+  /* ---------- Configurazione SDI dal VPS (read-only) ---------- */
+  const [sdiConfig, setSdiConfig] = useState(null);
+  useEffect(() => {
+    let mounted = true;
+    getSdiConfig().then(c => { if (mounted) setSdiConfig(c); });
+    return () => { mounted = false; };
+  }, []);
 
   /* ---------- Trasmissione SdI ---------- */
   const [codiceDest, setCodiceDest] = useState(""); // 7-char o "0000000" se PEC
@@ -227,6 +236,62 @@ export default function InvoiceNew() {
   const [showClientSearch, setShowClientSearch] = useState(false);
   const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [clientResults, setClientResults] = useState([]);
+
+  /* Selettore cliente inline (top della sezione Cessionario) */
+  const [inlineClientQuery, setInlineClientQuery] = useState("");
+  const [inlineClientResults, setInlineClientResults] = useState([]);
+  const [inlineClientOpen, setInlineClientOpen] = useState(false);
+  const [inlineClientLoading, setInlineClientLoading] = useState(false);
+  const [editClientForm, setEditClientForm] = useState(false); // mostra form manuale
+  const inlineDebounceRef = useRef(null);
+
+  const inlineClientSearch = useCallback(async (term) => {
+    if (!orgId) { setInlineClientResults([]); return; }
+    setInlineClientLoading(true);
+    try {
+      let q = supabase
+        .from("clients")
+        .select("id, codice, nome, surname, piva, vat, tax_code, indirizzo, address, codice_destinatario, pec, city, zip, province, country, email, phone, is_company, birth_date, birth_place, birth_province, gender")
+        .eq("org_id", orgId)
+        .order("nome", { ascending: true })
+        .limit(8);
+      if (term?.trim()) {
+        const safe = term.replace(/[%_]/g, c => "\\" + c);
+        q = q.or(`codice.ilike.%${safe}%,nome.ilike.%${safe}%,surname.ilike.%${safe}%,piva.ilike.%${safe}%,vat.ilike.%${safe}%,tax_code.ilike.%${safe}%,email.ilike.%${safe}%`);
+      }
+      const { data } = await q;
+      setInlineClientResults(data || []);
+    } finally {
+      setInlineClientLoading(false);
+    }
+  }, [orgId, supabase]);
+
+  const handleInlineClientChange = (val) => {
+    setInlineClientQuery(val);
+    setInlineClientOpen(true);
+    clearTimeout(inlineDebounceRef.current);
+    inlineDebounceRef.current = setTimeout(() => inlineClientSearch(val), 200);
+  };
+
+  const clearCustomerData = () => {
+    setCustomerName("");
+    setCustomerSurname("");
+    setCustomerVat("");
+    setCustomerTax("");
+    setCustomerBirthDate("");
+    setCustomerGender("M");
+    setCustomerBirthPlace("");
+    setCustStreet("");
+    setCustZip("");
+    setCustCity("");
+    setCustProv("");
+    setCustCountry("IT");
+    setIsCompany(true);
+    setCodiceDest("");
+    setPecDest("");
+    setEditClientForm(false);
+    setInlineClientQuery("");
+  };
   const [showPresetSearch, setShowPresetSearch] = useState(false);
   const [presetSearchTerm, setPresetSearchTerm] = useState("");
   const [presetResults, setPresetResults] = useState([]);
@@ -320,9 +385,34 @@ export default function InvoiceNew() {
         .eq("org_id", orgId)
         .eq("key", "company")
         .maybeSingle();
-      
+
       if (!error && data?.value) {
-        setCompanyData(data.value);
+        // Normalizza schema: address può essere stringa (vecchio) o oggetto
+        // {street, civico, city, zip, province, country} (nuovo).
+        // Esponi anche alias camelCase per compatibilità con codice legacy
+        // (es. companyData.name, companyData.taxCode, companyData.regimeFiscale).
+        const v = data.value;
+        const addr = v.address;
+        let normalized;
+        if (addr && typeof addr === "object") {
+          const street = [addr.street, addr.civico].filter(Boolean).join(" ").trim();
+          normalized = {
+            ...v,
+            address: street || null,
+            address_full: addr,
+            zip: v.zip || addr.zip || null,
+            city: v.city || addr.city || null,
+            province: v.province || addr.province || null,
+            country: v.country || addr.country || "IT",
+          };
+        } else {
+          normalized = { ...v };
+        }
+        // Alias camelCase su snake_case
+        normalized.name = normalized.company_name || normalized.name || null;
+        normalized.taxCode = normalized.tax_code || normalized.taxCode || null;
+        normalized.regimeFiscale = normalized.regime_fiscale || normalized.regimeFiscale || "RF01";
+        setCompanyData(normalized);
       }
     } catch (e) {
       console.error("Errore caricamento dati azienda:", e);
@@ -429,13 +519,19 @@ export default function InvoiceNew() {
       setCustomerVat(inv.customer_vat || "");
       setCustomerTax(inv.customer_tax_code || "");
 
-      // Indirizzo cliente
+      // Indirizzo cliente (supporta sia chiavi nuove street/zip/city che vecchie via/cap/comune)
       const addr = inv.customer_address || inv.meta?.cessionario?.address || {};
-      setCustStreet(addr.street || "");
-      setCustZip(addr.zip || "");
-      setCustCity(addr.city || "");
-      setCustProv(addr.province || "");
-      setCustCountry(addr.country || "IT");
+      const sdiCliente = inv.meta?.sdi?.cliente || {};
+      setCustStreet(addr.street || addr.via || sdiCliente.indirizzo || "");
+      setCustZip(addr.zip || addr.cap || sdiCliente.cap || "");
+      setCustCity(addr.city || addr.comune || sdiCliente.comune || "");
+      setCustProv(addr.province || addr.provincia || sdiCliente.provincia || "");
+      setCustCountry(addr.country || addr.nazione || sdiCliente.nazione || "IT");
+
+      // Dati nascita cliente (da meta.sdi.cliente)
+      setCustomerBirthDate(sdiCliente.data_nascita || "");
+      setCustomerBirthPlace(sdiCliente.comune_nascita || "");
+      setCustomerGender(sdiCliente.sesso || "M");
 
       // Trasmissione SDI
       const trasm = inv.meta?.sdi?.trasmissione || {};
@@ -737,7 +833,7 @@ export default function InvoiceNew() {
     }, 200);
   }
 
-  /* Ricerca clienti */
+  /* Ricerca clienti — supporta nome, cognome, P.IVA, CF, email, codice cliente */
   async function searchClients(term) {
     if (!orgId) {
       setClientResults([]);
@@ -746,13 +842,14 @@ export default function InvoiceNew() {
     try {
       let query = supabase
         .from("clients")
-        .select("id, nome, surname, piva, tax_code, indirizzo, codice_destinatario, pec, city, zip, province")
+        .select("id, codice, nome, surname, piva, vat, tax_code, indirizzo, address, codice_destinatario, pec, city, zip, province, country, email, phone, birth_date, birth_place, birth_province, gender, is_company")
         .eq("org_id", orgId)
         .order("created_at", { ascending: false })
         .limit(15);
 
       if (term?.trim()) {
-        query = query.or(`nome.ilike.%${term}%,surname.ilike.%${term}%,piva.ilike.%${term}%,tax_code.ilike.%${term}%`);
+        const safe = term.replace(/[%_]/g, c => "\\" + c);
+        query = query.or(`codice.ilike.%${safe}%,nome.ilike.%${safe}%,surname.ilike.%${safe}%,piva.ilike.%${safe}%,vat.ilike.%${safe}%,tax_code.ilike.%${safe}%,email.ilike.%${safe}%`);
       }
 
       const { data, error } = await query;
@@ -770,13 +867,13 @@ export default function InvoiceNew() {
     setCustomerSurname(client.surname || "");
     setCustomerVat(client.piva || "");
     setCustomerTax(client.tax_code || client.codice_fiscale || "");
-    setCustomerBirthDate(client.data_nascita || "");
-    setCustomerGender(client.sesso || "M");
-    setCustomerBirthPlace(client.luogo_nascita || "");
-    setCustStreet(client.indirizzo || "");
+    setCustomerBirthDate(client.birth_date || "");
+    setCustomerGender(client.gender || "M");
+    setCustomerBirthPlace(client.birth_place || "");
+    setCustStreet(client.address || client.indirizzo || "");
     setCustZip(client.zip || "");
     setCustCity(client.city || "");
-    setCustProv(client.province || "");
+    setCustProv(client.province || client.birth_province || "");
     setCustCountry(client.country || "IT");
     setIsCompany(client.is_company ?? true);
     // Carica campi SDI dal cliente
@@ -850,6 +947,19 @@ export default function InvoiceNew() {
     }
   }, [showOriginalInvoiceSearch, originalInvoiceSearchTerm, orgId]);
 
+  /* Genera un codice articolo breve da una descrizione (fallback se preset non lo ha) */
+  function presetCodeFromDescription(desc) {
+    if (!desc) return "ART";
+    const words = String(desc)
+      .toUpperCase()
+      .replace(/[^A-Z0-9 ]/g, "")
+      .split(/\s+/)
+      .filter(w => w.length >= 2);
+    if (words.length === 0) return "ART";
+    const code = words.slice(0, 3).map(w => w.slice(0, 3)).join("");
+    return code.slice(0, 12) || "ART";
+  }
+
   async function loadAllPresets() {
     const combined = [];
     // 1. Carica da tabella quote_presets (DB)
@@ -863,6 +973,7 @@ export default function InvoiceNew() {
           .limit(100);
         if (data) {
           data.forEach(p => combined.push({
+            code: p.code || p.codice || presetCodeFromDescription(p.description),
             description: p.description,
             price: p.price || 0,
             qty: p.qty || 1,
@@ -883,6 +994,7 @@ export default function InvoiceNew() {
         localPresets.forEach(p => {
           if (!combined.find(c => c.description === p.description)) {
             combined.push({
+              code: p.code || p.codice || presetCodeFromDescription(p.description),
               description: p.description,
               price: p.unitPrice || 0,
               qty: p.quantity || 1,
@@ -924,10 +1036,12 @@ export default function InvoiceNew() {
 
   function applyDescrPreset(rowIdx, preset) {
     patchRow(rowIdx, {
-      item_description: preset.description,
-      price: preset.price,
-      qty: preset.qty,
-      vat_perc: preset.vat_perc,
+      descr: preset.code || presetCodeFromDescription(preset.description),
+      item_description: preset.description || "",
+      price: preset.price || 0,
+      qty: preset.qty || 1,
+      vat_perc: preset.vat_perc || 22,
+      unit: preset.unit || "PZ",
     });
     setDescrSuggRow(null);
     setDescrSuggestions([]);
@@ -936,11 +1050,12 @@ export default function InvoiceNew() {
   /* Aggiungi preset come riga */
   function addPresetAsRow(preset) {
     const newRow = {
-      descr: preset.description || "Prestazione",
+      descr: preset.code || presetCodeFromDescription(preset.description),
+      item_description: preset.description || "",
       qty: preset.qty || 1,
       price: preset.price || 0,
-      vat_perc: 22,
-      unit: "PZ",
+      vat_perc: preset.vat_perc || 22,
+      unit: preset.unit || "PZ",
     };
     setRows((prev) => [...prev, newRow]);
     setShowPresetSearch(false);
@@ -1196,6 +1311,23 @@ export default function InvoiceNew() {
             number: originalInvoice.number,
             date: originalInvoice.date,
           } : null,
+        },
+        cliente: {
+          denominazione: isCompany
+            ? customerName
+            : `${customerName} ${customerSurname}`.trim(),
+          codice_fiscale: customerTax || null,
+          partita_iva: customerVat || null,
+          data_nascita: !isCompany ? customerBirthDate || null : null,
+          comune_nascita: !isCompany ? customerBirthPlace || null : null,
+          sesso: !isCompany ? customerGender || null : null,
+          indirizzo: custStreet || null,
+          cap: custZip || null,
+          comune: custCity || null,
+          provincia: custProv || null,
+          nazione: custCountry || "IT",
+          codice_destinatario: finalCodiceDest || "0000000",
+          pec: finalPecDest || null,
         },
         cessionario: {
           denominazione: isCompany
@@ -1468,57 +1600,69 @@ export default function InvoiceNew() {
         </div>
       )}
 
-      {/* Cedente/Prestatore (Azienda emittente) - dai Settings */}
-      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-              <FiUser className="w-4 h-4 text-emerald-400" />
+      {/* Cedente/Prestatore — banner compatto (dati pre-impostati da Info Azienda) */}
+      {!companyData ? (
+        <section className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+          <FiInfo className="w-4 h-4 text-amber-400 shrink-0" />
+          <div className="flex-1 text-xs text-amber-200">
+            Dati azienda non configurati. Vai su <strong>Impostazioni → Organizzazione → Info Azienda</strong>.
+          </div>
+          <button
+            onClick={() => navigate(`/settings?return=${encodeURIComponent('/fatture/nuovo')}`)}
+            className="px-3 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition"
+          >
+            Configura
+          </button>
+        </section>
+      ) : (
+        <section className="bg-[#1a2536] rounded-xl border border-[#243044] px-4 py-2.5 flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="w-7 h-7 bg-emerald-500/10 rounded-lg flex items-center justify-center shrink-0">
+              <FiUser className="w-3.5 h-3.5 text-emerald-400" />
             </div>
-            <div>
-              <h2 className="text-sm font-semibold text-slate-200">Cedente/Prestatore</h2>
-              <p className="text-xs text-slate-500">Dati della tua azienda</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Emessa da</span>
+                <strong className="text-sm text-slate-200 truncate">{companyData.name || "—"}</strong>
+                {companyData.vat && (
+                  <span className="text-[11px] text-slate-400 font-mono">P.IVA {companyData.vat}</span>
+                )}
+                {sdiConfig?.environment && sdiConfig.environment !== 'UNKNOWN' && (
+                  <span
+                    title={`Ambiente SDI deciso dal VPS (${sdiConfig.upload_dir || ''})`}
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      sdiConfig.test_mode
+                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                        : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                    }`}
+                  >
+                    {sdiConfig.test_mode ? '🧪 SDI TEST' : '✓ SDI PROD'}
+                  </span>
+                )}
+              </div>
+              <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                {[companyData.address, companyData.zip, companyData.city, companyData.province && `(${companyData.province})`].filter(Boolean).join(' ')}
+                {companyData.regimeFiscale && <span className="ml-2">• Regime {companyData.regimeFiscale}</span>}
+              </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button 
-              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-300 bg-[#141c27] rounded-lg hover:bg-[#243044]  transition-colors"
-              onClick={() => {
-                // Vai a Settings e poi torna qui
-                const returnPath = `/fatture/nuovo`;
-                navigate(`/settings?return=${encodeURIComponent(returnPath)}`);
-              }}
-            >
-              Modifica in Settings
-            </button>
-            <button 
-              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-300 bg-[#141c27] rounded-lg hover:bg-[#243044]  transition-colors"
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
               onClick={loadCompanyData}
-              title="Ricarica i dati azienda da Settings"
+              title="Ricarica dati"
+              className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#141c27] rounded transition"
             >
-              <FiRefreshCw className="w-3 h-3" /> Aggiorna
+              <FiRefreshCw className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => navigate(`/settings?return=${encodeURIComponent('/fatture/nuovo')}`)}
+              className="text-[11px] font-medium text-slate-400 hover:text-slate-200 px-2 py-1 hover:bg-[#141c27] rounded transition"
+            >
+              Modifica
             </button>
           </div>
-        </div>
-        
-        {companyData ? (
-          <div className="bg-[#141c27]/50 rounded-lg p-3 text-sm space-y-2">
-            <div className="grid md:grid-cols-2 gap-x-4 gap-y-1">
-              <div><span className="text-slate-500">Denominazione:</span> <strong>{companyData.name || "—"}</strong></div>
-              <div><span className="text-slate-500">P.IVA:</span> <strong>{companyData.vat || "—"}</strong></div>
-              {companyData.taxCode && (
-                <div><span className="text-slate-500">Codice Fiscale:</span> <strong>{companyData.taxCode}</strong></div>
-              )}
-              <div><span className="text-slate-500">Regime Fiscale:</span> <strong>{companyData.regimeFiscale || "RF01"}</strong></div>
-              <div className="md:col-span-2"><span className="text-slate-500">Indirizzo:</span> <strong>{companyData.address || "—"}, {companyData.zip} {companyData.city} ({companyData.province})</strong></div>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-sm text-amber-400">
-             Dati azienda non configurati. Vai su <strong>Settings → Azienda</strong> per compilarli.
-          </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* Trasmissione SdI */}
       <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 space-y-3">
@@ -1569,45 +1713,163 @@ export default function InvoiceNew() {
 
       {/* Cessionario / Committente */}
       <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 space-y-3">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center">
               <FiUser className="w-4 h-4 text-purple-400" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-slate-200">Cessionario / Committente</h2>
-              <p className="text-xs text-slate-500">Dati del cliente destinatario</p>
+              <h2 className="text-sm font-semibold text-slate-200">Cliente</h2>
+              <p className="text-xs text-slate-500">Cessionario / Committente</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button 
-              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-300 bg-[#141c27] rounded-lg hover:bg-[#243044]  transition-colors"
-              onClick={() => setShowClientSearch(true)}
-              title="F3: Cerca cliente"
-            >
-              <FiUser className="w-3 h-3" /> Cerca (F3)
-            </button>
-            <div className="flex items-center gap-2 text-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={isCompany}
-                  onChange={() => setIsCompany(true)}
-                  className="w-4 h-4"
-                />
-                <span>Persona Giuridica (Azienda)</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={!isCompany}
-                  onChange={() => setIsCompany(false)}
-                  className="w-4 h-4"
-                />
-                <span>Persona Fisica (Privato)</span>
-              </label>
+        </div>
+
+        {/* Quick selector: cerca per codice/nome/P.IVA — sempre visibile */}
+        {!editClientForm && !customerName.trim() && !customerSurname.trim() && (
+          <div className="relative">
+            <div className="relative">
+              <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
+              <input
+                type="text"
+                className={`${inputBase} pl-10 pr-24`}
+                placeholder="Cerca per codice cliente, nome, P.IVA, CF, email..."
+                value={inlineClientQuery}
+                onChange={(e) => handleInlineClientChange(e.target.value)}
+                onFocus={() => { setInlineClientOpen(true); inlineClientSearch(inlineClientQuery); }}
+                onBlur={() => setTimeout(() => setInlineClientOpen(false), 200)}
+              />
+              {inlineClientLoading && (
+                <FiRefreshCw className="absolute right-24 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-blue-400 animate-spin" />
+              )}
+              <button
+                onClick={() => setEditClientForm(true)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-medium text-slate-300 bg-[#141c27] hover:bg-[#243044] rounded transition flex items-center gap-1"
+                title="Inserisci cliente nuovo manualmente"
+              >
+                <FiPlus className="w-3 h-3" /> Nuovo
+              </button>
+            </div>
+            {inlineClientOpen && inlineClientResults.length > 0 && (
+              <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[#141c27] border border-[#243044] rounded-lg shadow-2xl max-h-80 overflow-y-auto">
+                {inlineClientResults.map((c) => {
+                  const display = c.is_company
+                    ? (c.nome || c.surname || "(senza nome)")
+                    : [c.nome, c.surname].filter(Boolean).join(" ") || c.email || "(senza nome)";
+                  const sub = [
+                    c.codice && `#${c.codice}`,
+                    (c.piva || c.vat) && `P.IVA ${c.piva || c.vat}`,
+                    c.tax_code && `CF ${c.tax_code}`,
+                    c.city && `${c.city}${c.province ? ` (${c.province})` : ""}`,
+                  ].filter(Boolean).join("  •  ");
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onMouseDown={() => { loadClient(c); setInlineClientQuery(""); setInlineClientOpen(false); }}
+                      className="w-full text-left px-3 py-2 hover:bg-[#1a2536] border-b border-[#243044] last:border-b-0 transition"
+                    >
+                      <div className="text-sm font-medium text-slate-200 flex items-center gap-2">
+                        {c.is_company ? (
+                          <span className="text-[9px] font-bold text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">AZ</span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">PF</span>
+                        )}
+                        {display}
+                      </div>
+                      {sub && <div className="text-[10px] text-slate-500 mt-0.5">{sub}</div>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {inlineClientOpen && !inlineClientLoading && inlineClientResults.length === 0 && inlineClientQuery.trim().length >= 2 && (
+              <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[#141c27] border border-[#243044] rounded-lg p-3 text-xs text-slate-500">
+                Nessun cliente trovato per "{inlineClientQuery}".
+                <button
+                  onClick={() => setEditClientForm(true)}
+                  className="ml-2 text-blue-400 hover:text-blue-300 underline"
+                >
+                  Crea nuovo cliente
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Banner compatto cliente selezionato */}
+        {!editClientForm && (customerName.trim() || customerSurname.trim()) && (
+          <div className="bg-[#141c27]/60 border border-[#243044] rounded-lg p-3 flex items-start gap-3">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isCompany ? "bg-purple-500/15" : "bg-blue-500/15"}`}>
+              <FiUser className={`w-4 h-4 ${isCompany ? "text-purple-400" : "text-blue-400"}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  {isCompany ? "Azienda" : "Persona fisica"}
+                </span>
+                <strong className="text-sm text-slate-100">
+                  {isCompany ? customerName : [customerName, customerSurname].filter(Boolean).join(" ")}
+                </strong>
+                {customerVat && <span className="text-[11px] text-slate-400 font-mono">P.IVA {customerVat}</span>}
+                {customerTax && <span className="text-[11px] text-slate-400 font-mono">CF {customerTax}</span>}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1 truncate">
+                {[custStreet, custZip, custCity, custProv && `(${custProv})`].filter(Boolean).join(" ")}
+                {codiceDest && <span className="ml-2">• Cod. Dest. <span className="font-mono">{codiceDest}</span></span>}
+                {pecDest && <span className="ml-2">• PEC {pecDest}</span>}
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => setEditClientForm(true)}
+                className="text-[11px] font-medium text-slate-400 hover:text-slate-200 px-2 py-1 hover:bg-[#1a2536] rounded transition"
+              >
+                Modifica
+              </button>
+              <button
+                onClick={clearCustomerData}
+                title="Cambia cliente"
+                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition"
+              >
+                <FiX className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
+        )}
+
+        {/* Form manuale (solo se editClientForm o nessun cliente) */}
+        {(editClientForm || (!customerName.trim() && !customerSurname.trim() && !inlineClientOpen && inlineClientQuery === "")) && editClientForm && (
+        <>
+        <div className="flex items-center justify-between bg-[#141c27]/30 border border-[#243044] rounded-lg px-3 py-2">
+          <div className="flex items-center gap-3 text-sm text-slate-300">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Tipo cliente</span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="radio"
+                checked={isCompany}
+                onChange={() => setIsCompany(true)}
+                className="w-3.5 h-3.5"
+              />
+              <span className="text-xs">Azienda</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="radio"
+                checked={!isCompany}
+                onChange={() => setIsCompany(false)}
+                className="w-3.5 h-3.5"
+              />
+              <span className="text-xs">Privato</span>
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setEditClientForm(false); }}
+            className="text-[11px] text-slate-400 hover:text-slate-200 px-2 py-1"
+          >
+            Chiudi modifica
+          </button>
         </div>
 
         {isCompany ? (
@@ -1947,6 +2209,8 @@ export default function InvoiceNew() {
             </Field>
           </div>
         )}
+        </>
+        )}
       </section>
 
       {/* Dati Documento */}
@@ -2023,17 +2287,27 @@ export default function InvoiceNew() {
         </div>
 
         <div className="overflow-x-auto" style={{ overflowY: 'visible' }}>
-          <table className="w-full min-w-[1200px]" style={{ overflowY: 'visible' }}>
+          <table className="w-full" style={{ overflowY: 'visible', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '34%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '6%' }} />
+            </colgroup>
             <thead className="bg-[#141c27]/50">
               <tr>
-                <th className="text-left px-2 py-3 text-sm font-semibold w-40">Codice</th>
+                <th className="text-left px-2 py-3 text-sm font-semibold">Codice</th>
                 <th className="text-left px-2 py-3 text-sm font-semibold">Descrizione</th>
-                <th className="text-left px-2 py-3 text-sm font-semibold w-20">Q.tà</th>
-                <th className="text-left px-2 py-3 text-sm font-semibold w-24">Prezzo</th>
-                <th className="text-left px-2 py-3 text-sm font-semibold w-16">IVA%</th>
-                <th className="text-left px-2 py-3 text-sm font-semibold w-20">Sc.%</th>
-                <th className="text-left px-2 py-3 text-sm font-semibold w-24">Totale</th>
-                <th className="text-left px-2 py-3 text-sm font-semibold w-12"></th>
+                <th className="text-left px-2 py-3 text-sm font-semibold">Q.tà</th>
+                <th className="text-left px-2 py-3 text-sm font-semibold">Prezzo €</th>
+                <th className="text-left px-2 py-3 text-sm font-semibold">IVA %</th>
+                <th className="text-left px-2 py-3 text-sm font-semibold">Sc. %</th>
+                <th className="text-left px-2 py-3 text-sm font-semibold">Totale €</th>
+                <th className="text-left px-2 py-3 text-sm font-semibold"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#243044] ">
@@ -2058,6 +2332,8 @@ export default function InvoiceNew() {
                         className={`${inputBase} w-full text-sm`}
                         value={r.descr}
                         onChange={(e) => patchRow(i, { descr: e.target.value })}
+                        onFocus={(e) => e.target.select()}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const inputs = Array.from(document.querySelectorAll('tr input:not([disabled]):not([readonly])')); const idx = inputs.indexOf(e.target); if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus(); } }}
                         placeholder="Codice"
                       />
                     </td>
@@ -2067,9 +2343,8 @@ export default function InvoiceNew() {
                           className={`${inputBase} w-full text-sm`}
                           value={r.item_description || ''}
                           onChange={(e) => handleDescrChange(i, e.target.value)}
-                          onFocus={() => {
-                            if (allPresets.length === 0) loadAllPresets();
-                          }}
+                          onFocus={(e) => { e.target.select(); if (allPresets.length === 0) loadAllPresets(); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const inputs = Array.from(document.querySelectorAll('tr input:not([disabled]):not([readonly])')); const idx = inputs.indexOf(e.target); if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus(); } }}
                           onBlur={() => setTimeout(() => { setDescrSuggRow(null); setDescrSuggestions([]); }, 200)}
                           placeholder="Descrizione personalizzata"
                         />
@@ -2098,6 +2373,8 @@ export default function InvoiceNew() {
                         className={`${inputBase} w-full text-sm`}
                         value={r.qty}
                         onChange={(e) => patchRow(i, { qty: asNum(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const inputs = Array.from(document.querySelectorAll('tr input:not([disabled]):not([readonly])')); const idx = inputs.indexOf(e.target); if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus(); } }}
                         placeholder="1"
                         min={0}
                         step="0.01"
@@ -2109,6 +2386,8 @@ export default function InvoiceNew() {
                         className={`${inputBase} w-full text-sm`}
                         value={r.price}
                         onChange={(e) => patchRow(i, { price: asNum(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const inputs = Array.from(document.querySelectorAll('tr input:not([disabled]):not([readonly])')); const idx = inputs.indexOf(e.target); if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus(); } }}
                         placeholder="0"
                         min={0}
                         step="0.01"
@@ -2120,6 +2399,8 @@ export default function InvoiceNew() {
                         className={`${inputBase} w-full text-sm`}
                         value={r.vat_perc}
                         onChange={(e) => patchRow(i, { vat_perc: asNum(e.target.value) })}
+                        onFocus={(e) => e.target.select()}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const inputs = Array.from(document.querySelectorAll('tr input:not([disabled]):not([readonly])')); const idx = inputs.indexOf(e.target); if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus(); } }}
                         placeholder="22"
                         min={0}
                       />
@@ -2143,6 +2424,8 @@ export default function InvoiceNew() {
                               });
                             }
                           }}
+                          onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const inputs = Array.from(document.querySelectorAll('tr input:not([disabled]):not([readonly])')); const idx = inputs.indexOf(e.target); if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus(); } }}
                           placeholder="0"
                           min={0}
                           max={100}

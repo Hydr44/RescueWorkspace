@@ -4,6 +4,24 @@
 import { API } from "./apiConfig";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
+/**
+ * Legge la configurazione SDI corrente dal VPS (modalità test/prod, dirs, ecc.).
+ * Il VPS è single source of truth: l'app può solo VEDERE lo stato.
+ * @returns {Promise<{test_mode: boolean, environment: 'TEST'|'PRODUCTION', upload_dir: string, download_dir: string}>}
+ */
+export async function getSdiConfig() {
+  const sdiSftpServerUrl = import.meta.env.VITE_SDI_SFTP_SERVER_URL || 'https://sdi-sftp.rescuemanager.eu';
+  const endpoint = `${sdiSftpServerUrl}/api/sdi-sftp/config`;
+  try {
+    const r = await fetch(endpoint, { method: "GET" });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } catch (err) {
+    console.warn("[SDI-SFTP] getSdiConfig failed:", err.message);
+    return { test_mode: null, environment: 'UNKNOWN', error: err.message };
+  }
+}
+
 async function buildAuthHeaders() {
   const headers = {
     "Content-Type": "application/json",
@@ -24,21 +42,23 @@ async function buildAuthHeaders() {
 }
 
 /**
- * Trasmette fattura al SDI via SFTP
+ * Trasmette fattura al SDI via SFTP.
+ * NOTA: dal Maggio 2026 la modalità TEST/PROD è decisa esclusivamente dal VPS
+ * (env SDI_SFTP_TEST_MODE). L'app non può più forzarla. Per leggere lo stato
+ * usa getSdiConfig().
  * @param {string} invoiceId - ID fattura
  * @param {object} options - Opzioni
- * @param {boolean} options.testMode - Se true, usa ambiente test
  * @param {string} options.orgId - ID organizzazione (richiesto)
  * @returns {Promise<{success: boolean, filename?: string, invoices_sent?: number, test_mode?: boolean, error?: string}>}
  */
 export async function sendInvoiceToSDI(invoiceId, options = {}) {
-  const { testMode = false, orgId } = options;
-  
+  const { orgId } = options;
+
   // Usa VPS direttamente - chiama il server VPS
-  const sdiSftpServerUrl = import.meta.env.VITE_SDI_SFTP_SERVER_URL || 'http://sdi-sftp.rescuemanager.eu';
+  const sdiSftpServerUrl = import.meta.env.VITE_SDI_SFTP_SERVER_URL || 'https://sdi-sftp.rescuemanager.eu';
   const endpoint = `${sdiSftpServerUrl}/api/sdi-sftp/send`;
 
-  console.log('[SDI-SFTP] sendInvoiceToSDI chiamato:', { invoiceId, testMode, orgId, endpoint });
+  console.log('[SDI-SFTP] sendInvoiceToSDI chiamato:', { invoiceId, orgId, endpoint });
 
   if (!orgId) {
     throw new Error('orgId richiesto per invio SDI-SFTP');
@@ -47,7 +67,7 @@ export async function sendInvoiceToSDI(invoiceId, options = {}) {
   const payload = {
     invoice_ids: [invoiceId],
     org_id: orgId,
-    test_mode: testMode,
+    // test_mode rimosso: lo decide il VPS
   };
 
   console.log('[SDI-SFTP] Payload:', payload);
@@ -88,24 +108,59 @@ export async function sendInvoiceToSDI(invoiceId, options = {}) {
 }
 
 /**
- * Recupera l'elenco dei file FO (fatture passive ricevute)
+ * Recupera XML fattura (generato al momento dell'invio)
+ * Cerca prima nei meta della fattura, poi sul server VPS
+ * @param {string} invoiceId - ID fattura
+ * @returns {Promise<string|null>} XML string o null
+ */
+export async function getInvoiceXML(invoiceId) {
+  const supabase = supabaseBrowser();
+  try {
+    const { data: inv } = await supabase
+      .from('invoices')
+      .select('meta')
+      .eq('id', invoiceId)
+      .single();
+    
+    // XML generato all'invio
+    if (inv?.meta?.generated_xml) return inv.meta.generated_xml;
+    
+    // XML di conferma FO (ricevuto dal SDI come copia)
+    if (inv?.meta?.sdi_confirmation_xml) return inv.meta.sdi_confirmation_xml;
+    
+    // Prova VPS
+    const sdiSftpServerUrl = import.meta.env.VITE_SDI_SFTP_SERVER_URL || 'https://sdi-sftp.rescuemanager.eu';
+    const headers = await buildAuthHeaders();
+    const r = await fetch(`${sdiSftpServerUrl}/api/sdi-sftp/invoice/${invoiceId}/xml`, { headers });
+    if (r.ok) {
+      const data = await r.json();
+      return data.xml || null;
+    }
+  } catch (e) {
+    console.warn('[SDI] Errore recupero XML:', e);
+  }
+  return null;
+}
+
+/**
+ * Recupera l'elenco dei file FO (fatture passive ricevute).
+ * NOTA: la modalità test/prod è decisa dal VPS (vedi getSdiConfig).
  * @param {object} options - Opzioni
- * @param {boolean} options.testMode - Se true, usa ambiente test
  * @param {number} options.limit - Numero massimo di risultati (default: 50)
  * @returns {Promise<{test_mode: boolean, files: Array, summary: Object}>}
  */
 export async function getIncomingInvoices(options = {}) {
-  const { testMode = false, limit = 50, orgId } = options;
-  
-  const sdiSftpServerUrl = import.meta.env.VITE_SDI_SFTP_SERVER_URL || 'http://sdi-sftp.rescuemanager.eu';
-  let endpoint = `${sdiSftpServerUrl}/api/sdi-sftp/files/incoming?test_mode=${testMode}&limit=${limit}`;
-  
+  const { limit = 50, orgId } = options;
+
+  const sdiSftpServerUrl = import.meta.env.VITE_SDI_SFTP_SERVER_URL || 'https://sdi-sftp.rescuemanager.eu';
+  let endpoint = `${sdiSftpServerUrl}/api/sdi-sftp/files/incoming?limit=${limit}`;
+
   // Aggiungi orgId se disponibile
   if (orgId) {
     endpoint += `&org_id=${encodeURIComponent(orgId)}`;
   }
 
-  console.log('[SDI-SFTP] getIncomingInvoices chiamato:', { testMode, limit, orgId, endpoint });
+  console.log('[SDI-SFTP] getIncomingInvoices chiamato:', { limit, orgId, endpoint });
 
   const headers = await buildAuthHeaders();
   
@@ -133,19 +188,33 @@ export async function getIncomingInvoices(options = {}) {
 }
 
 /**
- * Decifra un file FO ed estrae il contenuto XML
+ * Recupera il contenuto XML decodificato dalla cache VPS (senza ri-decifratura).
+ * Usa il nuovo endpoint /content che legge dal cache creato durante la classificazione.
+ * @param {string} filename - Nome file FO
+ * @returns {Promise<{success: boolean, filename: string, xml: string}>}
+ */
+export async function getIncomingInvoiceXml(filename) {
+  const sdiSftpServerUrl = import.meta.env.VITE_SDI_SFTP_SERVER_URL || 'https://sdi-sftp.rescuemanager.eu';
+  const endpoint = `${sdiSftpServerUrl}/api/sdi-sftp/files/incoming/${encodeURIComponent(filename)}/content`;
+  const r = await fetch(endpoint, { method: 'GET', credentials: 'include' });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: r.statusText }));
+    throw new Error(err.error || `HTTP ${r.status}`);
+  }
+  return r.json();
+}
+
+/**
+ * Decifra un file FO ed estrae il contenuto XML.
+ * NOTA: la modalità è decisa dal VPS (vedi getSdiConfig).
  * @param {string} filename - Nome file FO (es: FO.02166430856.2026014.1554.901.zip.p7m.enc)
- * @param {object} options - Opzioni
- * @param {boolean} options.testMode - Se true, usa ambiente test
  * @returns {Promise<{success: boolean, filename: string, xml_files: Array, invoice_data: Object}>}
  */
-export async function decryptIncomingInvoice(filename, options = {}) {
-  const { testMode = false } = options;
-  
-  const sdiSftpServerUrl = import.meta.env.VITE_SDI_SFTP_SERVER_URL || 'http://sdi-sftp.rescuemanager.eu';
-  const endpoint = `${sdiSftpServerUrl}/api/sdi-sftp/files/incoming/${encodeURIComponent(filename)}/decrypt?test_mode=${testMode}`;
+export async function decryptIncomingInvoice(filename) {
+  const sdiSftpServerUrl = import.meta.env.VITE_SDI_SFTP_SERVER_URL || 'https://sdi-sftp.rescuemanager.eu';
+  const endpoint = `${sdiSftpServerUrl}/api/sdi-sftp/files/incoming/${encodeURIComponent(filename)}/decrypt`;
 
-  console.log('[SDI-SFTP] decryptIncomingInvoice chiamato:', { filename, testMode, endpoint });
+  console.log('[SDI-SFTP] decryptIncomingInvoice chiamato:', { filename, endpoint });
 
   try {
     const r = await fetch(endpoint, {
@@ -197,10 +266,10 @@ export async function validateInvoiceXML(invoiceId) {
 
   // Carica dati azienda
   const { data: org } = await supabase
-    .from('orgs')
-    .select('name, vat, tax_code, address')
-    .eq('id', inv.org_id)
-    .single();
+    .from('org_settings')
+    .select('company_name, vat, tax_code, address')
+    .eq('org_id', inv.org_id)
+    .maybeSingle();
 
   // === VALIDAZIONE CEDENTE (azienda) ===
   if (!org?.vat && !org?.tax_code) {
@@ -332,13 +401,13 @@ export async function validateInvoiceXML(invoiceId) {
  * @returns {Promise<{success: boolean, invoice_id?: string, error?: string}>}
  */
 export async function importIncomingInvoice(filename, options = {}) {
-  const { orgId, testMode = false } = options;
+  const { orgId } = options;
   if (!orgId) throw new Error('orgId richiesto');
 
   const supabase = supabaseBrowser();
 
-  // 1. Decifra il file FO
-  const decrypted = await decryptIncomingInvoice(filename, { testMode });
+  // 1. Decifra il file FO (testMode è autoritario VPS)
+  const decrypted = await decryptIncomingInvoice(filename);
   if (!decrypted.success || !decrypted.xml_files?.length) {
     return { success: false, error: 'Decifratura fallita o nessun file XML trovato' };
   }
@@ -458,6 +527,143 @@ export async function importIncomingInvoice(filename, options = {}) {
 }
 
 /**
+ * Classifica un file FO decifrato: conferma nostra fattura o fattura passiva?
+ * Confronta CedentePrestatore.IdCodice con la P.IVA dell'organizzazione.
+ * Se il cedente siamo noi → è la copia della fattura che abbiamo inviato (conferma SDI).
+ * Se il cessionario siamo noi → è una fattura passiva da un fornitore.
+ *
+ * @param {string} filename - Nome file FO
+ * @param {object} options
+ * @param {string} options.orgId - ID organizzazione
+ * @param {string} options.orgVat - P.IVA organizzazione (solo 11 cifre)
+ * @param {boolean} options.testMode
+ * @returns {Promise<{type: 'confirmation'|'incoming'|'notification'|'unknown', invoice_id?: string, xml?: string, invoice_data?: object, error?: string}>}
+ */
+export async function classifyFO(filename, options = {}) {
+  const { orgId, orgVat } = options;
+  if (!orgId) throw new Error('orgId richiesto');
+
+  // 1. Decifra (testMode è autoritario VPS)
+  const decrypted = await decryptIncomingInvoice(filename);
+  if (!decrypted.success || !decrypted.xml_files?.length) {
+    return { type: 'unknown', error: 'Decifratura fallita' };
+  }
+
+  // 2. Cerca XML FatturaPA
+  const fatturaXml = decrypted.xml_files.find(f =>
+    f.content && f.content.includes('FatturaElettronica')
+  );
+
+  if (!fatturaXml) {
+    // Notifica (NS/RC/MC)?
+    const hasNotifiche = decrypted.xml_files.some(f =>
+      f.content && (f.content.includes('RicevutaScarto') || f.content.includes('RicevutaConsegna') || f.content.includes('NotificaEsito'))
+    );
+    return { type: hasNotifiche ? 'notification' : 'unknown', xml_files: decrypted.xml_files };
+  }
+
+  const xml = fatturaXml.content;
+
+  // 3. Parse cedente e cessionario P.IVA
+  const cedenteBlock = xml.match(/<CedentePrestatore>([\s\S]*?)<\/CedentePrestatore>/);
+  const cessionarioBlock = xml.match(/<CessionarioCommittente>([\s\S]*?)<\/CessionarioCommittente>/);
+
+  const extractIdCodice = (block) => {
+    if (!block) return null;
+    const m = block[1].match(/<IdCodice>([^<]+)<\/IdCodice>/);
+    return m ? m[1].trim() : null;
+  };
+  const extractDenom = (block) => {
+    if (!block) return null;
+    const m = block[1].match(/<Denominazione>([^<]+)<\/Denominazione>/);
+    return m ? m[1].trim() : null;
+  };
+
+  const cedenteVat = extractIdCodice(cedenteBlock);
+  const cedenteName = extractDenom(cedenteBlock);
+  const cessionarioVat = extractIdCodice(cessionarioBlock);
+  const cessionarioName = extractDenom(cessionarioBlock);
+
+  // Dati documento
+  const extractTag = (tag) => {
+    const m = xml.match(new RegExp('<' + tag + '>([^<]*)</' + tag + '>'));
+    return m ? m[1].trim() : null;
+  };
+  const numero = extractTag('Numero');
+  const dataDoc = extractTag('Data');
+  const tipoDoc = extractTag('TipoDocumento') || 'TD01';
+  const importoMatch = xml.match(/<ImportoTotaleDocumento>([^<]+)<\/ImportoTotaleDocumento>/);
+  const importo = importoMatch ? parseFloat(importoMatch[1]) : 0;
+
+  // Normalizza P.IVA per confronto (solo cifre)
+  const cleanVat = (v) => v ? v.replace(/\D/g, '') : '';
+  const orgVatClean = cleanVat(orgVat);
+
+  const invoiceData = {
+    cedente: { denominazione: cedenteName, partita_iva: cedenteVat },
+    cessionario: { denominazione: cessionarioName, partita_iva: cessionarioVat },
+    numero, data: dataDoc, tipo_documento: tipoDoc, importo,
+    filename,
+  };
+
+  // 4. Classifica
+  if (orgVatClean && cleanVat(cedenteVat) === orgVatClean) {
+    // Il cedente siamo noi → è la conferma FO della nostra fattura inviata
+    console.log('[SDI] FO classificato come CONFERMA nostra fattura:', { numero, cedenteVat });
+
+    // Cerca la fattura emessa corrispondente
+    const supabase = supabaseBrowser();
+    const { data: matchingInv } = await supabase
+      .from('invoices')
+      .select('id, number, sdi_status, meta')
+      .eq('org_id', orgId)
+      .or(`number.eq.${numero},meta->>fo_filename.eq.${filename}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (matchingInv) {
+      // Salva l'XML di conferma nella fattura
+      await supabase
+        .from('invoices')
+        .update({
+          meta: {
+            ...(matchingInv.meta || {}),
+            sdi_confirmation_xml: xml,
+            sdi_confirmation_fo: filename,
+            sdi_confirmation_at: new Date().toISOString(),
+          },
+        })
+        .eq('id', matchingInv.id);
+
+      return {
+        type: 'confirmation',
+        invoice_id: matchingInv.id,
+        invoice_number: matchingInv.number,
+        xml,
+        invoice_data: invoiceData,
+      };
+    }
+
+    // Non trovata ma è comunque nostra
+    return {
+      type: 'confirmation',
+      invoice_id: null,
+      xml,
+      invoice_data: invoiceData,
+      warning: `Fattura N. ${numero} non trovata nel database`,
+    };
+  }
+
+  // Il cessionario siamo noi (o non riconosciuto) → fattura passiva
+  console.log('[SDI] FO classificato come FATTURA PASSIVA:', { numero, cedenteVat, cedenteName });
+  return {
+    type: 'incoming',
+    xml,
+    invoice_data: invoiceData,
+  };
+}
+
+/**
  * Processa notifiche SDI (EO/ER) e aggiorna stato fatture
  * @param {object} options
  * @param {string} options.orgId - ID organizzazione
@@ -468,7 +674,7 @@ export async function processSDINotifications(options = {}) {
   const { orgId, testMode = false } = options;
   if (!orgId) throw new Error('orgId richiesto');
 
-  const sdiSftpServerUrl = import.meta.env.VITE_SDI_SFTP_SERVER_URL || 'http://sdi-sftp.rescuemanager.eu';
+  const sdiSftpServerUrl = import.meta.env.VITE_SDI_SFTP_SERVER_URL || 'https://sdi-sftp.rescuemanager.eu';
   const endpoint = `${sdiSftpServerUrl}/api/sdi-sftp/process-notifications`;
 
   console.log('[SDI-SFTP] processSDINotifications:', { orgId, testMode });

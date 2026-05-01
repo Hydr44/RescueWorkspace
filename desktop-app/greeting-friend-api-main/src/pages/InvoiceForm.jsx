@@ -6,10 +6,11 @@ import { useOrg } from "@/context/OrgContext";
 import {
   FiArrowLeft, FiRefreshCw, FiFileText, FiSend, FiArchive, FiClock, FiCheckCircle,
   FiXCircle, FiActivity, FiAlertCircle, FiHash, FiCalendar, FiUser,
-  FiCreditCard, FiX, FiDownload, FiEdit, FiTrash2, FiRotateCcw, FiMail
+  FiCreditCard, FiX, FiDownload, FiEdit, FiTrash2, FiRotateCcw, FiMail, FiCode, FiCopy, FiInfo
 } from "react-icons/fi";
-import { sendInvoiceToSDI, validateInvoiceXML } from "@/lib/sdi";
+import { sendInvoiceToSDI, getInvoiceXML, getSdiConfig } from "@/lib/sdi";
 import { generateInvoicePdf } from "@/lib/invoicePdfGenerator";
+import { downloadFatturaPaPdf } from "@/lib/fatturaPaPdfGenerator";
 import { sendInvoiceEmail } from "@/lib/emailNotifications";
 import { useDemo } from "@/hooks/useDemo";
 
@@ -23,12 +24,15 @@ const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString("it-IT", { day: 
 const clsInput = "border border-[#243044] rounded-lg w-full px-3 py-2 bg-[#141c27] placeholder-slate-600 outline-none focus:ring-1 ring-blue-500/30 text-sm text-slate-200";
 
 const STATUS_CONFIG = {
-  draft:     { label: "Bozza",      color: "bg-slate-500/10 text-slate-400" },
-  validated: { label: "Validata",   color: "bg-amber-500/10 text-amber-400" },
-  sent:      { label: "Inviata",    color: "bg-blue-500/10 text-blue-400" },
-  delivered: { label: "Consegnata", color: "bg-emerald-500/10 text-emerald-400" },
-  rejected:  { label: "Rifiutata",  color: "bg-red-500/10 text-red-400" },
-  archived:  { label: "Archiviata", color: "bg-emerald-500/10 text-emerald-400" },
+  draft:        { label: "Bozza",              color: "bg-slate-500/10 text-slate-400" },
+  validated:    { label: "Validata",           color: "bg-amber-500/10 text-amber-400" },
+  sent:         { label: "Inviata a SDI",      color: "bg-blue-500/10 text-blue-400" },
+  transmitted:  { label: "Trasmessa",          color: "bg-blue-500/10 text-blue-400" },
+  delivered:    { label: "Consegnata",         color: "bg-emerald-500/10 text-emerald-400" },
+  not_delivered:{ label: "Mancata consegna",   color: "bg-amber-500/10 text-amber-400" },
+  rejected:     { label: "Scartata SDI",       color: "bg-red-500/10 text-red-400" },
+  term_expired: { label: "Decorrenza termini", color: "bg-amber-500/10 text-amber-400" },
+  archived:     { label: "Archiviata",         color: "bg-emerald-500/10 text-emerald-400" },
 };
 const statusBadge = (s) => {
   const cfg = STATUS_CONFIG[s] || STATUS_CONFIG.draft;
@@ -54,6 +58,15 @@ export default function InvoiceForm() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailTo, setEmailTo] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [loadingXml, setLoadingXml] = useState(false);
+  const [invoiceXml, setInvoiceXml] = useState(null); // null = non caricato, '' = non disponibile
+  const [sdiConfig, setSdiConfig] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    getSdiConfig().then(c => { if (mounted) setSdiConfig(c); });
+    return () => { mounted = false; };
+  }, []);
 
   const totals = useMemo(() => {
     const imponibile = items.reduce((s, r) => s + Number(r.qty||0) * Number(r.price||0), 0);
@@ -160,19 +173,34 @@ export default function InvoiceForm() {
       setErr("");
       setInfo("");
       
-      // Validazione reale dei dati fattura
-      const validation = await validateInvoiceXML(id);
-      
-      if (!validation.success) {
-        const errMsg = 'Errori di validazione:\n' + (validation.errors || []).join('\n');
-        const warnMsg = validation.warnings?.length ? '\n\nAvvisi:\n' + validation.warnings.join('\n') : '';
-        setErr(errMsg + warnMsg);
+      // Validazione locale dei dati fattura
+      const errors = [];
+      const warnings = [];
+
+      if (!inv.customer_name?.trim()) errors.push('Denominazione cliente mancante');
+      if (!inv.customer_vat?.trim() && !inv.customer_tax_code?.trim()) errors.push('P.IVA o Codice Fiscale cliente mancante');
+      if (!inv.date) errors.push('Data fattura mancante');
+      if (!items || items.length === 0) errors.push('La fattura deve contenere almeno una riga');
+
+      items.forEach((item, i) => {
+        const descr = (item.item_description || item.item_code || '').trim();
+        if (!descr) errors.push(`Riga ${i + 1}: descrizione obbligatoria`);
+        if (!(Number(item.qty) > 0)) errors.push(`Riga ${i + 1}: quantità deve essere > 0`);
+        const vatPerc = Number(item.vat_perc ?? 22);
+        if (vatPerc !== 0 && vatPerc < 1) errors.push(`Riga ${i + 1}: aliquota IVA non valida (deve essere 0 o ≥ 1%)`);
+      });
+
+      const addr = inv.customer_address;
+      const hasAddress = addr && (typeof addr === 'string' ? addr.trim() : (addr.street || addr.indirizzo || addr.city));
+      if (!hasAddress) warnings.push('Indirizzo cliente non compilato');
+
+      if (errors.length > 0) {
+        setErr('Errori di validazione:\n' + errors.join('\n'));
         return;
       }
-      
-      // Mostra warnings se presenti ma non bloccanti
-      if (validation.warnings?.length) {
-        const proceed = confirm('Avvisi (non bloccanti):\n\n' + validation.warnings.join('\n') + '\n\nProcedere con la validazione?');
+
+      if (warnings.length > 0) {
+        const proceed = confirm('Avvisi (non bloccanti):\n\n' + warnings.join('\n') + '\n\nProcedere con la validazione?');
         if (!proceed) return;
       }
       
@@ -184,7 +212,6 @@ export default function InvoiceForm() {
           meta: {
             ...inv.meta,
             validated_at: new Date().toISOString(),
-            validation_result: validation,
           }
         })
         .eq("id", id);
@@ -234,7 +261,7 @@ export default function InvoiceForm() {
         return;
       }
       // Invia fattura al SDI tramite API SFTP
-      const result = await sendInvoiceToSDI(id, { testMode: false, orgId });
+      const result = await sendInvoiceToSDI(id, { orgId });
       
       console.log('[SDI] Risposta API:', result);
       
@@ -312,7 +339,6 @@ export default function InvoiceForm() {
   const canValidate = inv.sdi_status === "draft" || inv.sdi_status === "rejected";
   const canSend = inv.sdi_status === "validated" || inv.sdi_status === "rejected";
   const canConserve = inv.sdi_status === "delivered";
-  const canSimulate = inv.sdi_status === "sent";
   const canEdit = inv.sdi_status === "draft" || inv.sdi_status === "rejected";
   const canDelete = inv.sdi_status === "draft" || inv.sdi_status === "rejected";
   const canStorno = inv.sdi_status === "sent" || inv.sdi_status === "delivered";
@@ -465,6 +491,18 @@ export default function InvoiceForm() {
                 <span className="text-[10px] text-slate-600">•</span>
                 <span className="text-[10px] text-slate-300 font-medium">{EUR(inv.total)}</span>
                 <span className={statusBadge(inv.sdi_status)}>{statusLabel(inv.sdi_status)}</span>
+                {sdiConfig?.environment && sdiConfig.environment !== 'UNKNOWN' && (
+                  <span
+                    title={`Ambiente SDI deciso dal VPS (${sdiConfig.upload_dir || ''})`}
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      sdiConfig.test_mode
+                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                        : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                    }`}
+                  >
+                    {sdiConfig.test_mode ? '🧪 Test' : '✓ Prod'}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -531,6 +569,47 @@ export default function InvoiceForm() {
             <FiCheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
             <span className="text-xs text-emerald-400 flex-1">{info}</span>
             <button onClick={() => setInfo("")} className="text-emerald-400 hover:text-emerald-300"><FiX className="w-3 h-3" /></button>
+          </div>
+        </div>
+      )}
+      {inv.sdi_status === "rejected" && inv.meta?.sdi_rejection_code && (
+        <div className="bg-red-500/5 rounded-xl border border-red-500/30 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <FiAlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 space-y-1.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-red-300 uppercase tracking-wider">Fattura scartata dal SDI</span>
+                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-500/20 text-red-300 rounded border border-red-500/30 font-mono">Cod. {inv.meta.sdi_rejection_code}</span>
+                {inv.meta.sdi_ns_received_at && (
+                  <span className="text-[10px] text-slate-500">{new Date(inv.meta.sdi_ns_received_at).toLocaleString('it-IT')}</span>
+                )}
+              </div>
+              <p className="text-xs text-red-200 leading-relaxed">
+                <strong>Motivo:</strong> {inv.meta.sdi_rejection_description || "Errore non specificato"}
+              </p>
+              {inv.meta.sdi_rejection_suggestion && (
+                <p className="text-xs text-red-200/80 leading-relaxed">
+                  <strong>💡 Suggerimento:</strong> {inv.meta.sdi_rejection_suggestion}
+                </p>
+              )}
+              {Array.isArray(inv.meta.sdi_rejection_errors) && inv.meta.sdi_rejection_errors.length > 1 && (
+                <details className="mt-1.5">
+                  <summary className="text-[10px] text-red-300 cursor-pointer hover:text-red-200">
+                    Mostra tutti gli errori ({inv.meta.sdi_rejection_errors.length})
+                  </summary>
+                  <ul className="mt-1.5 space-y-1 ml-3">
+                    {inv.meta.sdi_rejection_errors.map((e, i) => (
+                      <li key={i} className="text-[11px] text-red-200/90">
+                        <span className="font-mono font-bold">{e.codice}</span>: {e.descrizione}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              <p className="text-[10px] text-slate-500 mt-2 italic">
+                Correggi i dati e usa "Modifica" per generare una nuova versione.
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -698,26 +777,6 @@ export default function InvoiceForm() {
                 <FiArchive className="w-3.5 h-3.5 inline mr-1" /> Conserva
               </button>
 
-              {/* Separatore visivo */}
-              {canSimulate && <div className="w-px h-6 bg-[#243044] mx-1 self-center" />}
-
-              {/* Simula (solo se sent) */}
-              {canSimulate && (
-                <>
-                  <button
-                    onClick={() => simulateOutcome(true)}
-                    className="h-8 px-3 text-xs font-medium text-slate-400 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#1e2b3d] transition"
-                  >
-                    <FiCheckCircle className="w-3.5 h-3.5 inline mr-1 text-emerald-400" /> Simula OK
-                  </button>
-                  <button
-                    onClick={() => simulateOutcome(false)}
-                    className="h-8 px-3 text-xs font-medium text-slate-400 bg-[#141c27] border border-red-500/20 rounded-lg hover:bg-red-500/10 transition"
-                  >
-                    <FiXCircle className="w-3.5 h-3.5 inline mr-1 text-red-400" /> Simula Scarto
-                  </button>
-                </>
-              )}
 
               {/* Hint stato */}
               {inv.sdi_status === "draft" && (
@@ -828,6 +887,160 @@ export default function InvoiceForm() {
           )}
         </div>
       </div>
+
+      {/* ── Sezione SDI & XML ── */}
+      {(inv.sdi_status !== 'draft') && (
+        <div className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden print:hidden">
+          <div className="px-5 py-3 border-b border-[#243044] flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <FiCode className="w-3.5 h-3.5" /> Documentazione SDI
+            </h3>
+          </div>
+          <div className="p-5 space-y-4">
+            {/* Riepilogo stato */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-[#141c27] rounded-lg p-3 border border-[#243044]">
+                <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1">Stato</div>
+                <span className={statusBadge(inv.sdi_status)}>{statusLabel(inv.sdi_status)}</span>
+              </div>
+              <div className="bg-[#141c27] rounded-lg p-3 border border-[#243044]">
+                <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1">ID SdI</div>
+                <div className="text-xs text-slate-200 font-mono">{inv.provider_ext_id || '—'}</div>
+              </div>
+              <div className="bg-[#141c27] rounded-lg p-3 border border-[#243044]">
+                <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1">Data Invio</div>
+                <div className="text-xs text-slate-200">{formatDateTime(inv.meta?.sdi_sent_at)}</div>
+              </div>
+              <div className="bg-[#141c27] rounded-lg p-3 border border-[#243044]">
+                <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1">Firma</div>
+                <div className="text-xs text-blue-400">CAdES-BES</div>
+              </div>
+            </div>
+
+            {/* Conferma FO (ricevuta SDI) */}
+            {inv.meta?.sdi_confirmation_xml && (
+              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <FiCheckCircle className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-medium text-emerald-400">Conferma FO ricevuta dal SDI</span>
+                  {inv.meta?.sdi_confirmation_at && (
+                    <span className="text-[10px] text-slate-500 ml-auto">{new Date(inv.meta.sdi_confirmation_at).toLocaleString('it-IT')}</span>
+                  )}
+                </div>
+                {inv.meta?.sdi_confirmation_fo && (
+                  <div className="text-[10px] text-slate-500 font-mono mb-2">{inv.meta.sdi_confirmation_fo}</div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => {
+                      try {
+                        downloadFatturaPaPdf(inv.meta.sdi_confirmation_xml, `Conferma_FO_${(inv.number || 'NONUM').replace(/\//g, '-')}`, { foFilename: inv.meta.sdi_confirmation_fo });
+                      } catch (e) { setErr('Errore generazione PDF: ' + e.message); }
+                    }}
+                    className="h-7 px-2.5 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/15 transition"
+                  >
+                    <FiDownload className="w-3 h-3 inline mr-1" /> Scarica PDF Conferma
+                  </button>
+                  <button
+                    onClick={() => {
+                      const blob = new Blob([inv.meta.sdi_confirmation_xml], { type: 'application/xml' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `Conferma_FO_${(inv.number || 'NONUM').replace(/\//g, '-')}.xml`;
+                      document.body.appendChild(a);
+                      a.click();
+                      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+                    }}
+                    className="h-7 px-2.5 text-[11px] font-medium text-slate-400 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#1e2b3d] transition"
+                  >
+                    <FiDownload className="w-3 h-3 inline mr-1" /> Scarica XML
+                  </button>
+                  <button
+                    onClick={() => { setXml(inv.meta.sdi_confirmation_xml); }}
+                    className="h-7 px-2.5 text-[11px] font-medium text-slate-400 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#1e2b3d] transition"
+                  >
+                    <FiCode className="w-3 h-3 inline mr-1" /> Mostra XML
+                  </button>
+                </div>
+              </div>
+            )}
+            {!inv.meta?.sdi_confirmation_xml && (inv.sdi_status === 'sent' || inv.sdi_status === 'delivered') && (
+              <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg p-3 flex items-center gap-2">
+                <FiInfo className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                <span className="text-[11px] text-amber-400">
+                  Conferma FO non ancora ricevuta. Verrà associata automaticamente quando il file FO arriva nella casella SFTP.
+                </span>
+              </div>
+            )}
+
+            {/* XML Inviato Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={async () => {
+                  setLoadingXml(true);
+                  try {
+                    const xmlData = await getInvoiceXML(id);
+                    setInvoiceXml(xmlData || '');
+                    if (xmlData) setXml(xmlData);
+                    else setErr('XML non ancora disponibile per questa fattura.');
+                  } catch (e) {
+                    setErr('Errore recupero XML: ' + (e?.message || 'Sconosciuto'));
+                  } finally {
+                    setLoadingXml(false);
+                  }
+                }}
+                disabled={loadingXml}
+                className="h-8 px-3 text-xs font-medium text-slate-300 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#1e2b3d] transition disabled:opacity-50"
+              >
+                {loadingXml ? (
+                  <><div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin inline-block mr-1.5" /> Caricamento...</>
+                ) : (
+                  <><FiCode className="w-3.5 h-3.5 inline mr-1" /> Mostra XML Inviato</>
+                )}
+              </button>
+              {invoiceXml && (
+                <>
+                  <button
+                    onClick={() => {
+                      try {
+                        downloadFatturaPaPdf(invoiceXml, `Fattura_${(inv.number || 'NONUM').replace(/\//g, '-')}_SDI`);
+                      } catch (e) { setErr('Errore generazione PDF: ' + e.message); }
+                    }}
+                    className="h-8 px-3 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/15 transition"
+                  >
+                    <FiFileText className="w-3.5 h-3.5 inline mr-1" /> Scarica PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      const blob = new Blob([invoiceXml], { type: 'application/xml' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `Fattura_${(inv.number || 'NONUM').replace(/\//g, '-')}_SDI.xml`;
+                      document.body.appendChild(a);
+                      a.click();
+                      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+                    }}
+                    className="h-8 px-3 text-xs font-medium text-slate-400 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#1e2b3d] transition"
+                  >
+                    <FiDownload className="w-3.5 h-3.5 inline mr-1" /> Scarica XML
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(invoiceXml);
+                      setInfo('XML copiato negli appunti');
+                    }}
+                    className="h-8 px-3 text-xs font-medium text-slate-400 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#1e2b3d] transition"
+                  >
+                    <FiCopy className="w-3.5 h-3.5 inline mr-1" /> Copia
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Anteprima XML ── */}
       {xml && (
