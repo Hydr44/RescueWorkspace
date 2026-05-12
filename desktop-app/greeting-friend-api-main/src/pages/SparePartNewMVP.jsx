@@ -8,7 +8,7 @@ import {
 } from 'react-icons/fi';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrg } from '@/context/OrgContext';
-import { useToast } from '@/hooks/useToast';
+import { useToastContext } from '@/context/ToastContext';
 import { logger } from '@/lib/logger';
 import { uploadPartImage, getPartImages, deletePartImage, setPrimaryImage } from '@/lib/sparePartImages';
 import { PLATFORMS, getConnections } from '@/lib/marketplace';
@@ -20,13 +20,15 @@ import { generateAftermarketDescription } from '@/lib/aiDescriptions';
 import { getPriceSuggestion } from '@/lib/ebayPricing';
 import { lookupByOEM, applyLookupDataToForm } from '@/lib/oem-lookup';
 import AILookupResultsModal from '@/components/spare-parts/AILookupResultsModal';
+import { useSubscription } from '@/hooks/useSubscription';
 
 export default function SparePartNewMVP() {
   const { orgId } = useOrg();
+  const { isFeatureEnabled } = useSubscription();
   const navigate = useNavigate();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const { showSuccess, showError, showWarning } = useToast();
+  const { showSuccess, showError, showWarning } = useToastContext();
   const isEditing = Boolean(id);
   const fileInputRef = useRef(null);
 
@@ -287,18 +289,22 @@ export default function SparePartNewMVP() {
       const eanCode = article.eanNumber || article.ean || article.eanCode || '';
       const description = article.articleDescription || article.description || '';
 
-      // IA - Descrizione
+      // IA - Descrizione (solo se feature abilitata da admin)
       let aiDescription = null;
-      try {
-        aiDescription = await generateAftermarketDescription({
-          name: partName,
-          brand: brand,
-          oem_code: scannerCode,
-          description: description,
-          compatible_vehicles: article.vehicles || [],
-        });
-      } catch (err) {
-        console.warn('[Scanner] AI description failed:', err);
+      if (isFeatureEnabled('ai_descriptions')) {
+        try {
+          aiDescription = await generateAftermarketDescription({
+            name: partName,
+            brand: brand,
+            oem_code: scannerCode,
+            description: description,
+            compatible_vehicles: article.vehicles || [],
+          });
+        } catch (err) {
+          console.warn('[Scanner] AI description failed:', err);
+        }
+      } else {
+        console.info('[Scanner] AI descriptions disabled by admin (feature flag off)');
       }
 
       // Pricing
@@ -1038,7 +1044,7 @@ export default function SparePartNewMVP() {
               {formData.is_published && (
                 <>
                   <div><label className={labelCls}>Titolo annuncio (per marketplace)</label><input type="text" value={formData.published_title} onChange={e => set('published_title', e.target.value)} className={inputCls} placeholder={formData.name || 'Titolo annuncio...'} /></div>
-                  <div><label className={labelCls}>Descrizione annuncio</label><textarea value={formData.published_description} onChange={e => set('published_description', e.target.value)} rows={4} className={textareaCls} placeholder="Descrizione per eBay, Subito, Shopify..." /></div>
+                  <div><label className={labelCls}>Descrizione annuncio</label><textarea value={formData.published_description} onChange={e => set('published_description', e.target.value)} rows={4} className={textareaCls} placeholder="Descrizione per eBay, Shopify..." /></div>
                 </>
               )}
             </div>
@@ -1052,7 +1058,7 @@ export default function SparePartNewMVP() {
                 <div className="text-center py-6">
                   <FiGlobe className="w-8 h-8 mx-auto mb-3 text-slate-600" />
                   <p className="text-xs text-slate-500 mb-2">Nessun marketplace collegato</p>
-                  <p className="text-[10px] text-slate-600">Vai in Impostazioni per collegare eBay, Subito.it o Shopify</p>
+                  <p className="text-[10px] text-slate-600">Vai in Impostazioni per collegare eBay o Shopify</p>
                 </div>
               ) : (
                 <div className="space-y-2">

@@ -17,6 +17,7 @@ export function useSubscription() {
 
   const [subscription, setSubscription] = useState(null);
   const [modules, setModules] = useState([]);
+  const [features, setFeatures] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -65,6 +66,20 @@ export function useSubscription() {
 
       setSubscription(subRes.data || null);
       setModules((modRes.data || []).map(m => m.module));
+
+      // Carica feature flags dell'org (org_settings.key='features')
+      try {
+        const { data: featRow } = await supabase
+          .from("org_settings")
+          .select("value")
+          .eq("org_id", orgId)
+          .eq("key", "features")
+          .maybeSingle();
+        setFeatures((featRow?.value && typeof featRow.value === "object") ? featRow.value : {});
+      } catch (e) {
+        console.warn("[useSubscription] features load failed:", e.message);
+        setFeatures({});
+      }
     } catch (err) {
       console.error("[useSubscription] Exception:", err);
       setError(err.message);
@@ -113,6 +128,35 @@ export function useSubscription() {
     piazzale: globalFlags.piazzale !== false,
   }), [modules, globalFlags]);
 
+  // Feature defaults (allineati a admin ClientControlsPanel)
+  const FEATURE_DEFAULTS = {
+    ai_validation: true, ai_descriptions: true, ai_assist: true, ai_image_recognition: false,
+    sdi_test_mode: false, sdi_auto_send: true,
+    rvfu_aci_vpn: false, rvfu_auto_submit: false,
+    rentri_polling: true, rentri_auto_movements: false,
+    marketplace_enabled: false, marketplace_ebay: false, marketplace_subito: false,
+    gps_tracking_enabled: true, driver_app_enabled: true, geofencing: false,
+    email_notifications: true, push_notifications: true, whatsapp_notifications: false,
+    twofa_required: false, audit_log_visible: false, remote_control_enabled: true,
+    beta_features: false,
+  };
+
+  // Mapping feature → modulo richiesto (per auto-disable se modulo off)
+  const FEATURE_MODULE_DEP = {
+    rvfu_aci_vpn: 'rvfu', rvfu_auto_submit: 'rvfu', ai_image_recognition: 'rvfu',
+    rentri_polling: 'rentri', rentri_auto_movements: 'rentri',
+    sdi_test_mode: 'sdi', sdi_auto_send: 'sdi',
+    marketplace_ebay: 'marketplace', marketplace_subito: 'marketplace',
+    ai_descriptions: 'ricambi',
+  };
+
+  const isFeatureEnabled = useCallback((flag) => {
+    const req = FEATURE_MODULE_DEP[flag];
+    if (req && !isModuleActive(req)) return false;
+    const v = features[flag];
+    return v === undefined ? FEATURE_DEFAULTS[flag] === true : v === true;
+  }, [features, isModuleActive]);
+
   return {
     subscription,
     plan,
@@ -122,6 +166,8 @@ export function useSubscription() {
     modules,
     activeModules,
     isModuleActive,
+    features,
+    isFeatureEnabled,
     loading,
     error,
     refresh: loadSubscription,

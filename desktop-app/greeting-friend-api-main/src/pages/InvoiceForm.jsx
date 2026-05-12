@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { useOrg } from "@/context/OrgContext";
+import { useToastContext } from "@/context/ToastContext";
 import {
   FiArrowLeft, FiRefreshCw, FiFileText, FiSend, FiArchive, FiClock, FiCheckCircle,
   FiXCircle, FiActivity, FiAlertCircle, FiHash, FiCalendar, FiUser,
@@ -13,6 +14,7 @@ import { generateInvoicePdf } from "@/lib/invoicePdfGenerator";
 import { downloadFatturaPaPdf } from "@/lib/fatturaPaPdfGenerator";
 import { sendInvoiceEmail } from "@/lib/emailNotifications";
 import { useDemo } from "@/hooks/useDemo";
+import { useSubscription } from "@/hooks/useSubscription";
 
 /* ---------- Helpers ---------- */
 const EUR = (v) => {
@@ -46,6 +48,9 @@ export default function InvoiceForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isDemo } = useDemo();
+  const { showSuccess, showError, showInfo } = useToastContext();
+  const { isFeatureEnabled } = useSubscription();
+  const sdiTestMode = isFeatureEnabled('sdi_test_mode');
 
   const [inv, setInv] = useState(null);
   const [items, setItems] = useState([]);
@@ -110,9 +115,11 @@ export default function InvoiceForm() {
       const fileName = `Fattura_N_${inv.number || 'NONUM'}.pdf`;
       doc.save(fileName);
       setInfo("PDF generato e scaricato con successo.");
+      showSuccess("PDF scaricato");
     } catch (error) {
       console.error("Errore generazione PDF:", error);
       setErr(`Errore generazione PDF: ${error?.message || "Errore sconosciuto"}`);
+      showError("Errore generazione PDF");
     }
   }
 
@@ -165,7 +172,7 @@ export default function InvoiceForm() {
 
   async function validateXml() {
     if (isDemo) {
-      alert("\u{1F512} Modalit\u00e0 Demo\n\nLa validazione XML SDI non \u00e8 disponibile in modalit\u00e0 demo.");
+      showInfo("Modalit\u00e0 Demo \u2014 la validazione XML SDI non \u00e8 disponibile.");
       return;
     }
     try {
@@ -223,15 +230,18 @@ export default function InvoiceForm() {
       
       await load();
       setInfo("Fattura validata con successo e pronta per l'invio.");
+      showSuccess("Fattura validata");
     } catch (e) {
       console.error('[SDI] Errore validazione:', e);
-      setErr(String(e?.message || "Validazione non riuscita."));
+      const msg = String(e?.message || "Validazione non riuscita.");
+      setErr(msg);
+      showError(msg);
     }
   }
 
   async function send() {
     if (isDemo) {
-      alert("\u{1F512} Modalit\u00e0 Demo\n\nL'invio fatture al Sistema di Interscambio non \u00e8 disponibile in modalit\u00e0 demo.");
+      showInfo("Modalit\u00e0 Demo \u2014 l'invio fatture al SDI non \u00e8 disponibile.");
       return;
     }
     try {
@@ -261,7 +271,11 @@ export default function InvoiceForm() {
         return;
       }
       // Invia fattura al SDI tramite API SFTP
-      const result = await sendInvoiceToSDI(id, { orgId });
+      // testMode è gestito da feature flag admin (org_settings.features.sdi_test_mode)
+      const result = await sendInvoiceToSDI(id, { orgId, testMode: sdiTestMode });
+      if (sdiTestMode) {
+        showInfo("⚠ Inviata in modalità TEST (admin ha abilitato sdi_test_mode)");
+      }
       
       console.log('[SDI] Risposta API:', result);
       
@@ -285,14 +299,18 @@ export default function InvoiceForm() {
         setErr("");
         setInfo(`Invio completato con successo. Identificativo SdI: ${identificativoSDI}`);
         console.log('[SDI] Invio completato con successo');
+        showSuccess(`Fattura inviata al SDI (${identificativoSDI})`);
       } else {
         console.warn('[SDI] Invio riuscito ma nessun identificativo SDI ricevuto');
         setErr("");
         setInfo("Invio completato. In attesa dell'identificativo SdI.");
+        showSuccess("Fattura inviata al SDI");
       }
     } catch (e) {
       console.error('[SDI] Errore durante invio:', e);
-      setErr(String(e?.message || "Invio non riuscito."));
+      const msg = String(e?.message || "Invio non riuscito.");
+      setErr(msg);
+      showError(`Errore invio SDI: ${msg}`);
     } finally {
       setSending(false);
     }
@@ -305,8 +323,11 @@ export default function InvoiceForm() {
       await load();
       setErr("");
       setInfo("Richiesta di conservazione inoltrata.");
+      showSuccess("Richiesta di conservazione inoltrata");
     } catch (e) {
-      setErr(String(e?.message || "Conservazione non riuscita."));
+      const msg = String(e?.message || "Conservazione non riuscita.");
+      setErr(msg);
+      showError(msg);
     }
   }
 
@@ -441,9 +462,12 @@ export default function InvoiceForm() {
       // Naviga alla nota di credito appena creata
       navigate(`/fatture/${newInv.id}`);
       setInfo("Nota di Credito (TD04) creata. Validala e inviala a SDI per completare lo storno.");
+      showSuccess("Nota di credito creata");
     } catch (e) {
       console.error("Errore storno:", e);
-      setErr(`Errore creazione nota di credito: ${e?.message || "Errore sconosciuto"}`);
+      const msg = `Errore creazione nota di credito: ${e?.message || "Errore sconosciuto"}`;
+      setErr(msg);
+      showError(msg);
     }
   }
 
@@ -460,9 +484,12 @@ export default function InvoiceForm() {
       // Elimina fattura
       const { error } = await supabase.from("invoices").delete().eq("id", id);
       if (error) throw error;
+      showSuccess("Fattura eliminata");
       navigate("/fatture");
     } catch (e) {
-      setErr(`Errore eliminazione: ${e?.message || "Errore sconosciuto"}`);
+      const msg = `Errore eliminazione: ${e?.message || "Errore sconosciuto"}`;
+      setErr(msg);
+      showError(msg);
     }
   }
 
