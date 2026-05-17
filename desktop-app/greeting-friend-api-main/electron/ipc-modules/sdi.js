@@ -2,11 +2,13 @@
 // IPC: fogli di stile ufficiali Agenzia delle Entrate per la visualizzazione
 // "a norma" delle fatture elettroniche (FatturaPA / ordinaria / semplificata).
 //
-// Strategia anti-bug:
-//  1) cache locale in userData (offline-first, TTL 30 giorni)
-//  2) download ufficiale (più URL candidati, primo 200 valido)
-//  3) se la rete fallisce ma esiste una cache (anche scaduta) → usa quella
-//  4) se tutto fallisce → ritorna null (il renderer userà il generatore legacy)
+// Strategia anti-bug (ordine di scelta):
+//  1) cache locale fresca in userData (auto-aggiornata, TTL 30 giorni)
+//  2) download ufficiale (più URL candidati, primo 200 valido) → cache
+//  3) copia VENDORIZZATA spedita con l'app (electron/sdi-xslt) → sempre
+//     disponibile anche offline / se l'AdE cambia i path
+//  4) cache scaduta come ultima risorsa
+//  5) se proprio nulla → null (il renderer usa il generatore legacy)
 
 const { app } = require('electron');
 const fs = require('fs');
@@ -38,6 +40,16 @@ function cacheDir() {
 
 function cacheFile(kind) {
   return path.join(cacheDir(), `${kind}.xsl`);
+}
+
+// Copia ufficiale spedita con l'app (electron/sdi-xslt/<kind>.xsl).
+function readBundled(kind) {
+  try {
+    const f = path.join(__dirname, '..', 'sdi-xslt', `${kind}.xsl`);
+    const xsl = fs.readFileSync(f, 'utf8');
+    if (xsl && xsl.includes('xsl:stylesheet')) return xsl;
+  } catch { /* ignore */ }
+  return null;
 }
 
 function readCache(kind) {
@@ -90,7 +102,11 @@ function registerSdiIpc(handleSafe) {
       }
     }
 
-    // Rete KO: meglio una cache scaduta che niente
+    // Rete KO → copia vendorizzata spedita con l'app (sempre presente)
+    const bundled = readBundled(k);
+    if (bundled) return { xsl: bundled, source: 'bundled' };
+
+    // Ultima risorsa: cache scaduta
     if (cached) return { xsl: cached.xsl, source: 'stale' };
     return null;
   });
