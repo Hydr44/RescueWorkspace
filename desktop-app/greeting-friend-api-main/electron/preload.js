@@ -2,6 +2,16 @@
 
 const { contextBridge, ipcRenderer, shell, clipboard } = require('electron');
 
+/* --------- Config ambiente runtime (da --rm-env del main) --------- */
+// Permette di cambiare ambiente senza ricostruire Vite: la UI legge
+// window.__RM_ENV__ con priorita' su import.meta.env (vedi src/lib/appConfig).
+let __rmEnv = {};
+try {
+  const a = process.argv.find((x) => x.startsWith('--rm-env='));
+  if (a) __rmEnv = JSON.parse(Buffer.from(a.slice('--rm-env='.length), 'base64').toString('utf8')) || {};
+} catch { __rmEnv = {}; }
+try { contextBridge.exposeInMainWorld('__RM_ENV__', Object.freeze(__rmEnv)); } catch { }
+
 /* ------------------------ Helpers base ------------------------ */
 // IPC invoker with consistent signature
 const ch = (name) => (...args) => ipcRenderer.invoke(name, ...args);
@@ -30,6 +40,7 @@ const api = {
   log: { add: ch('log:add'), list: ch('log:list') },
   reports: { summary: ch('reports:summary'), exportTransports: ch('reports:export:transports') },
   print: { quotePdf: ch('print:quote-pdf') },
+  sdi: { getStylesheet: ch('sdi:get-stylesheet') },
 
   assistance: {
     create: ch('assistance:create'),
@@ -98,6 +109,24 @@ const api = {
     openCdssoWindow: (params) => ipcRenderer.invoke('rvfu:open-cdsso-window', params),
     // ✅ Token exchange nel main process (ha VPN, il renderer non può raggiungere SSO)
     exchangeToken: (params) => ipcRenderer.invoke('rvfu:exchange-token', params),
+  },
+
+  // DB locale: snapshot per backup R2
+  db: {
+    snapshot: () => ipcRenderer.invoke('db:snapshot'),
+  },
+
+  // Auto-update (electron-updater)
+  updates: {
+    check: () => ipcRenderer.invoke('updates:check'),
+    download: () => ipcRenderer.invoke('updates:download'),
+    install: () => ipcRenderer.invoke('updates:install'),
+    // Sottoscrizione eventi: available | none | progress | downloaded | error
+    onEvent: (cb) => {
+      const h = (_e, payload) => { try { cb(payload); } catch (_) {} };
+      ipcRenderer.on('updates:event', h);
+      return () => ipcRenderer.removeListener('updates:event', h);
+    },
   },
 };
 

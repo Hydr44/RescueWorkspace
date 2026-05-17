@@ -15,6 +15,7 @@ const { registerSystemLogIpc } = require('./system-log');
 const { registerReportsIpc } = require('./reports');
 const { registerAssistanceIpc } = require('./assistance');
 const { registerSparePartsIpc } = require('./spare-parts');
+const { registerSdiIpc } = require('./sdi');
 
 /**
  * Register all CRUD/business IPC handlers.
@@ -37,6 +38,7 @@ function registerAllCrudIpc(handleSafe, db, deps) {
   registerReportsIpc(handleSafe, db);
   registerAssistanceIpc(handleSafe, db, deps);
   registerSparePartsIpc(handleSafe);
+  registerSdiIpc(handleSafe);
 }
 
 module.exports = { registerAllCrudIpc };

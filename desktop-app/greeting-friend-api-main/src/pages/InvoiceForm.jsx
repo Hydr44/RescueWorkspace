@@ -10,6 +10,10 @@ import {
   FiCreditCard, FiX, FiDownload, FiEdit, FiTrash2, FiRotateCcw, FiMail, FiCode, FiCopy, FiInfo
 } from "react-icons/fi";
 import { sendInvoiceToSDI, getInvoiceXML, getSdiConfig } from "@/lib/sdi";
+import { sdiStatusClass, sdiStatusLabel } from "@/components/invoices/sdiStatus";
+import { r2Upload } from "@/lib/r2-client";
+import ValidationSummary from "@/components/invoices/ValidationSummary";
+import { sendDeadlineInfo } from "@/components/invoices/sendDeadline";
 import { generateInvoicePdf } from "@/lib/invoicePdfGenerator";
 import { downloadFatturaPaPdf } from "@/lib/fatturaPaPdfGenerator";
 import { sendInvoiceEmail } from "@/lib/emailNotifications";
@@ -25,22 +29,10 @@ const EUR = (v) => {
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 const clsInput = "border border-[#243044] rounded-lg w-full px-3 py-2 bg-[#141c27] placeholder-slate-600 outline-none focus:ring-1 ring-blue-500/30 text-sm text-slate-200";
 
-const STATUS_CONFIG = {
-  draft:        { label: "Bozza",              color: "bg-slate-500/10 text-slate-400" },
-  validated:    { label: "Validata",           color: "bg-amber-500/10 text-amber-400" },
-  sent:         { label: "Inviata a SDI",      color: "bg-blue-500/10 text-blue-400" },
-  transmitted:  { label: "Trasmessa",          color: "bg-blue-500/10 text-blue-400" },
-  delivered:    { label: "Consegnata",         color: "bg-emerald-500/10 text-emerald-400" },
-  not_delivered:{ label: "Mancata consegna",   color: "bg-amber-500/10 text-amber-400" },
-  rejected:     { label: "Scartata SDI",       color: "bg-red-500/10 text-red-400" },
-  term_expired: { label: "Decorrenza termini", color: "bg-amber-500/10 text-amber-400" },
-  archived:     { label: "Archiviata",         color: "bg-emerald-500/10 text-emerald-400" },
-};
-const statusBadge = (s) => {
-  const cfg = STATUS_CONFIG[s] || STATUS_CONFIG.draft;
-  return `inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${cfg.color}`;
-};
-const statusLabel = (s) => (STATUS_CONFIG[s] || STATUS_CONFIG.draft).label;
+// Stati SDI centralizzati in @/components/invoices/sdiStatus
+// (firme statusBadge/statusLabel invariate: nessuna modifica ai punti d'uso).
+const statusBadge = (s) => sdiStatusClass(s, { pill: false, size: "sm" });
+const statusLabel = (s) => sdiStatusLabel(s);
 
 export default function InvoiceForm() {
   const supabase = supabaseBrowser();
@@ -59,6 +51,7 @@ export default function InvoiceForm() {
   const [xml, setXml] = useState("");
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
+  const [valResult, setValResult] = useState(null); // { errors:[], warnings:[] } | null
   const [sending, setSending] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailTo, setEmailTo] = useState("");
@@ -116,6 +109,15 @@ export default function InvoiceForm() {
       doc.save(fileName);
       setInfo("PDF generato e scaricato con successo.");
       showSuccess("PDF scaricato");
+      // Conservazione su R2 (non bloccante: non deve impattare il download).
+      try {
+        const anno = String(inv.date || inv.data || '').slice(0, 4) || new Date().getFullYear();
+        const pdfBlob = doc.output('blob');
+        r2Upload('invoices', `${inv.number || 'NONUM'}-${anno}.pdf`, pdfBlob, 'application/pdf')
+          .catch((e) => console.warn('[Invoice] archiviazione R2 fallita (ignorata):', e?.message || e));
+      } catch (e) {
+        console.warn('[Invoice] R2 archive skip:', e?.message || e);
+      }
     } catch (error) {
       console.error("Errore generazione PDF:", error);
       setErr(`Errore generazione PDF: ${error?.message || "Errore sconosciuto"}`);
@@ -179,7 +181,8 @@ export default function InvoiceForm() {
       console.log('[SDI] validateXml chiamato - Stato attuale:', inv?.sdi_status);
       setErr("");
       setInfo("");
-      
+      setValResult(null);
+
       // Validazione locale dei dati fattura
       const errors = [];
       const warnings = [];
@@ -201,20 +204,37 @@ export default function InvoiceForm() {
       const hasAddress = addr && (typeof addr === 'string' ? addr.trim() : (addr.street || addr.indirizzo || addr.city));
       if (!hasAddress) warnings.push('Indirizzo cliente non compilato');
 
-      if (errors.length > 0) {
-        setErr('Errori di validazione:\n' + errors.join('\n'));
-        return;
+      const dl = sendDeadlineInfo(inv.date, inv.sdi_status);
+      if (dl.applicable && dl.level === "expired") {
+        warnings.push(`Termine di invio a SdI scaduto da ${Math.abs(dl.daysLeft)} giorni (data fattura ${new Date(inv.date).toLocaleDateString('it-IT')})`);
+      } else if (dl.applicable && (dl.level === "urgent" || dl.level === "warn")) {
+        warnings.push(`Restano ${dl.daysLeft} giorni per inviare a SdI (entro il ${dl.deadline.toLocaleDateString('it-IT')})`);
       }
 
-      if (warnings.length > 0) {
-        const proceed = confirm('Avvisi (non bloccanti):\n\n' + warnings.join('\n') + '\n\nProcedere con la validazione?');
-        if (!proceed) return;
+      // Mostra sempre il riepilogo strutturato (errori e/o avvisi).
+      if (errors.length > 0 || warnings.length > 0) {
+        setValResult({ errors, warnings });
       }
-      
+      if (errors.length > 0) return;          // bloccante
+      if (warnings.length > 0) return;        // attende "Valida comunque" (commitValidation)
+
+      await commitValidation();
+    } catch (e) {
+      console.error('[SDI] Errore validazione:', e);
+      const msg = String(e?.message || "Validazione non riuscita.");
+      setErr(msg);
+      showError(msg);
+    }
+  }
+
+  // Conferma validazione: aggiorna lo stato a "validated".
+  // Chiamata sia automaticamente (0 avvisi) sia dal pulsante "Valida comunque".
+  async function commitValidation() {
+    try {
       console.log('[SDI] Validazione OK, aggiornamento stato a "validated"...');
       const { error } = await supabase
         .from("invoices")
-        .update({ 
+        .update({
           sdi_status: "validated",
           meta: {
             ...inv.meta,
@@ -222,12 +242,13 @@ export default function InvoiceForm() {
           }
         })
         .eq("id", id);
-      
+
       if (error) {
         console.error('[SDI] Errore aggiornamento stato:', error);
         throw error;
       }
-      
+
+      setValResult(null);
       await load();
       setInfo("Fattura validata con successo e pronta per l'invio.");
       showSuccess("Fattura validata");
@@ -270,7 +291,7 @@ export default function InvoiceForm() {
         setSending(false);
         return;
       }
-      // Invia fattura al SDI tramite API SFTP
+      // Invia fattura al SDI tramite Web Service (canale WS)
       // testMode è gestito da feature flag admin (org_settings.features.sdi_test_mode)
       const result = await sendInvoiceToSDI(id, { orgId, testMode: sdiTestMode });
       if (sdiTestMode) {
@@ -297,14 +318,16 @@ export default function InvoiceForm() {
       const identificativoSDI = result.identificativo_sdi || result.identificativoSDI;
       if (identificativoSDI) {
         setErr("");
-        setInfo(`Invio completato con successo. Identificativo SdI: ${identificativoSDI}`);
+        setInfo(`Trasmessa a SdI (IdentificativoSdI ${identificativoSDI}). La notifica di consegna/scarto arriverà a breve dal Sistema di Interscambio.`);
         console.log('[SDI] Invio completato con successo');
-        showSuccess(`Fattura inviata al SDI (${identificativoSDI})`);
+        showSuccess(`Fattura trasmessa a SdI (${identificativoSDI})`);
       } else {
+        // Con il canale Web Service l'IdentificativoSdI è sincrono: questo
+        // ramo è di sola sicurezza, non dovrebbe verificarsi.
         console.warn('[SDI] Invio riuscito ma nessun identificativo SDI ricevuto');
         setErr("");
-        setInfo("Invio completato. In attesa dell'identificativo SdI.");
-        showSuccess("Fattura inviata al SDI");
+        setInfo("Fattura trasmessa a SdI. IdentificativoSdI non ancora disponibile, ricarica fra poco.");
+        showSuccess("Fattura trasmessa a SdI");
       }
     } catch (e) {
       console.error('[SDI] Errore durante invio:', e);
@@ -518,6 +541,31 @@ export default function InvoiceForm() {
                 <span className="text-[10px] text-slate-600">•</span>
                 <span className="text-[10px] text-slate-300 font-medium">{EUR(inv.total)}</span>
                 <span className={statusBadge(inv.sdi_status)}>{statusLabel(inv.sdi_status)}</span>
+                {(() => {
+                  const dl = sendDeadlineInfo(inv.date, inv.sdi_status);
+                  if (!dl.applicable) return null;
+                  const cls =
+                    dl.level === "expired" || dl.level === "urgent"
+                      ? "bg-red-500/15 text-red-400 border-red-500/30"
+                      : dl.level === "warn"
+                      ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                      : "bg-emerald-500/10 text-emerald-400/80 border-emerald-500/20";
+                  return (
+                    <span
+                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${cls}`}
+                      title={
+                        dl.level === "expired"
+                          ? `Termine invio SdI scaduto da ${Math.abs(dl.daysLeft)} giorni`
+                          : `Inviare a SdI entro il ${dl.deadline.toLocaleDateString("it-IT")}`
+                      }
+                    >
+                      <FiCalendar className="w-2.5 h-2.5" />
+                      {dl.level === "expired"
+                        ? `Scaduta da ${Math.abs(dl.daysLeft)}g`
+                        : `${dl.daysLeft}g all'invio`}
+                    </span>
+                  );
+                })()}
                 {sdiConfig?.environment && sdiConfig.environment !== 'UNKNOWN' && (
                   <span
                     title={`Ambiente SDI deciso dal VPS (${sdiConfig.upload_dir || ''})`}
@@ -596,6 +644,28 @@ export default function InvoiceForm() {
             <FiCheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
             <span className="text-xs text-emerald-400 flex-1">{info}</span>
             <button onClick={() => setInfo("")} className="text-emerald-400 hover:text-emerald-300"><FiX className="w-3 h-3" /></button>
+          </div>
+        </div>
+      )}
+      {valResult && (
+        <ValidationSummary
+          errors={valResult.errors}
+          warnings={valResult.warnings}
+          onProceed={commitValidation}
+          onClose={() => setValResult(null)}
+          proceedLabel="Valida comunque"
+        />
+      )}
+      {inv.sdi_status === "sent" && !inv.meta?.sdi_ws_sent_at && (
+        <div className="bg-amber-500/5 rounded-xl border border-amber-500/20 px-4 py-3">
+          <div className="flex items-start gap-2.5">
+            <FiInfo className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <span className="text-xs text-amber-300/90 flex-1">
+              Fattura storica trasmessa tramite il <strong>canale SFTP</strong>, ora dismesso.
+              Le notifiche SdI (consegna/scarto) transitavano sul vecchio polling SFTP:
+              l'esito non è più tracciabile e lo stato resterà <em>Inviata a SdI</em>.
+              Le nuove fatture usano il canale Web Service con esito in tempo reale.
+            </span>
           </div>
         </div>
       )}
@@ -789,7 +859,7 @@ export default function InvoiceForm() {
                 onClick={send}
                 disabled={!canSend || sending}
                 className="h-8 px-3 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-sm shadow-blue-600/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
-                title={canSend ? "Genera XML, firma CAdES-BES e invia tramite SFTP" : `Valida prima la fattura (stato: ${statusLabel(inv.sdi_status)})`}
+                title={canSend ? "Genera XML, firma CAdES-BES e trasmetti al Sistema di Interscambio" : `Valida prima la fattura (stato: ${statusLabel(inv.sdi_status)})`}
               >
                 <FiSend className="w-3.5 h-3.5 inline mr-1" /> {sending ? "Invio…" : "Invia al SDI"}
               </button>
@@ -813,7 +883,9 @@ export default function InvoiceForm() {
                 <span className="text-[10px] text-emerald-400 self-center ml-2">Pronta per l'invio</span>
               )}
               {inv.sdi_status === "sent" && (
-                <span className="text-[10px] text-blue-400 self-center ml-2">In attesa di esito dal SdI</span>
+                inv.meta?.sdi_ws_sent_at
+                  ? <span className="text-[10px] text-blue-400 self-center ml-2">Trasmessa a SdI — in attesa notifica di consegna</span>
+                  : <span className="text-[10px] text-amber-400 self-center ml-2">Inviata via canale SFTP (dismesso) — esito non più tracciabile</span>
               )}
             </div>
           </div>
@@ -959,9 +1031,9 @@ export default function InvoiceForm() {
                 )}
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       try {
-                        downloadFatturaPaPdf(inv.meta.sdi_confirmation_xml, `Conferma_FO_${(inv.number || 'NONUM').replace(/\//g, '-')}`, { foFilename: inv.meta.sdi_confirmation_fo });
+                        await downloadFatturaPaPdf(inv.meta.sdi_confirmation_xml, `Conferma_FO_${(inv.number || 'NONUM').replace(/\//g, '-')}`, { foFilename: inv.meta.sdi_confirmation_fo });
                       } catch (e) { setErr('Errore generazione PDF: ' + e.message); }
                     }}
                     className="h-7 px-2.5 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/15 transition"
@@ -996,7 +1068,7 @@ export default function InvoiceForm() {
               <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg p-3 flex items-center gap-2">
                 <FiInfo className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                 <span className="text-[11px] text-amber-400">
-                  Conferma FO non ancora ricevuta. Verrà associata automaticamente quando il file FO arriva nella casella SFTP.
+                  Conferma non ancora ricevuta. Verrà associata automaticamente al ricevimento dal Sistema di Interscambio.
                 </span>
               </div>
             )}
@@ -1029,9 +1101,9 @@ export default function InvoiceForm() {
               {invoiceXml && (
                 <>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       try {
-                        downloadFatturaPaPdf(invoiceXml, `Fattura_${(inv.number || 'NONUM').replace(/\//g, '-')}_SDI`);
+                        await downloadFatturaPaPdf(invoiceXml, `Fattura_${(inv.number || 'NONUM').replace(/\//g, '-')}_SDI`);
                       } catch (e) { setErr('Errore generazione PDF: ' + e.message); }
                     }}
                     className="h-8 px-3 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/15 transition"

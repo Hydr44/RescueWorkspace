@@ -1,13 +1,20 @@
 // src/pages/Invoices.jsx
 import { useEffect, useMemo, useState, useCallback, memo } from "react";
-import { FiPlus, FiSearch, FiRefreshCcw, FiFileText, FiEdit, FiDownload, FiChevronLeft, FiChevronRight, FiBarChart2, FiInbox, FiSend, FiX, FiCheckCircle, FiInfo, FiCalendar, FiAlertCircle, FiTrash2, FiTag, FiRotateCcw } from "react-icons/fi";
+import { FiPlus, FiSearch, FiRefreshCcw, FiFileText, FiEdit, FiDownload, FiChevronLeft, FiChevronRight, FiBarChart2, FiInbox, FiSend, FiX, FiCheckCircle, FiInfo, FiCalendar, FiAlertCircle, FiTrash2, FiTag, FiRotateCcw, FiLoader } from "react-icons/fi";
+import { useDelayedNavigate } from "../hooks/useDelayedNavigate";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { useOrg } from "@/context/OrgContext";
 import { useNavigate } from "react-router-dom";
 import { getIncomingInvoices, getIncomingInvoiceXml } from "@/lib/sdi";
-import { downloadFatturaPaPdf } from "@/lib/fatturaPaPdfGenerator";
+import { downloadFatturaPaPdf, generateFatturaPaPdfBlob } from "@/lib/fatturaPaPdfGenerator";
 import { checkOverdueInvoices } from "@/lib/invoiceReminders";
 import { getInvoiceDescription } from "@/lib/invoiceSummary";
+import { useInvoices } from "@/hooks/queries/useInvoices";
+import { useQueryClient } from "@tanstack/react-query";
+import SdiBadge from "@/components/invoices/SdiBadge";
+import { SDI_STATUS_FILTER, SDI_STATUS_FILTER_LABELS } from "@/components/invoices/sdiStatus";
+import { sendDeadlineBadge } from "@/components/invoices/sendDeadline";
+import { InvoiceTableSkeleton } from "@/components/invoices/Skeleton";
 
 const TABLE = "invoices";
 
@@ -23,88 +30,24 @@ const SELECT_COLS = [
 // Nota: invoice_items non è incluso qui perché è una relazione separata
 // Il riassunto AI userà note_external come fallback
 
-const STATUS = ["tutti","draft","validated","sent","delivered","rejected","archived"];
+// Stati SDI centralizzati in @/components/invoices/sdiStatus
+// (alias per non toccare i punti d'uso nel resto del file).
+const STATUS = SDI_STATUS_FILTER;
+const STATUS_LABELS = SDI_STATUS_FILTER_LABELS;
+const StatusBadge = SdiBadge;
 
-const STATUS_LABELS = {
-  "tutti": "Tutti gli stati",
-  "draft": "Bozza",
-  "validated": "Validata",
-  "sent": "Inviata a SDI",
-  "transmitted": "Trasmessa",
-  "delivered": "Consegnata",
-  "not_delivered": "Mancata consegna",
-  "rejected": "Scartata SDI",
-  "term_expired": "Decorrenza termini",
-  "archived": "Archiviata"
-};
-
-const StatusBadge = memo(({ status }) => {
-  const getStatusStyles = (status) => {
-    switch (status) {
-      case "delivered":
-      case "archived":
-        return "bg-green-500/10 text-green-400";
-      case "transmitted":
-      case "sent":
-        return "bg-blue-500/10 text-blue-400";
-      case "validated":
-        return "bg-yellow-500/10 text-yellow-400";
-      case "rejected":
-        return "bg-red-500/10 text-red-400";
-      case "not_delivered":
-      case "term_expired":
-        return "bg-amber-500/10 text-amber-400";
-      case "draft":
-        return "bg-[#141c27] text-slate-200";
-      default:
-        return "bg-[#141c27] text-slate-200";
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    return STATUS_LABELS[status] || status;
-  };
-
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}>
-      {getStatusLabel(status)}
-    </span>
-  );
-});
-
-/* Timer invio fattura: countdown 12 giorni dalla data fattura */
+/* Timer invio fattura: countdown 12 giorni dalla data fattura.
+   Logica centralizzata in @/components/invoices/sendDeadline. */
 const SendTimer = memo(({ date, status }) => {
-  if (status !== "draft" || !date) return null;
-  const invDate = new Date(date);
-  const deadline = new Date(invDate.getTime() + 12 * 24 * 60 * 60 * 1000);
-  const now = new Date();
-  const diffMs = deadline - now;
-  const daysLeft = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
-
-  if (daysLeft <= 0) {
-    return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-red-500/15 text-red-400 border border-red-500/25 animate-pulse" title="Termine invio SDI scaduto!">
-        <FiAlertCircle className="w-2.5 h-2.5" /> Scaduto
-      </span>
-    );
-  }
-  if (daysLeft <= 2) {
-    return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-red-500/15 text-red-400 border border-red-500/25" title={`Inviare entro ${deadline.toLocaleDateString('it-IT')}`}>
-        <FiCalendar className="w-2.5 h-2.5" /> {daysLeft}g
-      </span>
-    );
-  }
-  if (daysLeft <= 5) {
-    return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/25" title={`Inviare entro ${deadline.toLocaleDateString('it-IT')}`}>
-        <FiCalendar className="w-2.5 h-2.5" /> {daysLeft}g
-      </span>
-    );
-  }
+  const b = sendDeadlineBadge(date, status);
+  if (!b) return null;
+  const Icon = b.level === "expired" ? FiAlertCircle : FiCalendar;
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-500/10 text-emerald-400/70" title={`Inviare entro ${deadline.toLocaleDateString('it-IT')}`}>
-      <FiCalendar className="w-2.5 h-2.5" /> {daysLeft}g
+    <span
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold border ${b.cls} ${b.level === "expired" ? "animate-pulse" : ""}`}
+      title={b.title}
+    >
+      <Icon className="w-2.5 h-2.5" /> {b.text}
     </span>
   );
 });
@@ -129,16 +72,39 @@ const InvoiceRow = memo(function InvoiceRow({ invoice, onEdit, onView, isSelecte
           className="w-4 h-4 text-emerald-600 border-[#243044] rounded focus:ring-emerald-500 cursor-pointer"
         />
       </td>
-      <td className="px-4 py-3 text-sm font-medium text-slate-200">
-        {invoice.number || "—"}
+      <td className="px-4 py-3">
+        <div className="text-sm font-medium text-slate-200">{invoice.number || "—"}</div>
+        {getInvoiceDescription(invoice) && (
+          <div
+            className="mt-0.5 max-w-[15rem] truncate text-xs text-slate-500"
+            title={getInvoiceDescription(invoice)}
+          >
+            {getInvoiceDescription(invoice)}
+          </div>
+        )}
       </td>
-      <td className="px-4 py-3 text-sm text-slate-200">
-        {invoice.customer_name || "—"}
+      <td className="px-4 py-3">
+        <div className="text-sm text-slate-200">{invoice.customer_name || "—"}</div>
+        {invoice.tags && invoice.tags.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {invoice.tags.slice(0, 2).map((tag, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+              >
+                {tag}
+              </span>
+            ))}
+            {invoice.tags.length > 2 && (
+              <span className="text-[10px] text-slate-500">+{invoice.tags.length - 2}</span>
+            )}
+          </div>
+        )}
       </td>
-      <td className="px-4 py-3 text-sm text-slate-400">
+      <td className="px-4 py-3 text-sm text-slate-400 whitespace-nowrap">
         {invoice.date ? new Date(invoice.date).toLocaleDateString('it-IT') : "—"}
       </td>
-      <td className="px-4 py-3 text-sm font-medium text-slate-200">
+      <td className="px-4 py-3 text-sm font-medium text-slate-200 text-right tabular-nums whitespace-nowrap">
         {MONEY(invoice.total)}
       </td>
       <td className="px-4 py-3">
@@ -155,32 +121,8 @@ const InvoiceRow = memo(function InvoiceRow({ invoice, onEdit, onView, isSelecte
           )}
         </div>
       </td>
-      <td className="px-4 py-3 text-sm text-slate-400">
-        <div className="max-w-xs truncate" title={getInvoiceDescription(invoice) || "Nessuna descrizione"}>
-          {getInvoiceDescription(invoice) || "—"}
-        </div>
-      </td>
       <td className="px-4 py-3">
-        <div className="flex flex-wrap gap-1">
-          {invoice.tags && invoice.tags.length > 0 ? (
-            invoice.tags.slice(0, 2).map((tag, idx) => (
-              <span
-                key={idx}
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-              >
-                {tag}
-              </span>
-            ))
-          ) : (
-            <span className="text-xs text-slate-600">—</span>
-          )}
-          {invoice.tags && invoice.tags.length > 2 && (
-            <span className="text-[10px] text-slate-500">+{invoice.tags.length - 2}</span>
-          )}
-        </div>
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 justify-end">
           <button
             onClick={handleView}
             className="p-1 text-slate-500 hover:text-blue-600 transition-colors"
@@ -224,10 +166,14 @@ export default function Invoices() {
   const supabase = supabaseBrowser();
   const { orgId } = useOrg();
   const navigate = useNavigate();
+  const { open: openDelayed, isOpening: isOpeningNew } = useDelayedNavigate();
 
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [enabled, setEnabled] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: invoicesData, isLoading: loading, refetch } = useInvoices(orgId);
+  const rows = useMemo(() => invoicesData?.rows || [], [invoicesData]);
+  const enabled = invoicesData?.enabled !== false;
+  const fetchAll = () => refetch();
+  const invalidateInvoices = () => queryClient.invalidateQueries({ queryKey: ['invoices', orgId] });
 
   // Tab attivo: "emesse" (default) o "ricevute"
   const [activeTab, setActiveTab] = useState("emesse");
@@ -238,6 +184,9 @@ export default function Invoices() {
 
   // Modale dettaglio fattura passiva
   const [decryptedModal, setDecryptedModal] = useState(null);
+  const [pdfPreview, setPdfPreview] = useState(null); // { url, name }
+  // Revoca l'object URL precedente quando cambia o allo smontaggio.
+  useEffect(() => () => { if (pdfPreview?.url) URL.revokeObjectURL(pdfPreview.url); }, [pdfPreview]);
 
   // filtri
   const [q, setQ] = useState("");
@@ -267,36 +216,6 @@ export default function Invoices() {
     return () => clearTimeout(t);
   }, [q]);
 
-  async function fetchAll() {
-    if (!orgId) { setRows([]); setLoading(false); return; }
-    try {
-      setLoading(true);
-      // Include invoice_items per il riassunto AI
-      const { data, error, status } = await supabase
-        .from(TABLE)
-        .select(`${SELECT_COLS}, invoice_items(id, item_code, item_description, qty)`)
-        .eq("org_id", orgId)
-        .order("created_at", { ascending:false });
-      if (error) throw Object.assign(error, { status });
-      setRows(data || []);
-      setEnabled(true);
-    } catch (e) {
-      const msg = String(e?.message || "");
-      if (e?.status === 404 || msg.includes("relation") || msg.includes("not exist")) {
-        // mock fallback se la tabella non esiste
-        setEnabled(false);
-        setRows([
-          { id:"mock-1", org_id:orgId, customer_name:"Mario Rossi", number:"2025/0001", date:"2025-10-01", total:122.00, sdi_status:"draft", provider_ext_id:null, created_at:new Date().toISOString() },
-          { id:"mock-2", org_id:orgId, customer_name:"ACME Spa", number:"2025/0002", date:"2025-10-05", total:500.00, sdi_status:"delivered", provider_ext_id:"SDI123456", created_at:new Date(Date.now()-86400000).toISOString() }
-        ]);
-      } else {
-        console.error("fetch invoices failed", e);
-        setErrMsg("Errore caricando le fatture");
-      }
-    } finally { setLoading(false); }
-  }
-
-  useEffect(()=>{ fetchAll(); /* eslint-disable-next-line */ }, [orgId]);
 
   // Controlla fatture scadute all'apertura della pagina (scheduler leggero)
   useEffect(() => {
@@ -311,7 +230,7 @@ export default function Invoices() {
     ch.on(
       "postgres_changes",
       { event: "*", schema: "public", table: TABLE, filter: `org_id=eq.${orgId}` },
-      fetchAll
+      invalidateInvoices
     );
     ch.subscribe();
     return () => { try { supabase.removeChannel(ch); } catch {} };
@@ -664,7 +583,7 @@ export default function Invoices() {
       classification: file.classification || 'incoming',
       invoice_data: file.invoice_data || null,
       xml_files_info: file.invoice_data?.xml_files_info || [],
-      has_xml_cache: file.invoice_data?.has_xml_cache || false,
+      has_xml_cache: file.has_xml_cache ?? !!file.invoice_data,
       loading_xml: false,
       xml_content: null,
     });
@@ -698,6 +617,19 @@ export default function Invoices() {
     setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 1000);
   }, []);
 
+
+  // Anteprima PDF in-app della fattura passiva (no download)
+  const openPdfPreview = useCallback(async () => {
+    if (!decryptedModal?.xml_content) return;
+    try {
+      const blob = await generateFatturaPaPdfBlob(decryptedModal.xml_content, { foFilename: decryptedModal.filename });
+      const url = URL.createObjectURL(blob);
+      const num = (decryptedModal.invoice_data?.numero || 'NONUM').replace(/\//g, '-');
+      setPdfPreview({ url, name: `Fattura_${num}.pdf` });
+    } catch (e) {
+      setErrMsg('Errore anteprima PDF: ' + e.message);
+    }
+  }, [decryptedModal]);
 
   // Export CSV fatture filtrate
   const exportCSV = useCallback(() => {
@@ -753,11 +685,21 @@ export default function Invoices() {
             Ricarica
           </button>
           <button
-            onClick={() => navigate("/fatture/new")}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+            onClick={() => navigate("/fatture/invio-massivo")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/15 transition-colors"
+            title="Invia più fatture al Sistema di Interscambio in un'unica operazione"
           >
-            <FiPlus className="w-3.5 h-3.5" />
-            Nuova Fattura
+            <FiSend className="w-3.5 h-3.5" />
+            Invio massivo SDI
+          </button>
+          <button
+            onClick={() => openDelayed("/fatture/new")}
+            disabled={isOpeningNew}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-80 disabled:cursor-wait transition-colors"
+          >
+            {isOpeningNew
+              ? <><FiLoader className="w-3.5 h-3.5 animate-spin" /> Apertura…</>
+              : <><FiPlus className="w-3.5 h-3.5" /> Nuova Fattura</>}
           </button>
         </div>
       </div>
@@ -909,7 +851,7 @@ export default function Invoices() {
                     <FiInbox className="w-8 h-8 text-slate-600" />
                   </div>
                   <h3 className="text-base font-medium text-slate-300 mb-1">Nessuna fattura passiva</h3>
-                  <p className="text-sm text-slate-500 mb-1">Non ci sono fatture da altri fornitori nella casella SFTP.</p>
+                  <p className="text-sm text-slate-500 mb-1">Non ci sono fatture passive ricevute dal Sistema di Interscambio.</p>
                   {foSummary && foSummary.confirmation_count > 0 && (
                     <p className="text-xs text-blue-400 mb-4">
                       {foSummary.confirmation_count} conferme delle tue fatture emesse sono visibili nel dettaglio di ogni fattura.
@@ -1105,20 +1047,14 @@ export default function Invoices() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Numero</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Cliente</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Data</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Totale</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Totale</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Stato</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Oggetto/Prestazioni</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Tag</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Azioni</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Azioni</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#243044]">
                 {loading ? (
-                  <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-slate-500">
-                      Caricamento…
-                    </td>
-                  </tr>
+                  <InvoiceTableSkeleton rows={6} cols={7} />
                 ) : paginated.length > 0 ? (
                   paginated.map((invoice) => (
                     <InvoiceRow 
@@ -1134,7 +1070,7 @@ export default function Invoices() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12">
+                    <td colSpan={7} className="px-4 py-12">
                       <div className="text-center">
                         <div className="w-16 h-16 bg-[#141c27] rounded-full flex items-center justify-center mx-auto mb-4">
                           <FiFileText className="w-8 h-8 text-slate-500" />
@@ -1429,14 +1365,20 @@ export default function Invoices() {
                   {decryptedModal.xml_content && (
                     <>
                       <button
-                        onClick={() => {
+                        onClick={openPdfPreview}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/15 transition-colors"
+                      >
+                        <FiFileText className="w-3.5 h-3.5" /> Anteprima PDF
+                      </button>
+                      <button
+                        onClick={async () => {
                           try {
-                            downloadFatturaPaPdf(decryptedModal.xml_content, `Fattura_${(d.numero || 'NONUM').replace(/\//g, '-')}_${(d.cedente_name || '').replace(/\s+/g, '_')}`, { foFilename: decryptedModal.filename });
+                            await downloadFatturaPaPdf(decryptedModal.xml_content, `Fattura_${(d.numero || 'NONUM').replace(/\//g, '-')}_${(d.cedente_name || '').replace(/\s+/g, '_')}`, { foFilename: decryptedModal.filename });
                           } catch (e) { setErrMsg('Errore generazione PDF: ' + e.message); }
                         }}
                         className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
                       >
-                        <FiFileText className="w-3.5 h-3.5" /> Scarica PDF
+                        <FiDownload className="w-3.5 h-3.5" /> Scarica PDF
                       </button>
                       <button
                         onClick={() => {
@@ -1467,6 +1409,45 @@ export default function Invoices() {
           </div>
           );
         })()}
+
+        {/* Anteprima PDF in-app (overlay sopra il modal) */}
+        {pdfPreview && (
+          <div
+            className="fixed inset-0 z-[60] flex flex-col bg-black/80 backdrop-blur-sm"
+            onClick={() => setPdfPreview(null)}
+          >
+            <div
+              className="flex items-center justify-between px-4 py-3 bg-[#141c27] border-b border-[#243044]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <FiFileText className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span className="text-sm text-slate-200 truncate">{pdfPreview.name}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={pdfPreview.url}
+                  download={pdfPreview.name}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+                >
+                  <FiDownload className="w-3.5 h-3.5" /> Scarica
+                </a>
+                <button
+                  onClick={() => setPdfPreview(null)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 bg-[#1a2536] border border-[#243044] rounded-lg hover:bg-[#243044] transition-colors"
+                >
+                  <FiX className="w-3.5 h-3.5" /> Chiudi
+                </button>
+              </div>
+            </div>
+            <iframe
+              title="Anteprima PDF fattura"
+              src={pdfPreview.url}
+              className="flex-1 w-full bg-white"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
     </div>
   );
 }
