@@ -84,10 +84,19 @@ async function download(url) {
 }
 
 function registerSdiIpc(handleSafe) {
-  // payload: { kind: 'ordinaria' | 'pa' | 'semplificata' }
+  // payload: { kind: 'ordinaria'|'pa'|'semplificata', style?: 'assosoftware'|'ade' }
+  // Default: foglio AssoSoftware (standard de-facto dei gestionali, layout
+  // fattura commerciale) per ordinaria/PA; AdE ufficiale come fallback e per
+  // la semplificata. style:'ade' forza il foglio ufficiale Agenzia Entrate.
   // ritorna: { xsl, source } | null
-  handleSafe('sdi:get-stylesheet', async ({ kind } = {}) => {
+  handleSafe('sdi:get-stylesheet', async ({ kind, style } = {}) => {
     const k = ['ordinaria', 'pa', 'semplificata'].includes(kind) ? kind : 'ordinaria';
+
+    // AssoSoftware: foglio unico per ordinaria/PA, vendorizzato (no rete).
+    if (style !== 'ade' && k !== 'semplificata') {
+      const asso = readBundled('assosoftware');
+      if (asso) return { xsl: asso, source: 'assosoftware' };
+    }
 
     const cached = readCache(k);
     if (cached && cached.ageMs < TTL_MS) {
