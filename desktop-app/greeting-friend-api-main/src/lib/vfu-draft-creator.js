@@ -4,6 +4,7 @@
 
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { logger } from '@/lib/logger';
+import { resolveComune } from '@/lib/comuni-api';
 
 /**
  * Codici CER tipici per demolizione VFU (D.Lgs 209/2003)
@@ -23,6 +24,48 @@ const VFU_CER_CODES = {
   catalizzatori: { codice: '16 08 01', descrizione: 'Catalizzatori esauriti contenenti metalli preziosi', pericoloso: false },
   gas_condizionatore: { codice: '14 06 01*', descrizione: 'Clorofluorocarburi, HCFC, HFC', pericoloso: true },
 };
+
+/**
+ * Carica i dati del cliente dal meta della pratica RVFU
+ */
+export async function loadRVFUOwnerData(rvfuIdNum) {
+  const supabase = supabaseBrowser();
+  try {
+    const { data, error } = await supabase
+      .from('vfu_processing_steps')
+      .select('*')
+      .eq('rvfu_id', rvfuIdNum)
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      logger.warn('[VFU Draft] Could not load RVFU owner data:', error?.message);
+      return null;
+    }
+
+    // I dati del proprietario dovrebbero essere nel meta della pratica
+    // Per ora restituiamo un oggetto vuoto, ma in futuro potremmo
+    // caricare da una tabella separata o dal meta della demolition_cases
+    return {
+      name: 'Cliente RVFU',
+      cf: null,
+      residence_address: null,
+      residence_city: null,
+      residence_province: null,
+      residence_cap: null,
+      residence_civic: null,
+      birth_date: null,
+      birth_place: null,
+      birth_province: null,
+      phone: null,
+      email: null,
+      tipo: 'PF'
+    };
+  } catch (err) {
+    logger.warn('[VFU Draft] Error loading RVFU owner data:', err.message);
+    return null;
+  }
+}
 
 /**
  * Carica i rifiuti prodotti per un caso di demolizione
@@ -173,8 +216,8 @@ function getVehicleWeightEstimate(marcaModello) {
  * altrimenti usa peso_ingresso o valori di default.
  */
 function buildDefaultVFURifiuti(case_) {
-  const pesoIngresso = parseFloat(case_.peso_ingresso_kg) || 0;
-  const pesoCarcassa = parseFloat(case_.peso_carcassa_kg) || null;
+  const pesoIngresso = Number.parseFloat(case_.peso_ingresso_kg) || 0;
+  const pesoCarcassa = Number.parseFloat(case_.peso_carcassa_kg) || null;
   
   // Prova a stimare i pesi dal modello
   const estimate = getVehicleWeightEstimate(case_.marca_modello);
@@ -328,6 +371,28 @@ export async function creaBozzaFIR({ caseId, orgId, rifiuti, environment = 'demo
       case_.peso_carcassa_kg ? `Peso carcassa: ${case_.peso_carcassa_kg} kg` : null,
     ].filter(Boolean).join(' | ');
 
+    // Risoluzione comune → ISTAT 6 cifre via comuni-api (fonte di verità).
+    // §2/§8: risolto lato client, passato nel payload. Se non risolvibile NON
+    // si inventa: si lascia vuoto e il VPS blocca con errore esplicito (mai
+    // emettere FIR con comune indovinato — niente fallback Milano).
+    const resolveLuogo = async (nome) => {
+      try { return nome ? await resolveComune(String(nome)) : null; }
+      catch { return null; }
+    };
+    const prodCityName = orgSettings?.address?.city || org?.city || '';
+    const detCityName = (detentore?.residence_city || owner?.residence_city) || '';
+    const [prodLuogo, detLuogo] = await Promise.all([
+      resolveLuogo(prodCityName),
+      resolveLuogo(detCityName),
+    ]);
+    if (prodCityName && !prodLuogo) {
+      logger.warn(`[VFU FIR] comune produttore "${prodCityName}" non risolto via comuni-api: comune_id resterà vuoto (il VPS bloccherà la trasmissione finché non risolto)`);
+    }
+    const prodComuneIstat = prodLuogo?.istatComune || '';
+    const prodCapResolved = orgSettings?.address?.zip || org?.cap || prodLuogo?.cap?.[0] || '';
+    const detComuneIstat = detLuogo?.istatComune || '';
+    const detCapResolved = (detentore?.residence_cap || owner?.residence_cap) || detLuogo?.cap?.[0] || '';
+
     // Costruisci payload completo per rentri_formulari
     const firPayload = {
       org_id: orgId,
@@ -342,8 +407,8 @@ export async function creaBozzaFIR({ caseId, orgId, rifiuti, environment = 'demo
       produttore_nome: orgSettings?.company_name || org?.name || '',
       produttore_indirizzo: orgSettings?.address?.street || org?.address || '',
       produttore_civico: '', // non disponibile in settings.address
-      produttore_comune_id: orgSettings?.address?.city || org?.city || '',
-      produttore_cap: orgSettings?.address?.zip || org?.cap || '',
+      produttore_comune_id: prodComuneIstat, // ISTAT 6 cifre o '' (no nome città)
+      produttore_cap: prodCapResolved,
       produttore_nazione_id: orgSettings?.address?.country || 'IT',
       produttore_pec: orgSettings?.pec || org?.pec || '',
       produttore_detentore: false, // Il produttore (autodemolitore) è DIVERSO dal detentore (proprietario veicolo)
@@ -354,16 +419,16 @@ export async function creaBozzaFIR({ caseId, orgId, rifiuti, environment = 'demo
       // ── LUOGO DI PRODUZIONE (stesso del produttore = sede dell'autodemolitore) ──
       luogo_prod_indirizzo: orgSettings?.address?.street || org?.address || '',
       luogo_prod_civico: '',
-      luogo_prod_comune_id: orgSettings?.address?.city || org?.city || '',
-      luogo_prod_cap: orgSettings?.address?.zip || org?.cap || '',
+      luogo_prod_comune_id: prodComuneIstat,
+      luogo_prod_cap: prodCapResolved,
 
       // ── DETENTORE (proprietario del veicolo, se diverso) ──
       detentore_cf: (detentore?.cf || owner?.cf) || '',
       detentore_nome: (detentore?.name || owner?.name) || '',
       detentore_indirizzo: (detentore?.residence_address || owner?.residence_address) || '',
       detentore_civico: (detentore?.residence_civic || owner?.residence_civic) || '',
-      detentore_comune_id: (detentore?.residence_city || owner?.residence_city) || '',
-      detentore_cap: (detentore?.residence_cap || owner?.residence_cap) || '',
+      detentore_comune_id: detComuneIstat, // ISTAT 6 cifre o '' (no nome città)
+      detentore_cap: detCapResolved,
       detentore_nazione_id: 'IT',
 
       // ── TRASPORTATORE (da compilare - spesso è lo stesso autodemolitore) ──
@@ -377,6 +442,10 @@ export async function creaBozzaFIR({ caseId, orgId, rifiuti, environment = 'demo
       destinatario_cf: '',
       destinatario_nome: '',
       destinatario_autorizzazione_tipo: 'RecSmalArt208',
+      // Attività destinatario: R4 = riciclaggio/recupero metalli (filiera VFU
+      // → frantumatore), coerente col movimento di scarico VFU. NON lasciare
+      // null: il fir-builder altrimenti ripiega in silenzio su R13.
+      destinatario_attivita: 'R4',
 
       // ── RIFIUTI ──
       rifiuto_provenienza: 'S',
@@ -437,62 +506,6 @@ export async function creaBozzaFIR({ caseId, orgId, rifiuti, environment = 'demo
   }
 }
 
-/**
- * Cerca o crea un cliente nella tabella clients a partire dai dati del proprietario RVFU.
- * Se trova un cliente con lo stesso CF/P.IVA, lo riusa. Altrimenti ne crea uno nuovo.
- */
-async function findOrCreateClient(supabase, orgId, owner) {
-  if (!owner || (!owner.cf && !owner.name)) return null;
-
-  // Cerca per CF se disponibile
-  if (owner.cf) {
-    const { data: existing } = await supabase
-      .from('clients')
-      .select('id, nome')
-      .eq('org_id', orgId)
-      .or(`tax_code.eq.${owner.cf},piva.eq.${owner.cf}`)
-      .limit(1)
-      .maybeSingle();
-    if (existing) {
-      logger.info(`[VFU Draft] Cliente esistente trovato: ${existing.nome} (${existing.id})`);
-      return existing.id;
-    }
-  }
-
-  // Crea nuovo cliente dai dati RVFU
-  const isCompany = owner.tipo === 'PG';
-  const clientPayload = {
-    org_id: orgId,
-    nome: isCompany ? (owner.name || 'Cliente VFU') : (owner.name?.split(' ')[0] || 'Cliente'),
-    surname: isCompany ? null : (owner.name?.split(' ').slice(1).join(' ') || null),
-    tax_code: owner.cf || null,
-    piva: isCompany ? owner.cf : null,
-    phone: owner.phone || null,
-    email: owner.email || null,
-    address: owner.residence_address || null,
-    city: owner.residence_city || null,
-    province: owner.residence_province || null,
-    zip: owner.residence_cap || null,
-    country: 'IT',
-    is_company: isCompany,
-    notes: `Creato automaticamente da demolizione VFU`,
-    categoria_cliente: 'demolizione',
-  };
-
-  const { data: newClient, error: clientError } = await supabase
-    .from('clients')
-    .insert(clientPayload)
-    .select('id, nome')
-    .single();
-
-  if (clientError) {
-    logger.warn('[VFU Draft] Could not create client:', clientError.message);
-    return null;
-  }
-
-  logger.info(`[VFU Draft] Nuovo cliente creato: ${newClient.nome} (${newClient.id})`);
-  return newClient.id;
-}
 
 /**
  * Sostituisce i segnaposto {targa}, {telaio}, etc. nel template
@@ -514,11 +527,129 @@ function fillTemplate(template, case_) {
  * Usa le colonne reali della tabella invoices.
  * Legge voci predefinite da org_settings (key: demolizione_fattura).
  */
-export async function creaBozzaFattura({ caseId, orgId, importo, descrizione }) {
+export async function findOrCreateClient(supabase, orgId, owner) {
+  if (!owner || (!owner.cf && !owner.name)) return null;
+
+  // Cerca per CF se disponibile
+  if (owner.cf) {
+    const { data: existing } = await supabase
+      .from('clients')
+      .select('id, nome, surname, tax_code, piva, address, city, zip, province, country, birth_date, birth_place, birth_province, gender, phone, email')
+      .eq('org_id', orgId)
+      .or(`tax_code.eq.${owner.cf},piva.eq.${owner.cf}`)
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      logger.info(`[VFU Draft] Cliente esistente trovato: ${existing.nome} (${existing.id})`);
+
+      // Aggiorna solo campi vuoti/null con i dati RVFU
+      const isCompany = owner.tipo === 'PG';
+      const updates = {};
+      if (!existing.address && owner.residence_address) updates.address = owner.residence_address;
+      if (!existing.city && owner.residence_city) updates.city = owner.residence_city;
+      if (!existing.zip && owner.residence_cap) updates.zip = owner.residence_cap;
+      if (!existing.province && owner.residence_province) updates.province = owner.residence_province;
+      if (!existing.birth_date && owner.birth_date && !isCompany) updates.birth_date = owner.birth_date;
+      if (!existing.birth_place && owner.birth_place && !isCompany) updates.birth_place = owner.birth_place;
+      if (!existing.birth_province && owner.birth_province && !isCompany) updates.birth_province = owner.birth_province;
+      if (!existing.gender && owner.gender && !isCompany) updates.gender = owner.gender;
+      if (!existing.phone && owner.phone) updates.phone = owner.phone;
+      if (!existing.email && owner.email) updates.email = owner.email;
+      if (!existing.surname && !isCompany && owner.name) {
+        const parts = owner.name.split(' ');
+        if (parts.length > 1) updates.surname = parts.slice(1).join(' ');
+      }
+
+      if (Object.keys(updates).length > 0) {
+        logger.info(`[VFU Draft] Aggiornamento campi vuoti cliente: ${JSON.stringify(Object.keys(updates))}`);
+        await supabase.from('clients').update(updates).eq('id', existing.id);
+      }
+
+      return existing.id;
+    }
+  }
+
+  // Crea nuovo cliente dai dati RVFU
+  const isCompany = owner.tipo === 'PG';
+  const clientPayload = {
+    org_id: orgId,
+    nome: isCompany ? (owner.name || 'Cliente VFU') : (owner.name?.split(' ')[0] || 'Cliente'),
+    surname: isCompany ? null : (owner.name?.split(' ').slice(1).join(' ') || null),
+    tax_code: owner.cf || null,
+    piva: isCompany ? owner.cf : null,
+    phone: owner.phone || null,
+    email: owner.email || null,
+    address: owner.residence_address || null,
+    city: owner.residence_city || null,
+    zip: owner.residence_cap || null,
+    province: owner.residence_province || null,
+    country: 'IT',
+    is_company: isCompany,
+    birth_date: !isCompany ? (owner.birth_date || null) : null,
+    birth_place: !isCompany ? (owner.birth_place || null) : null,
+    birth_province: !isCompany ? (owner.birth_province || null) : null,
+    gender: !isCompany ? (owner.gender || null) : null,
+  };
+
+  const { data: newClient, error: insertError } = await supabase
+    .from('clients')
+    .insert(clientPayload)
+    .select('id, nome')
+    .single();
+
+  if (insertError) {
+    logger.error('[VFU Draft] Errore creazione cliente:', insertError);
+    throw new Error(`Errore creazione cliente: ${insertError.message}`);
+  }
+
+  logger.info(`[VFU Draft] Nuovo cliente creato: ${newClient.nome} (${newClient.id})`);
+  return newClient.id;
+}
+
+/**
+ * Crea bozza fattura SDI per la demolizione VFU.
+ * Auto-crea il cliente dai dati del proprietario RVFU se non esiste.
+ * Usa le colonne reali della tabella invoices.
+ * Legge voci predefinite da org_settings (key: demolizione_fattura).
+ */
+export async function creaBozzaFattura({ caseId, orgId, clientId, cliente, importo, descrizione }) {
   const supabase = supabaseBrowser();
 
   try {
-    const { case_ } = await loadCaseData(caseId, orgId);
+    // Check if it's an RVFU case (format: rvfu_*)
+    const isRvfuCase = caseId?.toString().startsWith('rvfu_');
+    let case_ = null;
+
+    if (isRvfuCase) {
+      // For RVFU cases, load from demolition_cases by rvfu_id
+      const rvfuIdNum = Number.parseInt(caseId.substring(5), 10);
+      const { data: localCase } = await supabase
+        .from('demolition_cases')
+        .select('*')
+        .eq('rvfu_id', rvfuIdNum)
+        .maybeSingle();
+      
+      if (localCase) {
+        case_ = localCase;
+      } else {
+        // Fallback: minimal case object
+        case_ = {
+          id: caseId,
+          targa: 'N/A',
+          telaio: 'N/A',
+          marca_modello: 'RVFU',
+          anno: new Date().getFullYear(),
+          peso_ingresso_kg: null,
+          peso_carcassa_kg: null,
+          meta: { owner: {}, rvfu: {} },
+        };
+      }
+    } else {
+      // For local cases, load from demolition_cases
+      const { case_: localCase } = await loadCaseData(caseId, orgId);
+      case_ = localCase;
+    }
+
     if (!case_) throw new Error('Caso demolizione non trovato');
 
     // Carica impostazioni personalizzate fattura demolizione
@@ -539,32 +670,50 @@ export async function creaBozzaFattura({ caseId, orgId, importo, descrizione }) 
     const owner = meta.owner || {};
     const rvfu = meta.rvfu || {};
 
-    // Auto-crea cliente dal proprietario RVFU
+    // Usa cliente fornito o crea automaticamente dal proprietario RVFU
     let clientId = null;
-    try {
-      clientId = await findOrCreateClient(supabase, orgId, owner);
-    } catch (err) {
-      logger.warn('[VFU Draft] findOrCreateClient failed:', err.message);
+    let customerCF = '';
+    let birthDate = null;
+    let birthPlace = null;
+    let birthProvince = null;
+
+    let customerName;
+    let customerAddress;
+
+    if (cliente && clientId) {
+      // Usa dati cliente forniti
+      logger.info('[VFU Draft] Using provided customer data for invoice');
+      customerName = cliente.ragione_sociale || `${cliente.nome} ${cliente.surname || ''}`.trim();
+      customerCF = cliente.codice_fiscale || cliente.piva || '';
+      customerAddress = {
+        street: cliente.indirizzo || '',
+        zip: cliente.cap || '',
+        city: cliente.citta || '',
+        province: cliente.province || '',
+        country: 'IT',
+      };
+    } else {
+      // Auto-crea cliente dal proprietario RVFU (fallback)
+      try {
+        clientId = await findOrCreateClient(supabase, orgId, owner);
+      } catch (err) {
+        logger.warn('[VFU Draft] findOrCreateClient failed:', err.message);
+      }
+
+      customerName = owner.name || 'Cliente demolizione VFU';
+      customerCF = owner.cf || '';
+      customerAddress = {
+        street: [owner.residence_address, owner.residence_civic].filter(Boolean).join(', ') || '',
+        zip: owner.residence_cap || '',
+        city: owner.residence_city || '',
+        province: owner.residence_province || '',
+        country: 'IT',
+      };
+
+      birthDate = owner.birth_date || null;
+      birthPlace = owner.birth_place || null;
+      birthProvince = owner.birth_province || null;
     }
-
-    // Costruisci nome cliente
-    const customerName = owner.name || 'Cliente demolizione VFU';
-    const customerCF = owner.cf || '';
-
-    // Indirizzo cliente in formato JSON (come usato da InvoiceNew)
-    const customerAddress = {
-      via: owner.residence_address || '',
-      civico: owner.residence_civic || '',
-      cap: owner.residence_cap || '',
-      comune: owner.residence_city || '',
-      provincia: owner.residence_province || '',
-      nazione: 'IT',
-    };
-
-    // Data e luogo di nascita (per persone fisiche)
-    const birthDate = owner.birth_date || null;
-    const birthPlace = owner.birth_place || null;
-    const birthProvince = owner.birth_province || null;
 
     // Importo: usa personalizzato da settings, poi parametro, poi default
     const settingsItems = demolizioneSettings?.items;
@@ -591,12 +740,11 @@ export async function creaBozzaFattura({ caseId, orgId, importo, descrizione }) 
           denominazione: customerName,
           codice_fiscale: customerCF,
           partita_iva: owner.tipo === 'PG' ? customerCF : null,
-          indirizzo: owner.residence_address || '',
-          civico: owner.residence_civic || '',
-          cap: owner.residence_cap || '',
-          comune: owner.residence_city || '',
-          provincia: owner.residence_province || '',
-          nazione: 'IT',
+          indirizzo: customerAddress.street || '',
+          cap: customerAddress.zip || '',
+          comune: customerAddress.city || '',
+          provincia: customerAddress.province || '',
+          nazione: customerAddress.country || 'IT',
           codice_destinatario: '0000000',
           data_nascita: birthDate,
           comune_nascita: birthPlace,
@@ -617,9 +765,22 @@ export async function creaBozzaFattura({ caseId, orgId, importo, descrizione }) 
       vfu_client_id: clientId,
     };
 
+    // Auto-numerazione: ottieni prossimo numero fattura
+    let invoiceNumber = null;
+    try {
+      const { data: nextNum } = await supabase.rpc('rpc_invoice_next_number', { p_org_id: orgId });
+      if (nextNum) {
+        const year = new Date().getFullYear();
+        invoiceNumber = `${nextNum}/${year}`;
+      }
+    } catch (err) {
+      logger.warn('[VFU Draft] Could not get next invoice number:', err.message);
+    }
+
     // Crea bozza fattura con colonne reali della tabella invoices
     const invoicePayload = {
       org_id: orgId,
+      number: invoiceNumber,
       customer_name: customerName,
       customer_vat: owner.tipo === 'PG' ? customerCF : null,
       customer_tax_code: customerCF || null,
@@ -678,11 +839,13 @@ export async function creaBozzaFattura({ caseId, orgId, importo, descrizione }) 
       logger.warn('[VFU Draft] Could not create invoice item:', itemErr.message);
     }
 
-    // Aggiorna il caso con il riferimento alla fattura
-    await supabase
-      .from('demolition_cases')
-      .update({ invoice_draft_id: invoice.id })
-      .eq('id', caseId);
+    // Aggiorna il caso con il riferimento alla fattura (solo per local cases)
+    if (!isRvfuCase) {
+      await supabase
+        .from('demolition_cases')
+        .update({ invoice_draft_id: invoice.id })
+        .eq('id', caseId);
+    }
 
     logger.info(`[VFU Draft] Invoice draft creato: ${invoice.id} per caso ${caseId}, cliente: ${clientId || 'nessuno'}`);
     return { success: true, invoice_id: invoice.id, client_id: clientId };

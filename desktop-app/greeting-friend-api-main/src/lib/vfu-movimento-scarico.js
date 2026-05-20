@@ -10,8 +10,28 @@ import logger from './logger';
  * Crea movimento di scarico RENTRI quando si conferisce VFU al frantumatore.
  * Tipo movimento: T (Trasporto) - Scarico verso impianto autorizzato
  */
-export async function creaMovimentoScaricoVFU({ caseId, orgId, registroId, destinatarioNome, destinatarioCF }) {
+/**
+ * @param {object} p
+ * @param {string} [p.causale='T'] Causale RENTRI. 'T' = trasporto in uscita
+ *   (autodemolitore che conferisce). 'aT'/'T*aT' = accettazione al destino
+ *   (ROT/FRA): in tal caso `esitoAccettazione` è obbligatorio.
+ * @param {('Accettato'|'AccettatoConRiserva'|'Respinto')} [p.esitoAccettazione]
+ *   Esito conferimento, richiesto da RENTRI per causali aT/T*aT.
+ */
+export async function creaMovimentoScaricoVFU({
+  caseId, orgId, registroId, destinatarioNome, destinatarioCF,
+  causale = 'T', esitoAccettazione = null,
+}) {
   const supabase = supabaseBrowser();
+
+  const CAUSALI_VALIDE = ['T', 'aT', 'T*aT'];
+  if (!CAUSALI_VALIDE.includes(causale)) {
+    throw new Error(`Causale scarico VFU non valida: '${causale}' (ammesse: ${CAUSALI_VALIDE.join(', ')})`);
+  }
+  const richiedeEsito = causale === 'aT' || causale === 'T*aT';
+  if (richiedeEsito && !esitoAccettazione) {
+    throw new Error(`Causale '${causale}' richiede esitoAccettazione (Accettato/AccettatoConRiserva/Respinto)`);
+  }
 
   try {
     // Carica dati caso VFU
@@ -55,7 +75,8 @@ export async function creaMovimentoScaricoVFU({ caseId, orgId, registroId, desti
       org_id: orgId,
       registro_id: targetRegistroId,
       tipo_operazione: 'scarico',
-      causale_operazione: 'T', // Trasporto
+      causale_operazione: causale,
+      ...(richiedeEsito ? { esito_accettazione: esitoAccettazione } : {}),
       data_operazione: now.toISOString().split('T')[0],
       data_ora_registrazione: now.toISOString(),
       anno: now.getFullYear(),

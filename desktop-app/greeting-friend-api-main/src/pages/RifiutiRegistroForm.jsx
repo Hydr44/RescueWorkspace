@@ -9,7 +9,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useOrg } from "../context/OrgContext";
 import {
   FiSave, FiArrowLeft, FiFileText, FiPrinter,
-  FiCheckCircle, FiAlertCircle, FiAlertTriangle, FiX, FiInfo
+  FiCheckCircle, FiAlertCircle, FiAlertTriangle, FiX, FiInfo, FiChevronDown
 } from "react-icons/fi";
 import { printRegistroDetail } from "../lib/services/rentriPrintService";
 import { supabaseBrowser } from "../lib/supabase-browser";
@@ -28,15 +28,37 @@ const SECTION_COLORS = {
   purple: { bar: "bg-purple-600", header: "bg-purple-900/20 border-purple-800/40" },
   indigo: { bar: "bg-indigo-600", header: "bg-indigo-900/20 border-indigo-800/40" },
 };
-function FormSection({ number, title, children, color = "blue" }) {
+// Sezione collassabile con stato persistito in localStorage
+// (chiave: rentri-reg-section-<number>).
+function FormSection({ number, title, children, color = "blue", defaultOpen = true }) {
   const c = SECTION_COLORS[color] || SECTION_COLORS.blue;
+  const storageKey = `rentri-reg-section-${number}`;
+  const [open, setOpen] = useState(() => {
+    try {
+      const v = localStorage.getItem(storageKey);
+      return v === null ? defaultOpen : v === "1";
+    } catch { return defaultOpen; }
+  });
+  const toggle = () => {
+    setOpen(prev => {
+      const next = !prev;
+      try { localStorage.setItem(storageKey, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  };
   return (
     <div className="bg-gray-800/30 border border-gray-700 rounded-lg overflow-hidden">
-      <div className={`flex items-center gap-3 px-4 py-3 border-b border-gray-700 ${c.header}`}>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className={`w-full flex items-center gap-3 px-4 py-3 border-b border-gray-700 ${c.header} text-left hover:brightness-110 transition`}
+      >
         <div className={`flex-shrink-0 w-7 h-7 ${c.bar} text-white rounded flex items-center justify-center font-bold text-xs`}>{number}</div>
-        <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">{title}</h3>
-      </div>
-      <div className="p-4">{children}</div>
+        <h3 className="flex-1 text-xs font-semibold text-gray-200 uppercase tracking-wider">{title}</h3>
+        <FiChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? "" : "-rotate-90"}`} />
+      </button>
+      {open && <div className="p-4">{children}</div>}
     </div>
   );
 }
@@ -81,11 +103,15 @@ export default function RifiutiRegistroForm() {
   const [form, setForm] = useState({
     anno: currentYear, tipo: "carico_scarico", numero_registro: "",
     unita_locale: "", autorizzazione: "", stato: "bozza", note: "", num_iscr_sito: "",
-    attivita: [], descrizione: "",
+    attivita: [], descrizione: "", sezione: "AUT",
     unita_locale_indirizzo: "", unita_locale_comune: "",
     unita_locale_provincia: "", unita_locale_cap: "",
   });
   const [errors, setErrors] = useState({});
+  // Sezioni filiera attivate per l'org (org_settings key='rentri_filiera').
+  // Il selettore sezione compare solo se l'org opera >1 sezione; altrimenti
+  // la sezione è implicita (quella unica attiva, default AUT).
+  const [sezioniAttivate, setSezioniAttivate] = useState(["AUT"]);
 
   // Toast
   const [toast, setToast] = useState(null);
@@ -101,6 +127,29 @@ export default function RifiutiRegistroForm() {
       if (id) loadData();
     }
   }, [id, orgId]); // eslint-disable-line
+
+  // Carica le sezioni filiera attivate (configurate dall'admin-panel).
+  useEffect(() => {
+    if (!orgId) return;
+    (async () => {
+      try {
+        const supabase = supabaseBrowser();
+        const { data } = await supabase
+          .from("org_settings").select("value")
+          .eq("org_id", orgId).eq("key", "rentri_filiera").maybeSingle();
+        const arr = data?.value?.sezioni_attivate;
+        const valide = Array.isArray(arr)
+          ? arr.filter(s => ["AUT", "ROT", "FRA"].includes(s))
+          : [];
+        const sez = valide.length ? valide : ["AUT"];
+        setSezioniAttivate(sez);
+        // Se l'org opera una sola sezione, impostala implicitamente.
+        if (sez.length === 1) setForm(f => ({ ...f, sezione: sez[0] }));
+      } catch {
+        setSezioniAttivate(["AUT"]);
+      }
+    })();
+  }, [orgId]);
 
   useEffect(() => {
     if (numIscrSito && orgId && !id) loadAutorizzazioni();
@@ -159,6 +208,7 @@ export default function RifiutiRegistroForm() {
       if (data) {
         setForm({
           anno: data.anno, tipo: data.tipo, numero_registro: data.numero_registro || "",
+          sezione: data.sezione || "AUT",
           unita_locale: data.unita_locale || "", autorizzazione: data.autorizzazione || "",
           stato: data.stato, note: data.note || "", num_iscr_sito: data.num_iscr_sito || numIscrSito || "",
           attivita: Array.isArray(data.attivita) ? data.attivita : [],
@@ -204,6 +254,7 @@ export default function RifiutiRegistroForm() {
       const supabase = supabaseBrowser();
       const payload = {
         org_id: orgId, anno: Number.parseInt(form.anno), tipo: form.tipo,
+        sezione: ["AUT", "ROT", "FRA"].includes(form.sezione) ? form.sezione : "AUT",
         numero_registro: form.numero_registro || null, unita_locale: form.unita_locale || null,
         autorizzazione: form.autorizzazione || null, stato: form.stato,
         note: form.note || null, environment: rentriEnv,
@@ -273,16 +324,16 @@ export default function RifiutiRegistroForm() {
     <div className="p-4 space-y-4 max-w-5xl mx-auto">
       {/* Toast */}
       {toast && (
-        <div className={`flex items-center justify-between px-4 py-2.5 rounded-lg border text-xs font-medium ${
-          toast.type === "success" ? "bg-sky-500/8 border-sky-500/15 text-sky-400" :
-          toast.type === "error" ? "bg-red-500/10 border-red-500/20 text-red-400" :
-          "bg-blue-500/10 border-blue-500/20 text-blue-400"
+        <div className={`fixed bottom-4 right-4 z-50 max-w-sm flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg border text-xs font-medium shadow-lg ${
+          toast.type === "success" ? "bg-sky-500/15 border-sky-500/30 text-sky-300" :
+          toast.type === "error" ? "bg-red-500/15 border-red-500/30 text-red-300" :
+          "bg-blue-500/15 border-blue-500/30 text-blue-300"
         }`}>
           <div className="flex items-center gap-2">
-            {toast.type === "success" ? <FiCheckCircle className="w-3.5 h-3.5" /> : <FiAlertCircle className="w-3.5 h-3.5" />}
-            {toast.msg}
+            {toast.type === "success" ? <FiCheckCircle className="w-3.5 h-3.5 shrink-0" /> : <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />}
+            <span>{toast.msg}</span>
           </div>
-          <button onClick={() => setToast(null)} className="p-0.5 hover:opacity-70"><FiX className="w-3 h-3" /></button>
+          <button onClick={() => setToast(null)} className="p-0.5 hover:opacity-70 shrink-0"><FiX className="w-3 h-3" /></button>
         </div>
       )}
 
@@ -343,9 +394,29 @@ export default function RifiutiRegistroForm() {
             <option value="scarico">Scarico</option>
             <option value="carico_scarico">Carico e Scarico</option>
           </FSelect>
-          <FInput label="Numero Registro" value={form.numero_registro}
-            onChange={e => setForm({ ...form, numero_registro: e.target.value })}
-            readOnly={isSynced} placeholder="REG-2026-001" />
+          {/* Sezione filiera VFU: selettore solo se l'org opera più sezioni;
+              altrimenti è implicita (campo informativo). I movimenti del
+              registro ereditano questa sezione (MUD per sezione). */}
+          {sezioniAttivate.length > 1 ? (
+            <FSelect label="Sezione filiera (AUT/ROT/FRA)" value={form.sezione}
+              onChange={e => setForm({ ...form, sezione: e.target.value })}
+              disabled={isSynced} required>
+              {sezioniAttivate.map(s => (
+                <option key={s} value={s}>
+                  {s === "AUT" ? "AUT — Autodemolitore" : s === "ROT" ? "ROT — Rottamatore" : "FRA — Frantumatore"}
+                </option>
+              ))}
+            </FSelect>
+          ) : (
+            <FInput label="Sezione filiera" value={form.sezione || "AUT"} readOnly
+              placeholder="AUT" />
+          )}
+          {/* RENTRI non assegna un "numero": l'identificatore reale e'
+              l'Identificativo (= rentri_id), scritto qui alla vidimazione.
+              Campo informativo, non compilabile manualmente. */}
+          <FInput label="Identificativo RENTRI" value={form.numero_registro}
+            readOnly
+            placeholder="Assegnato da RENTRI alla vidimazione" />
         </div>
         <div className="grid grid-cols-2 gap-3 mt-3">
           <FInput label="Descrizione" value={form.descrizione}

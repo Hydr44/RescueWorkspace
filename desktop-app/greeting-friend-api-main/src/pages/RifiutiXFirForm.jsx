@@ -17,6 +17,7 @@ import ItalianAddressAutocomplete from "../components/ui/ItalianAddressAutocompl
 import {
   creaXFir, modificaXFir, fetchXFirDettaglio, fetchBlocchiFir
 } from "../lib/rentri-xfir";
+import { resolveComune } from "../lib/comuni-api";
 
 /* ─── Componente sezione numerata (come nel PDF) ─── */
 const FormSection = ({ number, title, children, className = "", color = "indigo" }) => {
@@ -377,6 +378,34 @@ export default function RifiutiXFirForm() {
     setSaving(true); setError(null); setSuccess(null);
     try {
       const payload = buildPayload();
+
+      // P1.5: risoluzione comune → ISTAT 6 cifre via comuni-api (fonte di
+      // verità). I campi *_comune_id arrivano dal picker come NOME comune;
+      // qui li convertiamo in ISTAT e popoliamo il CAP. Nessun fallback: se
+      // produttore/destinatario non risolvibili la trasmissione è bloccata
+      // (mai FIR con comune indovinato — §2/§8, coerente col VPS no-Milano).
+      const isIstat6 = (v) => /^\d{6}$/.test(String(v || "").trim());
+      const resolveCitta = async (cittaObj, nome) => {
+        if (!cittaObj) return false;
+        if (isIstat6(cittaObj.comune_id)) return true;
+        const r = nome ? await resolveComune(String(nome)) : null;
+        if (!r?.istatComune) return false;
+        cittaObj.comune_id = r.istatComune;
+        return true;
+      };
+      const dp = payload.dati_partenza;
+      const okProd = await resolveCitta(dp.produttore?.indirizzo?.citta, form.produttore_comune_id);
+      await resolveCitta(dp.produttore?.luogo_produzione?.citta, form.luogo_prod_comune_id || form.produttore_comune_id);
+      const okDest = await resolveCitta(dp.destinatario?.indirizzo?.citta, form.destinatario_comune_id);
+      const nonRisolti = [];
+      if (!okProd) nonRisolti.push(`produttore ("${form.produttore_comune_id || "—"}")`);
+      if (!okDest) nonRisolti.push(`destinatario ("${form.destinatario_comune_id || "—"}")`);
+      if (nonRisolti.length) {
+        setError(`Comune ISTAT non risolto per: ${nonRisolti.join(", ")}. Verifica il nome del comune (fonte: comuni-api). Trasmissione bloccata: nessun codice indovinato.`);
+        setSaving(false);
+        return;
+      }
+
       if (isEdit) {
         const result = await modificaXFir({ orgId, numeroFir: editNumeroFir, datiFir: payload, environment: config.environment });
         setSuccess(`FIR ${editNumeroFir} modificato! Transazione: ${result.transazione_id || "OK"}`);

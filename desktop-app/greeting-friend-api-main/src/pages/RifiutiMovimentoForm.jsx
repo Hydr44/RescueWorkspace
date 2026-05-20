@@ -7,7 +7,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useOrg } from "../context/OrgContext";
-import { FiSave, FiTrendingUp, FiTrendingDown, FiAlertCircle, FiZap, FiTruck, FiArrowLeft, FiEye, FiSend, FiCheckCircle, FiX, FiRefreshCw, FiSearch } from "react-icons/fi";
+import { FiSave, FiTrendingUp, FiTrendingDown, FiAlertCircle, FiZap, FiTruck, FiArrowLeft, FiEye, FiSend, FiCheckCircle, FiX, FiRefreshCw, FiSearch, FiChevronDown } from "react-icons/fi";
 import { supabaseBrowser } from "../lib/supabase-browser";
 import { getRentriEnvironment } from "../lib/rentri-api";
 import { useDemo } from "@/hooks/useDemo";
@@ -25,15 +25,38 @@ const SECTION_COLORS = {
   slate:  { bar: "bg-slate-600",  header: "bg-slate-900/20 border-slate-700/40" },
 };
 
-function FormSection({ number, title, children, color = "blue" }) {
+// Sezione collassabile: lo stato aperto/chiuso e' persistito in localStorage
+// per ogni sezione (chiave: rentri-mov-section-<number>), cosi' l'utente
+// ritrova il form come l'aveva lasciato.
+function FormSection({ number, title, children, color = "blue", defaultOpen = true }) {
   const c = SECTION_COLORS[color] || SECTION_COLORS.blue;
+  const storageKey = `rentri-mov-section-${number}`;
+  const [open, setOpen] = useState(() => {
+    try {
+      const v = localStorage.getItem(storageKey);
+      return v === null ? defaultOpen : v === "1";
+    } catch { return defaultOpen; }
+  });
+  const toggle = () => {
+    setOpen(prev => {
+      const next = !prev;
+      try { localStorage.setItem(storageKey, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  };
   return (
     <div className="bg-gray-800/30 border border-gray-700 rounded-lg overflow-hidden">
-      <div className={`flex items-center gap-3 px-4 py-3 border-b border-gray-700 ${c.header}`}>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className={`w-full flex items-center gap-3 px-4 py-3 border-b border-gray-700 ${c.header} text-left hover:brightness-110 transition`}
+      >
         <div className={`flex-shrink-0 w-7 h-7 ${c.bar} text-white rounded flex items-center justify-center font-bold text-xs`}>{number}</div>
-        <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">{title}</h3>
-      </div>
-      <div className="p-4 space-y-4">{children}</div>
+        <h3 className="flex-1 text-xs font-semibold text-gray-200 uppercase tracking-wider">{title}</h3>
+        <FiChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? "" : "-rotate-90"}`} />
+      </button>
+      {open && <div className="p-4 space-y-4">{children}</div>}
     </div>
   );
 }
@@ -168,7 +191,8 @@ export default function RifiutiMovimentoForm() {
     trasporto_transfrontaliero: false,
     tipo_trasporto_transfrontaliero: "",
     
-    // Esito conferimento (per causali aT, T*aT)
+    // Esito conferimento (per causali aT, T*aT) — RENTRI lo richiede
+    esito_accettazione: "",
     data_fine_trasporto: "",
     peso_verificato_destino: "",
     respingimento_tipo: "",
@@ -399,6 +423,7 @@ export default function RifiutiMovimentoForm() {
           data_inizio_trasporto: data.data_inizio_trasporto?.slice(0, 16) || "",
           trasporto_transfrontaliero: data.trasporto_transfrontaliero || false,
           tipo_trasporto_transfrontaliero: data.tipo_trasporto_transfrontaliero || "",
+          esito_accettazione: data.esito_accettazione || "",
           data_fine_trasporto: data.data_fine_trasporto?.slice(0, 16) || "",
           peso_verificato_destino: data.peso_verificato_destino?.toString() || "",
           respingimento_tipo: data.respingimento_tipo || "",
@@ -563,6 +588,7 @@ export default function RifiutiMovimentoForm() {
       provenienza_destinazione: scenario.provenienza_destinazione || "",
       numero_fir: scenario.numero_fir || "",
       data_inizio_trasporto: scenario.data_inizio_trasporto || "",
+      esito_accettazione: scenario.esito_accettazione || "",
       data_fine_trasporto: scenario.data_fine_trasporto || "",
       peso_verificato_destino: scenario.peso_verificato_destino || "",
       veicolo_fuori_uso: scenario.veicolo_fuori_uso || false,
@@ -599,6 +625,20 @@ export default function RifiutiMovimentoForm() {
     }
     if (!form.quantita || parseFloat(form.quantita) <= 0) {
       newErrors.quantita = "Quantità deve essere maggiore di 0";
+    }
+
+    // Esito conferimento obbligatorio per causali di accettazione (RENTRI)
+    if (["aT", "T*aT"].includes(form.causale_operazione)) {
+      if (!form.esito_accettazione) {
+        newErrors.esito_accettazione = "Esito conferimento obbligatorio per aT/T*aT";
+      }
+      // Coerenza esito ↔ respingimento
+      if (form.esito_accettazione === "Respinto" && !form.respingimento_tipo) {
+        newErrors.respingimento_tipo = "Indicare il tipo di respingimento (Totale/Parziale)";
+      }
+      if (form.esito_accettazione === "Accettato" && form.respingimento_tipo) {
+        newErrors.respingimento_tipo = "Esito 'Accettato' incompatibile con un respingimento";
+      }
     }
 
     setErrors(newErrors);
@@ -664,6 +704,7 @@ export default function RifiutiMovimentoForm() {
         tipo_trasporto_transfrontaliero: form.tipo_trasporto_transfrontaliero || null,
         
         // Esito conferimento
+        esito_accettazione: ["aT", "T*aT"].includes(form.causale_operazione) ? (form.esito_accettazione || null) : null,
         data_fine_trasporto: form.data_fine_trasporto ? new Date(form.data_fine_trasporto).toISOString() : null,
         peso_verificato_destino: form.peso_verificato_destino ? parseFloat(form.peso_verificato_destino) : null,
         respingimento_tipo: form.respingimento_tipo || null,
@@ -719,11 +760,28 @@ export default function RifiutiMovimentoForm() {
 
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("rentri_movimenti")
-          .insert(payload);
-
-        if (error) throw error;
+        // Il progressivo viene assegnato ATOMICAMENTE dal trigger DB
+        // rentri_movimenti_assign_progressivo (advisory lock per registro+anno).
+        // Inseriamo con progressivo = null per delegare al DB ed evitare la
+        // race condition del vecchio MAX+1 client-side. Il retry sotto resta
+        // solo come safety net e in pratica non scatta piu'.
+        let attempts = 0;
+        let inserted = false;
+        let lastError = null;
+        let currentPayload = { ...payload, progressivo: null };
+        while (!inserted && attempts < 5) {
+          const { error } = await supabase
+            .from("rentri_movimenti")
+            .insert(currentPayload);
+          if (!error) { inserted = true; break; }
+          lastError = error;
+          if (error.code !== '23505') throw error;
+          // Collisione residua (improbabile col trigger): ritenta lasciando
+          // sempre progressivo = null cosi' il trigger lo riassegna atomicamente.
+          currentPayload = { ...currentPayload, progressivo: null };
+          attempts += 1;
+        }
+        if (!inserted) throw lastError || new Error('Impossibile assegnare progressivo univoco dopo 5 tentativi');
       }
 
       showToast('success', id ? 'Movimento aggiornato!' : 'Movimento creato!');
@@ -785,16 +843,16 @@ export default function RifiutiMovimentoForm() {
 
       {/* Toast */}
       {toast && (
-        <div className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-medium transition-all ${
-          toast.type === 'success' ? 'bg-sky-500/8 border-sky-500/15 text-sky-400' :
-          toast.type === 'error'   ? 'bg-red-500/10 border-red-500/20 text-red-400' :
-          'bg-blue-500/10 border-blue-500/20 text-blue-400'
+        <div className={`fixed bottom-4 right-4 z-50 max-w-sm flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border text-xs font-medium shadow-lg transition-all ${
+          toast.type === 'success' ? 'bg-sky-500/15 border-sky-500/30 text-sky-300' :
+          toast.type === 'error'   ? 'bg-red-500/15 border-red-500/30 text-red-300' :
+          'bg-blue-500/15 border-blue-500/30 text-blue-300'
         }`}>
           <div className="flex items-center gap-2">
-            {toast.type === 'success' ? <FiCheckCircle className="w-3.5 h-3.5" /> : <FiAlertCircle className="w-3.5 h-3.5" />}
-            {toast.msg}
+            {toast.type === 'success' ? <FiCheckCircle className="w-3.5 h-3.5 shrink-0" /> : <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />}
+            <span>{toast.msg}</span>
           </div>
-          <button onClick={() => setToast(null)} className="p-0.5 hover:opacity-70"><FiX className="w-3 h-3" /></button>
+          <button onClick={() => setToast(null)} className="p-0.5 hover:opacity-70 shrink-0"><FiX className="w-3 h-3" /></button>
         </div>
       )}
 
@@ -987,8 +1045,8 @@ export default function RifiutiMovimentoForm() {
                   <div className="flex items-start gap-2">
                     <FiAlertCircle className="w-3.5 h-3.5 text-yellow-400 mt-0.5 flex-shrink-0" />
                     <div className="text-xs text-yellow-300">
-                      <strong>Nota:</strong> Per le causali aT e T*aT, RENTRI richiede obbligatoriamente il campo <strong>esito conferimento</strong>. 
-                      Il sistema include automaticamente un esito di default "Accettato" se non specificato.
+                      <strong>Nota:</strong> Per le causali aT e T*aT, RENTRI richiede obbligatoriamente l'<strong>esito conferimento</strong>.
+                      Compila la sezione "Esito Conferimento" qui sotto (Accettato / Con riserva / Respinto): è obbligatorio.
                     </div>
                   </div>
                 </div>
@@ -1615,6 +1673,34 @@ export default function RifiutiMovimentoForm() {
         {/* SEZIONE 6: ESITO */}
         {["aT", "T*aT"].includes(form.causale_operazione) && (
           <FormSection number="6" title="Esito Conferimento (obbligatorio per accettazione)" color="rose">
+            <InputField
+              label="Esito Accettazione"
+              required
+              error={errors.esito_accettazione}
+              help="Esito del controllo al destino (RENTRI: causali aT / T*aT)"
+            >
+              <select
+                value={form.esito_accettazione}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  // Coerenza: 'Accettato' azzera l'eventuale respingimento
+                  setForm((f) => ({
+                    ...f,
+                    esito_accettazione: v,
+                    ...(v === "Accettato"
+                      ? { respingimento_tipo: "", respingimento_quantita: "", respingimento_causale: "", respingimento_causale_altro: "" }
+                      : {}),
+                  }));
+                }}
+                className="w-full px-3 py-2 text-sm bg-[#141c27] border border-[#243044] rounded-lg text-slate-200"
+              >
+                <option value="">— Seleziona esito —</option>
+                <option value="Accettato">Accettato</option>
+                <option value="AccettatoConRiserva">Accettato con riserva</option>
+                <option value="Respinto">Respinto</option>
+              </select>
+            </InputField>
+
             <FormRow cols={2}>
               <InputField label="Data Fine Trasporto" help="Arrivo a destinazione (ISO 8601)">
                 <input
@@ -1637,7 +1723,8 @@ export default function RifiutiMovimentoForm() {
               </InputField>
             </FormRow>
 
-            {/* Respingimento */}
+            {/* Respingimento — solo se l'esito non è 'Accettato' */}
+            {["Respinto", "AccettatoConRiserva"].includes(form.esito_accettazione) && (
             <InputField label="Respingimento" help="Compilare solo in caso di respingimento totale o parziale">
               <FormRow cols={2}>
                 <div>
@@ -1706,6 +1793,7 @@ export default function RifiutiMovimentoForm() {
                 </div>
               )}
             </InputField>
+            )}
           </FormSection>
         )}
 

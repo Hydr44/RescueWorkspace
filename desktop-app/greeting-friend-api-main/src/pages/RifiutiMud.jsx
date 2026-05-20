@@ -35,12 +35,13 @@ const StatoBadge = ({ stato }) => {
   );
 };
 
-/* ─── Sezioni MUD per autodemolitori ─── */
-const SEZIONI_MUD = [
-  { id: "rif", label: "Scheda RIF", desc: "Rifiuti speciali prodotti/gestiti", icon: FiPackage },
-  { id: "aut", label: "Scheda AUT", desc: "Autodemolizione veicoli fuori uso", icon: FiDatabase },
-  { id: "int", label: "Scheda INT", desc: "Intermediari e commercianti", icon: FiBarChart2 },
-];
+/* ─── Sezioni filiera VFU (RENTRI): un MUD per (org, anno, sezione) ─── */
+const SEZIONI_FILIERA = {
+  AUT: { label: "AUT", desc: "Autodemolitore — veicoli fuori uso", icon: FiDatabase },
+  ROT: { label: "ROT", desc: "Rottamatore — carcasse/parti metalliche", icon: FiPackage },
+  FRA: { label: "FRA", desc: "Frantumatore — frantumazione finale", icon: FiBarChart2 },
+};
+const ORDINE_SEZIONI = ["AUT", "ROT", "FRA"];
 
 /* ─── Helpers ─── */
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -68,6 +69,22 @@ export default function RifiutiMud() {
     const y = new Date().getFullYear();
     return Array.from({ length: 6 }, (_, i) => y - 1 - i);
   }, []);
+
+  // Sezioni filiera presenti tra i MUD dell'anno (un MUD per sezione).
+  const [activeSez, setActiveSez] = useState("AUT");
+  const sezioniPresenti = useMemo(() => {
+    const set = new Set(mudList.map((m) => m.sezione || "AUT"));
+    return ORDINE_SEZIONI.filter((s) => set.has(s));
+  }, [mudList]);
+  useEffect(() => {
+    if (sezioniPresenti.length && !sezioniPresenti.includes(activeSez)) {
+      setActiveSez(sezioniPresenti[0]);
+    }
+  }, [sezioniPresenti, activeSez]);
+  const visibleMud = useMemo(
+    () => mudList.filter((m) => (m.sezione || "AUT") === activeSez),
+    [mudList, activeSez]
+  );
 
   useEffect(() => {
     if (orgId) loadMud();
@@ -108,11 +125,18 @@ export default function RifiutiMud() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Errore generazione MUD");
-      showToast("success",
-        `MUD ${selectedYear} generato! ${result.aggregazione?.movimenti || 0} movimenti, ` +
-        `${result.aggregazione?.registri || 0} registri, ${result.aggregazione?.formulari || 0} formulari, ` +
-        `${fmtQty(result.aggregazione?.totale_quantita)} kg totali.`
-      );
+      {
+        const sezGen = result.aggregazione?.sezioni_generate?.join(", ") || "—";
+        const skipMsg = result.skip?.length
+          ? ` (saltate: ${result.skip.map((s) => s.sezione).join(", ")} già esistenti)`
+          : "";
+        showToast("success",
+          `MUD ${selectedYear} generato — sezioni: ${sezGen}. ` +
+          `${result.aggregazione?.movimenti || 0} movimenti, ` +
+          `${result.aggregazione?.registri || 0} registri, ${result.aggregazione?.formulari || 0} formulari, ` +
+          `${fmtQty(result.aggregazione?.totale_quantita)} kg.${skipMsg}`
+        );
+      }
       await loadMud();
     } catch (error) {
       console.error("Errore generazione MUD:", error);
@@ -254,16 +278,16 @@ export default function RifiutiMud() {
 
       {/* ── Toast ── */}
       {toast && (
-        <div className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-medium transition-all ${
-          toast.type === "success" ? "bg-sky-500/8 border-sky-500/15 text-sky-400" :
-          toast.type === "error" ? "bg-red-500/10 border-red-500/20 text-red-400" :
-          "bg-blue-500/10 border-blue-500/20 text-blue-400"
+        <div className={`fixed bottom-4 right-4 z-50 max-w-sm flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border text-xs font-medium shadow-lg transition-all ${
+          toast.type === "success" ? "bg-sky-500/15 border-sky-500/30 text-sky-300" :
+          toast.type === "error" ? "bg-red-500/15 border-red-500/30 text-red-300" :
+          "bg-blue-500/15 border-blue-500/30 text-blue-300"
         }`}>
           <div className="flex items-center gap-2">
-            {toast.type === "success" ? <FiCheckCircle className="w-3.5 h-3.5" /> : toast.type === "error" ? <FiAlertCircle className="w-3.5 h-3.5" /> : <FiInfo className="w-3.5 h-3.5" />}
-            {toast.msg}
+            {toast.type === "success" ? <FiCheckCircle className="w-3.5 h-3.5 shrink-0" /> : toast.type === "error" ? <FiAlertCircle className="w-3.5 h-3.5 shrink-0" /> : <FiInfo className="w-3.5 h-3.5 shrink-0" />}
+            <span>{toast.msg}</span>
           </div>
-          <button onClick={() => setToast(null)} className="p-0.5 hover:opacity-70"><FiX className="w-3 h-3" /></button>
+          <button onClick={() => setToast(null)} className="p-0.5 hover:opacity-70 shrink-0"><FiX className="w-3 h-3" /></button>
         </div>
       )}
 
@@ -354,7 +378,32 @@ export default function RifiutiMud() {
         </div>
       ) : (
         <div className="space-y-3">
-          {mudList.map((mud) => {
+          {/* Tab sezioni filiera (un MUD per sezione) */}
+          {sezioniPresenti.length > 0 && (
+            <div className="flex items-center gap-1.5 border-b border-[#243044] pb-2">
+              {sezioniPresenti.map((s) => {
+                const meta = SEZIONI_FILIERA[s];
+                const Icon = meta?.icon || FiDatabase;
+                const active = activeSez === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setActiveSez(s)}
+                    title={meta?.desc}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-[#243044]"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {meta?.label || s}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {visibleMud.map((mud) => {
             const isExpanded = expandedId === mud.id;
             return (
               <div key={mud.id} className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden hover:border-[#2d3d56] transition">
@@ -364,6 +413,9 @@ export default function RifiutiMud() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2.5 mb-3">
                         <h3 className="text-sm font-semibold text-slate-200">MUD {mud.anno}</h3>
+                        <span className="text-[10px] font-semibold text-blue-300 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded" title={SEZIONI_FILIERA[mud.sezione || "AUT"]?.desc}>
+                          {SEZIONI_FILIERA[mud.sezione || "AUT"]?.label || mud.sezione || "AUT"}
+                        </span>
                         <StatoBadge stato={mud.stato} />
                         {mud.numero_protocollo && (
                           <span className="text-[10px] text-sky-400 font-mono bg-sky-500/10 px-1.5 py-0.5 rounded">
@@ -435,33 +487,28 @@ export default function RifiutiMud() {
                 {/* Expanded: Sezioni MUD */}
                 {isExpanded && (
                   <div className="border-t border-[#243044] px-5 py-4 space-y-3">
-                    <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sezioni Comunicazione Rifiuti Speciali</h4>
+                    <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sezione filiera</h4>
 
-                    {SEZIONI_MUD.map(sez => (
-                      <div key={sez.id} className="bg-[#141c27]/50 border border-[#243044] rounded-lg p-3.5 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                            <sez.icon className="w-4 h-4 text-blue-400" />
+                    {(() => {
+                      const meta = SEZIONI_FILIERA[mud.sezione || "AUT"] || SEZIONI_FILIERA.AUT;
+                      const Icon = meta.icon;
+                      return (
+                        <div className="bg-[#141c27]/50 border border-[#243044] rounded-lg p-3.5 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                              <Icon className="w-4 h-4 text-blue-400" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-slate-300">Sezione {meta.label}</p>
+                              <p className="text-[10px] text-slate-500">{meta.desc}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs font-medium text-slate-300">{sez.label}</p>
-                            <p className="text-[10px] text-slate-500">{sez.desc}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {mud[`sezione_${sez.id}_count`] != null ? (
-                            <span className="text-[10px] text-slate-400 font-mono">{mud[`sezione_${sez.id}_count`]} voci</span>
-                          ) : (
-                            <span className="text-[10px] text-slate-600">Dati aggregati</span>
-                          )}
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            mud[`sezione_${sez.id}_completa`] ? "bg-sky-500/10 text-sky-400" : "bg-amber-500/10 text-amber-400"
-                          }`}>
-                            {mud[`sezione_${sez.id}_completa`] ? "Completa" : "Da verificare"}
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {mud.totale_movimenti || 0} mov · {mud.totale_registri || 0} reg · {mud.totale_formulari || 0} FIR
                           </span>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })()}
 
                     {/* Riepilogo codici EER */}
                     {mud.riepilogo_eer && Array.isArray(mud.riepilogo_eer) && mud.riepilogo_eer.length > 0 && (

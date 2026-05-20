@@ -4,9 +4,11 @@
  * Design L aligned
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useOrg } from "../context/OrgContext";
+import { useRentriRegistri } from "@/hooks/queries/useRentriRegistri";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   FiPlus, FiEdit2, FiEye, FiTrash2, FiSearch,
   FiFileText, FiCheckCircle, FiClock, FiAlertCircle,
@@ -38,16 +40,19 @@ const TIPO_LABELS = {
 export default function RifiutiRegistri() {
   const { orgId } = useOrg();
   const navigate = useNavigate();
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [q, setQ] = useState("");
   const [filterStato, setFilterStato] = useState("all");
   const [filterAnno, setFilterAnno] = useState(new Date().getFullYear().toString());
+  const { data: rowsData, isLoading: loading, refetch } = useRentriRegistri(orgId, { anno: filterAnno, stato: filterStato });
+  const rows = useMemo(() => rowsData || [], [rowsData]);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['rentriRegistri', orgId] });
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [creatingRentriId, setCreatingRentriId] = useState(null);
-  const [trasmettendo, setTrasmettendo] = useState(false);
+  const [vidimando, setVidimando] = useState(false);
+  const [scaricandoXmlId, setScaricandoXmlId] = useState(null);
   const [creatingTest, setCreatingTest] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
 
@@ -58,27 +63,7 @@ export default function RifiutiRegistri() {
     setTimeout(() => setToast(null), 5000);
   }, []);
 
-  useEffect(() => {
-    if (orgId) loadData();
-  }, [orgId]); // eslint-disable-line
-
-  async function loadData() {
-    setLoading(true);
-    try {
-      const supabase = supabaseBrowser();
-      let query = supabase.from("rentri_registri").select("*").eq("org_id", orgId);
-      if (filterAnno !== "all") query = query.eq("anno", parseInt(filterAnno));
-      if (filterStato !== "all") query = query.eq("stato", filterStato);
-      const { data, error } = await query.order("created_at", { ascending: false });
-      if (error) throw error;
-      setRows(data || []);
-    } catch (err) {
-      console.error("Errore caricamento registri:", err);
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const loadData = () => refetch();
 
   const filtered = useMemo(() => {
     if (!q.trim()) return rows;
@@ -108,7 +93,7 @@ export default function RifiutiRegistri() {
       const supabase = supabaseBrowser();
       const { error } = await supabase.from("rentri_registri").delete().eq("id", confirmDelete.id);
       if (error) throw error;
-      setRows(prev => prev.filter(r => r.id !== confirmDelete.id));
+      invalidate();
       setConfirmDelete(null);
       showToast("success", "Registro eliminato.");
     } catch (err) {
@@ -118,18 +103,40 @@ export default function RifiutiRegistri() {
   }
 
   async function handleBulkDelete() {
-    try {
-      const ids = getSelectedIds();
-      const supabase = supabaseBrowser();
-      const { error } = await supabase.from("rentri_registri").delete().in("id", ids);
-      if (error) throw error;
-      setRows(prev => prev.filter(r => !ids.includes(r.id)));
-      resetSelection();
-      setConfirmBulkDelete(false);
-      showToast("success", `${ids.length} registri eliminati.`);
-    } catch (err) {
-      console.error("Errore eliminazione multipla:", err);
-      showToast("error", "Errore durante l'eliminazione.");
+    const ids = getSelectedIds();
+    if (ids.length === 0) return;
+    const supabase = supabaseBrowser();
+    // URL con `?id=in.(...)` può crashare il proxy oltre ~10 UUID — chunk a 8.
+    const CHUNK = 8;
+    const deleted = [];
+    const failed = [];
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      try {
+        const { error } = await supabase.from("rentri_registri").delete().in("id", slice);
+        if (error) throw error;
+        deleted.push(...slice);
+      } catch (errChunk) {
+        console.warn(`[Registri/BulkDelete] chunk ${i} fallito, ritento singolo`, errChunk);
+        for (const id of slice) {
+          try {
+            const { error } = await supabase.from("rentri_registri").delete().eq("id", id);
+            if (error) throw error;
+            deleted.push(id);
+          } catch (errSingle) {
+            console.error(`[Registri/BulkDelete] errore su ${id}:`, errSingle);
+            failed.push(id);
+          }
+        }
+      }
+    }
+    if (deleted.length > 0) invalidate();
+    resetSelection();
+    setConfirmBulkDelete(false);
+    if (failed.length > 0) {
+      showToast("error", `Eliminati ${deleted.length}/${ids.length}. ${failed.length} errori.`);
+    } else {
+      showToast("success", `${deleted.length} registri eliminati.`);
     }
   }
 
@@ -164,33 +171,63 @@ export default function RifiutiRegistri() {
     }
   }
 
-  async function handleTrasmettiSelezionati() {
+  // Crea+vidima su RENTRI i registri selezionati (chiamata reale, niente stub
+  // locale: la creazione su RENTRI E' la vidimazione digitale del registro).
+  async function handleVidimaSelezionati() {
     const ids = getSelectedIds();
     if (ids.length === 0) return;
-    setTrasmettendo(true);
+    setVidimando(true);
     let ok = 0;
     let fail = 0;
+    const apiUrl = import.meta.env.VITE_RENTRI_API_URL || 'https://rentri-test.rescuemanager.eu/api/rentri';
     try {
-      const supabase = supabaseBrowser();
       for (const registroId of ids) {
         try {
-          const localRentriId = `DEMO-${Date.now()}-${registroId.slice(0, 8)}`;
-          const { error } = await supabase
-            .from('rentri_registri')
-            .update({ stato: 'attivo', rentri_id: localRentriId })
-            .eq('id', registroId)
-            .eq('org_id', orgId);
-          if (error) { fail++; } else { ok++; }
+          const response = await fetch(`${apiUrl}/registri/create`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ org_id: orgId, registro_id: registroId }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (response.ok && result.success) { ok++; } else { fail++; }
         } catch { fail++; }
       }
       await loadData();
       resetSelection();
       showToast(fail === 0 ? 'success' : 'error',
-        `Trasmessi: ${ok}${fail > 0 ? ` · Errori: ${fail}` : ''}`);
+        `Vidimati su RENTRI: ${ok}${fail > 0 ? ` · Errori: ${fail}` : ''}`);
     } catch (err) {
       showToast('error', `Errore: ${err.message}`);
     } finally {
-      setTrasmettendo(false);
+      setVidimando(false);
+    }
+  }
+
+  // Scarica il registro cronologico vidimato (XML) da RENTRI: documento legale.
+  async function handleScaricaXml(registroId) {
+    if (!orgId) return;
+    setScaricandoXmlId(registroId);
+    try {
+      const apiUrl = import.meta.env.VITE_RENTRI_API_URL || 'https://rentri-test.rescuemanager.eu/api/rentri';
+      const response = await fetch(`${apiUrl}/registri/${registroId}/xml?org_id=${encodeURIComponent(orgId)}`);
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        showToast('error', `Errore download: ${err.error || response.status}`);
+        return;
+      }
+      const blob = await response.blob();
+      const cd = response.headers.get('Content-Disposition') || '';
+      const m = cd.match(/filename="([^"]+)"/);
+      const fname = m ? m[1] : `registro-vidimato-${registroId}.xml`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fname;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      showToast('success', 'Registro vidimato scaricato.');
+    } catch (err) {
+      showToast('error', `Errore di rete: ${err.message}`);
+    } finally {
+      setScaricandoXmlId(null);
     }
   }
 
@@ -204,7 +241,8 @@ export default function RifiutiRegistri() {
         org_id: orgId,
         anno,
         tipo: 'carico_scarico',
-        numero_registro: `TEST-${anno}-${String(Date.now()).slice(-4)}`,
+        // numero_registro NON impostato: lo assegna RENTRI (= Identificativo)
+        // alla vidimazione. Vedi /registri/create.
         unita_locale: 'Sede Principale',
         unita_locale_indirizzo: 'Via Test 1',
         unita_locale_comune: 'Milano',
@@ -249,7 +287,7 @@ export default function RifiutiRegistri() {
         return;
       }
       await loadData();
-      showToast("success", `Registro creato su RENTRI (ID: ${result.rentri_id})`);
+      showToast("success", `Registro creato e vidimato su RENTRI (ID: ${result.rentri_id})`);
     } catch (err) {
       console.error("Errore creazione registro su RENTRI:", err);
       showToast("error", `Errore di rete: ${err.message}`);
@@ -280,18 +318,18 @@ export default function RifiutiRegistri() {
 
   return (
     <div className="space-y-3">
-      {/* Toast */}
+      {/* Toast — fixed bottom-right, non occupa spazio nel layout */}
       {toast && (
-        <div className={`flex items-center justify-between px-4 py-2.5 rounded-lg border text-xs font-medium transition-all ${
-          toast.type === "success" ? "bg-sky-500/8 border-sky-500/15 text-sky-400" :
-          toast.type === "error" ? "bg-red-500/8 border-red-500/15 text-red-400" :
-          "bg-blue-500/8 border-blue-500/15 text-blue-400"
+        <div className={`fixed bottom-4 right-4 z-50 max-w-sm flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg border text-xs font-medium shadow-lg transition-all ${
+          toast.type === "success" ? "bg-sky-500/15 border-sky-500/30 text-sky-300" :
+          toast.type === "error" ? "bg-red-500/15 border-red-500/30 text-red-300" :
+          "bg-blue-500/15 border-blue-500/30 text-blue-300"
         }`}>
           <div className="flex items-center gap-2">
-            {toast.type === "success" ? <FiCheckCircle className="w-3.5 h-3.5" /> : <FiAlertCircle className="w-3.5 h-3.5" />}
-            {toast.msg}
+            {toast.type === "success" ? <FiCheckCircle className="w-3.5 h-3.5 shrink-0" /> : <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />}
+            <span>{toast.msg}</span>
           </div>
-          <button onClick={() => setToast(null)} className="p-0.5 hover:opacity-70"><FiX className="w-3 h-3" /></button>
+          <button onClick={() => setToast(null)} className="p-0.5 hover:opacity-70 shrink-0"><FiX className="w-3 h-3" /></button>
         </div>
       )}
 
@@ -374,7 +412,8 @@ export default function RifiutiRegistri() {
         </div>
       ) : (
         <div className="bg-[#1a2536]/50 rounded-xl border border-[#243044] overflow-hidden">
-          <table className="w-full text-xs">
+          <div className="overflow-x-auto">
+          <table className="w-full text-xs min-w-[720px]">
             <thead>
               <tr className="border-b border-[#243044]">
                 <th className="px-3 py-2.5 text-left w-8">
@@ -391,7 +430,8 @@ export default function RifiutiRegistri() {
             <tbody className="divide-y divide-[#243044]/20">
               {filtered.map(row => {
                 const statoInfo = STATO_MAP[row.stato] || STATO_MAP.bozza;
-                const isOnRentri = !!row.rentri_id;
+                // I vecchi 'DEMO-' erano stub locali fittizi: NON sono su RENTRI.
+                const isOnRentri = !!row.rentri_id && !row.rentri_id.startsWith('DEMO-');
                 return (
                   <tr key={row.id} className="group hover:bg-[#141c27]/40 transition-colors cursor-pointer" onClick={() => navigate(`/rifiuti/registri/${row.id}`)}>
                     <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
@@ -420,8 +460,13 @@ export default function RifiutiRegistri() {
                     <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         {!isOnRentri && (
-                          <button onClick={() => handleCreateOnRentri(row.id)} disabled={creatingRentriId === row.id} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-blue-400 hover:bg-blue-500/10 rounded-md transition-colors disabled:opacity-50" title="Crea su RENTRI">
+                          <button onClick={() => handleCreateOnRentri(row.id)} disabled={creatingRentriId === row.id} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-blue-400 hover:bg-blue-500/10 rounded-md transition-colors disabled:opacity-50" title="Crea e vidima su RENTRI">
                             {creatingRentriId === row.id ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiSend className="w-3 h-3" />}
+                          </button>
+                        )}
+                        {isOnRentri && (
+                          <button onClick={() => handleScaricaXml(row.id)} disabled={scaricandoXmlId === row.id} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-teal-400 hover:bg-teal-500/10 rounded-md transition-colors disabled:opacity-50" title="Scarica registro vidimato (XML)">
+                            {scaricandoXmlId === row.id ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiDownload className="w-3 h-3" />}
                           </button>
                         )}
                         <button onClick={() => navigate(`/rifiuti/registri/${row.id}`)} className="p-1.5 text-slate-500 hover:text-blue-400 transition-colors" title={isOnRentri ? "Visualizza" : "Modifica"}>
@@ -439,6 +484,7 @@ export default function RifiutiRegistri() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -450,8 +496,8 @@ export default function RifiutiRegistri() {
           onClearSelection={resetSelection}
           actions={[
             {
-              label: trasmettendo ? 'Trasmissione...' : `Trasmetti a RENTRI (${selectedCount})`,
-              onClick: handleTrasmettiSelezionati,
+              label: vidimando ? 'Vidimazione...' : `Crea/Vidima su RENTRI (${selectedCount})`,
+              onClick: handleVidimaSelezionati,
               variant: 'success',
             },
           ]}
