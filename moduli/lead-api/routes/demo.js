@@ -413,6 +413,173 @@ module.exports = function createDemoRouter(supabase) {
   });
 
   /**
+   * PATCH /api/leads/:id/demo/modules
+   * Aggiorna i moduli abilitati su una demo attiva. Modifica in atomico:
+   *   - orgs.desktop_modules    (consumato da useOrgFeatures legacy)
+   *   - org_modules table       (consumato da useSubscription canonico)
+   *   - lead_demos.modules_enabled (storico per metriche)
+   *
+   * Body: { modules: ['trasporti','sdi',...] }
+   */
+  router.patch('/:id/demo/modules', async (req, res) => {
+    try {
+      const leadId = req.params.id;
+      const { modules } = req.body || {};
+
+      if (!Array.isArray(modules)) {
+        return res.status(400).json({ error: 'modules[] richiesto' });
+      }
+
+      // 1. Trova la demo attiva del lead
+      const { data: demo, error: demoErr } = await supabase
+        .from('lead_demos')
+        .select('id, demo_org_id, expires_at, status')
+        .eq('lead_id', leadId)
+        .eq('status', 'active')
+        .order('activated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (demoErr) return res.status(500).json({ error: demoErr.message });
+      if (!demo) return res.status(404).json({ error: 'Nessuna demo attiva trovata per questo lead' });
+
+      const orgId = demo.demo_org_id;
+      const expiresAt = demo.expires_at;
+
+      // 2. Aggiorna orgs.desktop_modules
+      await supabase
+        .from('orgs')
+        .update({ desktop_modules: modules })
+        .eq('id', orgId);
+
+      // 3. org_modules:
+      //    - prendo lo stato corrente
+      //    - disattivo (status='inactive') quelli che NON sono nella nuova lista
+      //    - upsert (status='trial') di quelli nella nuova lista
+      const { data: currentMods } = await supabase
+        .from('org_modules')
+        .select('module, status')
+        .eq('org_id', orgId);
+
+      const newSet = new Set(modules);
+      const toDeactivate = (currentMods || [])
+        .filter(r => !newSet.has(r.module) && r.status !== 'inactive')
+        .map(r => r.module);
+
+      if (toDeactivate.length > 0) {
+        const { error: deactErr } = await supabase
+          .from('org_modules')
+          .update({ status: 'inactive', updated_at: new Date().toISOString() })
+          .eq('org_id', orgId)
+          .in('module', toDeactivate);
+        if (deactErr) console.error('[DEMO modules] deactivate error:', deactErr.message);
+      }
+
+      const rows = modules.map(m => ({
+        org_id: orgId,
+        module: m,
+        status: 'trial',
+        activated_at: new Date().toISOString(),
+        expires_at: expiresAt,
+        updated_at: new Date().toISOString(),
+      }));
+      if (rows.length > 0) {
+        const { error: omErr } = await supabase
+          .from('org_modules')
+          .upsert(rows, { onConflict: 'org_id,module' });
+        if (omErr) console.error('[DEMO modules] org_modules upsert error:', omErr.message);
+      }
+
+      // 4. lead_demos.modules_enabled (storico)
+      await supabase
+        .from('lead_demos')
+        .update({ modules_enabled: modules, updated_at: new Date().toISOString() })
+        .eq('id', demo.id);
+
+      res.json({ success: true, modules, org_id: orgId, demo_id: demo.id });
+    } catch (err) {
+      console.error('[DEMO modules] Error:', err);
+      res.status(500).json({ error: 'Errore interno', details: err.message });
+    }
+  });
+
+  /**
+   * GET /api/leads/:id/demo/activity
+   * Statistiche utilizzo demo: ultimo accesso, conteggi dati creati.
+   * Risposta:
+   *   {
+   *     last_sign_in_at,           // da auth.admin.getUserById (Supabase nativo)
+   *     created_at_user,
+   *     counts: { clients, transports, vehicles, invoices, quotes, ... }
+   *   }
+   */
+  router.get('/:id/demo/activity', async (req, res) => {
+    try {
+      const leadId = req.params.id;
+
+      // 1. Demo attiva
+      const { data: demo } = await supabase
+        .from('lead_demos')
+        .select('demo_account_id, demo_org_id, activated_at, expires_at, modules_enabled, status')
+        .eq('lead_id', leadId)
+        .order('activated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!demo) return res.status(404).json({ error: 'Nessuna demo trovata per questo lead' });
+
+      // 2. auth.users (Supabase popola automaticamente last_sign_in_at)
+      let authMeta = null;
+      try {
+        const { data: authData, error: authErr } = await supabase.auth.admin.getUserById(demo.demo_account_id);
+        if (!authErr && authData?.user) {
+          authMeta = {
+            email: authData.user.email,
+            last_sign_in_at: authData.user.last_sign_in_at,
+            created_at: authData.user.created_at,
+            confirmed_at: authData.user.confirmed_at,
+          };
+        }
+      } catch (e) {
+        console.warn('[DEMO activity] getUserById fail:', e.message);
+      }
+
+      // 3. Conteggi tabelle org-scoped (defensive: alcune potrebbero mancare)
+      const orgId = demo.demo_org_id;
+      const tablesToCount = [
+        'clients', 'transports', 'vehicles', 'invoices', 'quotes',
+        'rentri_formulari', 'rvfu_cases', 'spare_parts', 'drivers'
+      ];
+
+      const counts = {};
+      await Promise.all(tablesToCount.map(async (t) => {
+        try {
+          const { count, error } = await supabase
+            .from(t)
+            .select('id', { count: 'exact', head: true })
+            .eq('org_id', orgId);
+          if (!error) counts[t] = count || 0;
+        } catch { /* tabella non esiste in questo schema, ignora */ }
+      }));
+
+      res.json({
+        success: true,
+        demo: {
+          activated_at: demo.activated_at,
+          expires_at: demo.expires_at,
+          status: demo.status,
+          modules_enabled: demo.modules_enabled,
+        },
+        auth: authMeta,
+        counts,
+      });
+    } catch (err) {
+      console.error('[DEMO activity] Error:', err);
+      res.status(500).json({ error: 'Errore interno', details: err.message });
+    }
+  });
+
+  /**
    * POST /api/leads/:id/extend-demo
    * Estendi demo di N giorni
    */
