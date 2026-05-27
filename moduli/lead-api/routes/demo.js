@@ -175,29 +175,10 @@ module.exports = function createDemoRouter(supabase) {
         console.error('[DEMO] Member creation error:', memberError);
       }
 
-      // 6a. Popola `org_modules` con i moduli selezionati. La desktop app
-      //     legge questa tabella (via useSubscription → activeModules) per
-      //     mostrare/nascondere voci di sidebar tipo Fatture/RVFU/RENTRI/
-      //     Contabilità. `orgs.desktop_modules` da solo NON basta.
-      //     status='trial' segnala che è una demo a tempo.
-      try {
-        const moduleRows = allModules.map(m => ({
-          org_id: org.id,
-          module: m,
-          status: 'trial',
-          activated_at: new Date().toISOString(),
-          expires_at: expiresAt.toISOString(),
-          updated_at: new Date().toISOString(),
-        }));
-        if (moduleRows.length > 0) {
-          const { error: omErr } = await supabase
-            .from('org_modules')
-            .upsert(moduleRows, { onConflict: 'org_id,module' });
-          if (omErr) console.error('[DEMO] org_modules upsert error (non-fatal):', omErr.message);
-        }
-      } catch (omCatch) {
-        console.error('[DEMO] org_modules exception (non-fatal):', omCatch.message);
-      }
+      // (rimosso upsert su `org_modules` table: era legacy/dannoso. Il
+      // CHECK constraint accetta solo 5 valori billing, non i nomi UI.
+      // La fonte canonica è `orgs.desktop_modules` già aggiornato sopra,
+      // letto da useSubscription nel desktop.)
 
       // 6b. Seed dati demo se richiesto (showcase/pilot).
       // La funzione SQL `public.seed_demo_data(p_org_id)` è idempotente
@@ -452,43 +433,9 @@ module.exports = function createDemoRouter(supabase) {
         .update({ desktop_modules: modules })
         .eq('id', orgId);
 
-      // 3. org_modules:
-      //    - prendo lo stato corrente
-      //    - disattivo (status='inactive') quelli che NON sono nella nuova lista
-      //    - upsert (status='trial') di quelli nella nuova lista
-      const { data: currentMods } = await supabase
-        .from('org_modules')
-        .select('module, status')
-        .eq('org_id', orgId);
-
-      const newSet = new Set(modules);
-      const toDeactivate = (currentMods || [])
-        .filter(r => !newSet.has(r.module) && r.status !== 'inactive')
-        .map(r => r.module);
-
-      if (toDeactivate.length > 0) {
-        const { error: deactErr } = await supabase
-          .from('org_modules')
-          .update({ status: 'inactive', updated_at: new Date().toISOString() })
-          .eq('org_id', orgId)
-          .in('module', toDeactivate);
-        if (deactErr) console.error('[DEMO modules] deactivate error:', deactErr.message);
-      }
-
-      const rows = modules.map(m => ({
-        org_id: orgId,
-        module: m,
-        status: 'trial',
-        activated_at: new Date().toISOString(),
-        expires_at: expiresAt,
-        updated_at: new Date().toISOString(),
-      }));
-      if (rows.length > 0) {
-        const { error: omErr } = await supabase
-          .from('org_modules')
-          .upsert(rows, { onConflict: 'org_id,module' });
-        if (omErr) console.error('[DEMO modules] org_modules upsert error:', omErr.message);
-      }
+      // (Rimosso sync su `org_modules` table: legacy. La fonte canonica
+      // è `orgs.desktop_modules` aggiornata sopra. useSubscription nel
+      // desktop legge da lì.)
 
       // 4. lead_demos.modules_enabled (storico)
       await supabase

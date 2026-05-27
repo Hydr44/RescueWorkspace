@@ -144,32 +144,10 @@ module.exports = function createConvertRouter(supabase) {
         password_hash: demoPasswordHash
       }, { onConflict: 'org_id,email' });
 
-      // STEP 3b: popola `org_modules` (status=active, expires=fine periodo
-      // contratto). La desktop app legge questa tabella per il gating
-      // sidebar/route (Fatture, RVFU, RENTRI, Contabilità). Senza questo
-      // step il cliente paga ma non vede i moduli acquistati.
-      try {
-        const periodEndMod = new Date();
-        if (quote.contract_duration === 'biennial') periodEndMod.setFullYear(periodEndMod.getFullYear() + 2);
-        else if (quote.contract_duration === 'yearly') periodEndMod.setFullYear(periodEndMod.getFullYear() + 1);
-        else periodEndMod.setMonth(periodEndMod.getMonth() + 1);
-        const moduleRows = allModules.map(m => ({
-          org_id: newOrg.id,
-          module: m,
-          status: 'active',
-          activated_at: new Date().toISOString(),
-          expires_at: periodEndMod.toISOString(),
-          updated_at: new Date().toISOString(),
-        }));
-        if (moduleRows.length > 0) {
-          const { error: omErr } = await supabase
-            .from('org_modules')
-            .upsert(moduleRows, { onConflict: 'org_id,module' });
-          if (omErr) console.error('[CONVERT] org_modules upsert error (non-fatal):', omErr.message);
-        }
-      } catch (omCatch) {
-        console.error('[CONVERT] org_modules exception (non-fatal):', omCatch.message);
-      }
+      // (Rimosso upsert su `org_modules` table: legacy. La fonte canonica
+      // dei moduli abilitati è `orgs.desktop_modules` valorizzato sopra
+      // tramite `desktop_modules: allModules` nell'insert org. Il desktop
+      // legge da lì via useSubscription. Sep 2026.)
 
       // STEP 4: hard-delete della org demo (e tutti i suoi dati).
       // La funzione SQL `delete_org_cascade` rifiuta org non-demo per safety.

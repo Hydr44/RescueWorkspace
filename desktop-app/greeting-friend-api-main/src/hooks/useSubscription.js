@@ -43,29 +43,37 @@ export function useSubscription() {
     setError(null);
 
     try {
-      const [subRes, modRes] = await Promise.all([
+      // Fonte di verità per i moduli abilitati: `orgs.desktop_modules`
+      // (array di nomi UI tipo 'trasporti','clienti','fatturazione',ecc).
+      // La tabella legacy `org_modules` era usata in passato ma il CHECK
+      // constraint accetta solo 5 valori billing, non i nomi UI.
+      // ClientControlsPanel + demo activate/PATCH scrivono in `orgs.desktop_modules`.
+      const [subRes, orgRes] = await Promise.all([
         supabase
           .from("org_subscriptions")
           .select("*")
           .eq("org_id", orgId)
           .maybeSingle(),
         supabase
-          .from("org_modules")
-          .select("module, status, activated_at, expires_at")
-          .eq("org_id", orgId)
-          .eq("status", "active"),
+          .from("orgs")
+          .select("desktop_modules")
+          .eq("id", orgId)
+          .maybeSingle(),
       ]);
 
       if (subRes.error && subRes.error.code !== "PGRST116") {
         console.warn("[useSubscription] Error loading subscription:", subRes.error.message);
       }
 
-      if (modRes.error) {
-        console.warn("[useSubscription] Error loading modules:", modRes.error.message);
+      if (orgRes.error) {
+        console.warn("[useSubscription] Error loading org modules:", orgRes.error.message);
       }
 
       setSubscription(subRes.data || null);
-      setModules((modRes.data || []).map(m => m.module));
+      const desktopModules = Array.isArray(orgRes.data?.desktop_modules)
+        ? orgRes.data.desktop_modules
+        : [];
+      setModules(desktopModules);
 
       // Carica feature flags dell'org (org_settings.key='features')
       try {
@@ -110,23 +118,44 @@ export function useSubscription() {
     return SUBSCRIPTION_STATUS[subscription.status] || SUBSCRIPTION_STATUS.inactive;
   }, [subscription]);
 
-  // Check se un modulo specifico è attivo (per-org AND globale)
+  // Check se un modulo specifico è attivo (per-org AND globale).
+  // Accetta sia il nome UI ('fatturazione') sia l'alias legacy ('sdi').
   const isModuleActive = useCallback((mod) => {
-    // Se il flag globale è disabilitato, il modulo è off per tutti
     if (globalFlags[mod] === false) return false;
-    return modules.includes(mod);
+    if (modules.includes(mod)) return true;
+    // Aliasing: SDI è il nome billing, 'fatturazione' è il nome UI admin.
+    if (mod === 'sdi' && modules.includes('fatturazione')) return true;
+    if (mod === 'fatturazione' && modules.includes('sdi')) return true;
+    return false;
   }, [modules, globalFlags]);
 
-  // Oggetto activeModules per compatibilità con useOrgModules
-  // Un modulo è attivo solo se: attivo per-org E attivo globalmente
-  const activeModules = useMemo(() => ({
-    sdi: modules.includes("sdi") && globalFlags.sdi !== false,
-    rvfu: modules.includes("rvfu") && globalFlags.rvfu !== false,
-    rentri: modules.includes("rentri") && globalFlags.rentri !== false,
-    contabilita: modules.includes("contabilita") && globalFlags.contabilita !== false,
-    ricambi: globalFlags.ricambi !== false,
-    piazzale: globalFlags.piazzale !== false,
-  }), [modules, globalFlags]);
+  // Oggetto activeModules: legge da `orgs.desktop_modules` (nomi UI).
+  // - 'fatturazione' (label admin) = 'sdi' (chiave legacy) → accettiamo entrambi.
+  // - Un modulo è attivo solo se è presente nell'org E non disabilitato dai
+  //   feature flag globali.
+  // Mag 2026: la fonte canonica è `orgs.desktop_modules`; ClientControlsPanel
+  // e demo activate/PATCH scrivono lì.
+  const activeModules = useMemo(() => {
+    const has = (m) => modules.includes(m);
+    return {
+      // Billing modules
+      sdi: (has("sdi") || has("fatturazione")) && globalFlags.sdi !== false,
+      rvfu: has("rvfu") && globalFlags.rvfu !== false,
+      rentri: has("rentri") && globalFlags.rentri !== false,
+      contabilita: has("contabilita") && globalFlags.contabilita !== false,
+      // Moduli operativi (gated da desktop_modules + flag globale)
+      ricambi: has("ricambi") && globalFlags.ricambi !== false,
+      piazzale: has("piazzale") && globalFlags.piazzale !== false,
+      trasporti: has("trasporti") && globalFlags.trasporti !== false,
+      tracking: has("tracking") && globalFlags.tracking !== false,
+      calendario: has("calendario") && globalFlags.calendario !== false,
+      clienti: has("clienti") && globalFlags.clienti !== false,
+      mezzi: has("mezzi") && globalFlags.mezzi !== false,
+      autisti: has("autisti") && globalFlags.autisti !== false,
+      preventivi: has("preventivi") && globalFlags.preventivi !== false,
+      report: has("report") && globalFlags.report !== false,
+    };
+  }, [modules, globalFlags]);
 
   // Feature defaults (allineati a admin ClientControlsPanel)
   const FEATURE_DEFAULTS = {
