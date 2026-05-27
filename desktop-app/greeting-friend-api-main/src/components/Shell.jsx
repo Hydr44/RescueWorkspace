@@ -747,7 +747,16 @@ export default function Shell({ children }) {
         {isDemo && (
           <div className="bg-amber-500/15 border-b border-amber-500/25 px-6 py-2 flex items-center justify-center gap-3 flex-shrink-0">
             <span className="text-amber-400 text-xs font-semibold uppercase tracking-wider">Modalità Demo</span>
-            <span className="text-amber-300/70 text-xs">Stai esplorando RescueManager con dati di esempio. Le funzioni di invio SDI, RENTRI e RVFU sono disabilitate.</span>
+            <span className="text-amber-300/70 text-xs">Stai esplorando RescueManager. Invio SDI, RENTRI e RVFU disabilitati.</span>
+            <a
+              href="https://rescuemanager.eu/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-2 px-2.5 py-1 rounded-md bg-amber-500/25 hover:bg-amber-500/40 text-amber-100 text-[11px] font-semibold transition-colors no-underline"
+              title="Apri il preventivo per attivare l'account produzione"
+            >
+              Acquista ora →
+            </a>
           </div>
         )}
         <main className={`${contentPaddingClass} overflow-auto flex-1`}><RouteTransition>{children}</RouteTransition></main>
