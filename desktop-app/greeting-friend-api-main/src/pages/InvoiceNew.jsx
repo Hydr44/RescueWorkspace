@@ -3,10 +3,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { useOrg } from "@/context/OrgContext";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   FiArrowLeft, FiSave, FiPlus, FiTrash2, FiInfo, FiCalendar, FiRefreshCw,
   FiZap, FiFileText, FiX, FiCheck, FiCreditCard, FiUser, FiHash,
-  FiDollarSign, FiPercent, FiAlertCircle, FiCheckCircle, FiMapPin
+  FiDollarSign, FiPercent, FiAlertCircle, FiCheckCircle, FiMapPin,
+  FiMail, FiPhone, FiChevronDown
 } from "react-icons/fi";
 import { calcolaCodiceFiscale } from "@/lib/codiceFiscale";
 // Google Maps autocomplete with fallback
@@ -27,7 +29,7 @@ import { getSdiConfig } from "@/lib/sdi";
 /* ---------- Helpers ---------- */
 const asNum = (v) => (isFinite(Number(v)) ? Number(v) : 0);
 const EUR = (v) => (isFinite(Number(v)) ? Number(v).toFixed(2) + " €" : "—");
-const EMPTY_ROW = { descr: "Prestazione", item_description: "", qty: 1, price: 0, vat_perc: 22, unit: "PZ", sconto: null };
+const EMPTY_ROW = { descr: "", item_description: "", qty: 1, price: 0, vat_perc: 22, unit: "PZ", sconto: null };
 
 const tdOptions = [
   { v: "TD01", l: "TD01 - Fattura" },
@@ -113,6 +115,7 @@ function Field({ label, children, hint }) {
 export default function InvoiceNew() {
   const supabase = supabaseBrowser();
   const { orgId } = useOrg();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("edit");
@@ -167,11 +170,14 @@ export default function InvoiceNew() {
   const [riepAliq, setRiepAliq] = useState(22);
   const [riepNatura, setRiepNatura] = useState(""); // es. N1..N7 se serve, altrimenti vuoto
   const [riepEsig, setRiepEsig] = useState("I");
+  const [showRiepilogoIva, setShowRiepilogoIva] = useState(false);
 
   /* ---------- Pagamento ---------- */
   const [condPag, setCondPag] = useState("TP02"); // TP01=pagamento a rate, TP02=completo, TP03=anticipo
   const [modPag, setModPag] = useState("MP05");
   const [iban, setIban] = useState("");
+  const [banca, setBanca] = useState("");
+  const [bic, setBic] = useState("");
   const [beneficiario, setBeneficiario] = useState("");
   const [scadenza, setScadenza] = useState(() => {
     const d = new Date();
@@ -232,6 +238,9 @@ export default function InvoiceNew() {
   /* Indirizzo cliente: collassabile quando già compilato */
   const [showClientAddress, setShowClientAddress] = useState(false);
 
+  /* Snapshot dati cliente extra (email/phone/codice/...) per banner riepilogo */
+  const [clientExtras, setClientExtras] = useState(null);
+
   /* Modali per ricerca rapida */
   const [showClientSearch, setShowClientSearch] = useState(false);
   const [clientSearchTerm, setClientSearchTerm] = useState("");
@@ -273,6 +282,11 @@ export default function InvoiceNew() {
     inlineDebounceRef.current = setTimeout(() => inlineClientSearch(val), 200);
   };
 
+  // Cleanup debounce all'unmount per evitare setState su componente smontato
+  useEffect(() => () => {
+    if (inlineDebounceRef.current) clearTimeout(inlineDebounceRef.current);
+  }, []);
+
   const clearCustomerData = () => {
     setCustomerName("");
     setCustomerSurname("");
@@ -291,6 +305,7 @@ export default function InvoiceNew() {
     setPecDest("");
     setEditClientForm(false);
     setInlineClientQuery("");
+    setClientExtras(null);
   };
   const [showPresetSearch, setShowPresetSearch] = useState(false);
   const [presetSearchTerm, setPresetSearchTerm] = useState("");
@@ -447,6 +462,29 @@ export default function InvoiceNew() {
     };
   }, [orgId]);
 
+  /* Pre-carica coordinate bancarie (IBAN/banca/BIC) da org_settings.invoice.defaultFields
+     solo per NUOVE fatture e solo se i campi sono ancora vuoti — evita di sovrascrivere
+     ciò che l'utente potrebbe aver già digitato. */
+  useEffect(() => {
+    if (!orgId || editId) return;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("org_settings")
+          .select("value")
+          .eq("org_id", orgId)
+          .eq("key", "invoice")
+          .maybeSingle();
+        const df = data?.value?.defaultFields;
+        if (!df) return;
+        if (!iban && df.iban) setIban(df.iban);
+        if (!banca && df.bankName) setBanca(df.bankName);
+        if (!bic && df.bic) setBic(df.bic);
+      } catch {}
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, editId]);
+
   /* Autonumerazione: proponi numero progressivo se il campo è vuoto (solo per nuove fatture) */
   useEffect(() => {
     if (!orgId || hasPrefilledNumber.current || editId) return;
@@ -549,6 +587,8 @@ export default function InvoiceNew() {
       setCondPag(pag.condizioni || "TP02");
       setModPag(pag.modalita || "MP05");
       setIban(pag.iban || "");
+      setBanca(pag.banca || "");
+      setBic(pag.bic || "");
       setBeneficiario(pag.beneficiario || "");
       setScadenza(pag.scadenza || "");
 
@@ -879,6 +919,14 @@ export default function InvoiceNew() {
     // Carica campi SDI dal cliente
     setCodiceDest(client.codice_destinatario || "");
     setPecDest(client.pec || "");
+    // Snapshot info extra per banner riepilogo (non salvate sulla fattura
+    // ma solo visualizzate nel form).
+    setClientExtras({
+      codice: client.codice || null,
+      email: client.email || null,
+      phone: client.phone || null,
+      country: client.country || "IT",
+    });
     setShowClientSearch(false);
   }
 
@@ -1023,15 +1071,46 @@ export default function InvoiceNew() {
   function handleDescrChange(i, value) {
     patchRow(i, { item_description: value });
     if (value.length >= 2 && allPresets.length > 0) {
-      const filtered = allPresets.filter(p =>
-        p.description.toLowerCase().includes(value.toLowerCase())
-      );
+      const filtered = allPresets
+        .filter(p => p.description.toLowerCase().includes(value.toLowerCase()))
+        .slice(0, 8);
       setDescrSuggestions(filtered);
       setDescrSuggRow(i);
     } else {
       setDescrSuggestions([]);
       setDescrSuggRow(null);
     }
+  }
+
+  // Autocomplete sul campo Codice: filtra i preset per `code` (e per description
+  // come fallback). Se i preset non sono ancora caricati li carica al volo.
+  async function handleCodeChange(i, value) {
+    patchRow(i, { descr: value });
+    if (value.length < 1) {
+      setDescrSuggestions([]);
+      setDescrSuggRow(null);
+      return;
+    }
+    // Carica preset al volo se non ancora disponibili (es. utente ha messo
+    // focus direttamente sul codice senza passare per descrizione).
+    let presets = allPresets;
+    if (presets.length === 0) {
+      try { presets = await loadAllPresets(); } catch { presets = []; }
+    }
+    if (presets.length === 0) {
+      setDescrSuggestions([]);
+      setDescrSuggRow(null);
+      return;
+    }
+    const v = value.toLowerCase();
+    const filtered = presets
+      .filter(p =>
+        (p.code || "").toLowerCase().includes(v)
+        || (p.description || "").toLowerCase().includes(v)
+      )
+      .slice(0, 8); // limita dropdown a 8 suggerimenti
+    setDescrSuggestions(filtered);
+    setDescrSuggRow(i);
   }
 
   function applyDescrPreset(rowIdx, preset) {
@@ -1276,18 +1355,31 @@ export default function InvoiceNew() {
             tipo_documento: tipoDoc,
             valuta: currency || "EUR",
           },
-          riepilogo_iva: [
-            {
-              aliquota: asNum(riepAliq),
-              natura: riepNatura || null,
-              esigibilita: riepEsig,
-            },
-          ],
+          // Riepilogo IVA calcolato AUTOMATICAMENTE dalle righe (raggruppato
+          // per aliquota+natura). natura/esigibilita default applicati a tutti
+          // i blocchi: il VPS può sovrascriverli per riga se necessario.
+          riepilogo_iva: (() => {
+            const groups = new Map();
+            for (const r of rows) {
+              const aliq = asNum(r.vat_perc);
+              const nat = (asNum(r.vat_perc) === 0 ? (r.natura || riepNatura || null) : null);
+              const key = `${aliq}|${nat || ''}`;
+              if (!groups.has(key)) {
+                groups.set(key, { aliquota: aliq, natura: nat, esigibilita: riepEsig });
+              }
+            }
+            if (groups.size === 0) {
+              return [{ aliquota: 22, natura: riepNatura || null, esigibilita: riepEsig }];
+            }
+            return Array.from(groups.values());
+          })(),
           pagamento: {
             condizioni: condPag,
             modalita: modPag,
             scadenza: scadenza || null,
             iban: iban || null,
+            banca: banca || null,
+            bic: bic || null,
             beneficiario: beneficiario || null,
           },
           bollo_virtuale: bolloVirtuale || false,
@@ -1449,6 +1541,7 @@ export default function InvoiceNew() {
           if (e2) throw e2;
         }
 
+        queryClient.invalidateQueries({ queryKey: ['invoices', orgId] });
         // Naviga direttamente alla fattura modificata
         navigate(`/fatture/${editId}`);
       } else {
@@ -1487,6 +1580,8 @@ export default function InvoiceNew() {
         } catch (accountingError) {
           console.warn("Errore generazione movimenti contabili (non bloccante):", accountingError);
         }
+
+        queryClient.invalidateQueries({ queryKey: ['invoices', orgId] });
 
         // Mostra popup stato incasso
         setSavedInvoiceId(invoiceId);
@@ -1545,8 +1640,20 @@ export default function InvoiceNew() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-4">
+    <div className="space-y-3 relative">
+      {/* Overlay loading durante salvataggio: blocca interazioni + feedback chiaro */}
+      {saving && (
+        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center pointer-events-auto">
+          <div className="bg-[#141c27] border border-[#243044] rounded-xl px-6 py-5 flex items-center gap-3 shadow-2xl">
+            <FiRefreshCw className="w-5 h-5 text-emerald-400 animate-spin" />
+            <div>
+              <div className="text-sm font-semibold text-slate-100">Salvataggio fattura…</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Non chiudere la finestra</div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="space-y-3">
         {/* Header — Design L */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -1600,6 +1707,26 @@ export default function InvoiceNew() {
         </div>
       )}
 
+      {/* Warning: fattura legacy con sconto globale (UI rimossa) */}
+      {isEditMode && discountType !== "none" && discountValue > 0 && (
+        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+          <FiInfo className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+          <div className="flex-1 text-xs text-amber-200">
+            Questa fattura ha uno sconto globale di{' '}
+            <strong>
+              {discountType === "percentage" ? `${discountValue}%` : EUR(discountValue)}
+            </strong>{' '}
+            (formato legacy). Il totale è calcolato correttamente, ma per modificarlo usa lo sconto per riga.
+            <button
+              onClick={() => { setDiscountType("none"); setDiscountValue(0); }}
+              className="ml-2 underline hover:text-amber-100"
+            >
+              Rimuovi sconto globale
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Cedente/Prestatore — banner compatto (dati pre-impostati da Info Azienda) */}
       {!companyData ? (
         <section className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
@@ -1636,7 +1763,7 @@ export default function InvoiceNew() {
                         : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                     }`}
                   >
-                    {sdiConfig.test_mode ? '🧪 SDI TEST' : '✓ SDI PROD'}
+                    {sdiConfig.test_mode ? 'SDI TEST' : 'SDI PROD'}
                   </span>
                 )}
               </div>
@@ -1665,7 +1792,7 @@ export default function InvoiceNew() {
       )}
 
       {/* Trasmissione SdI */}
-      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 space-y-3">
+      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-3 space-y-2">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
             <FiZap className="w-4 h-4 text-blue-400" />
@@ -1712,7 +1839,7 @@ export default function InvoiceNew() {
       </section>
 
       {/* Cessionario / Committente */}
-      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 space-y-3">
+      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-3 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center">
@@ -1728,26 +1855,46 @@ export default function InvoiceNew() {
         {/* Quick selector: cerca per codice/nome/P.IVA — sempre visibile */}
         {!editClientForm && !customerName.trim() && !customerSurname.trim() && (
           <div className="relative">
-            <div className="relative">
-              <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
-              <input
-                type="text"
-                className={`${inputBase} pl-10 pr-24`}
-                placeholder="Cerca per codice cliente, nome, P.IVA, CF, email..."
-                value={inlineClientQuery}
-                onChange={(e) => handleInlineClientChange(e.target.value)}
-                onFocus={() => { setInlineClientOpen(true); inlineClientSearch(inlineClientQuery); }}
-                onBlur={() => setTimeout(() => setInlineClientOpen(false), 200)}
-              />
-              {inlineClientLoading && (
-                <FiRefreshCw className="absolute right-24 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-blue-400 animate-spin" />
-              )}
+            <div className="relative flex items-center gap-2">
+              <div className="relative flex-1">
+                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
+                <input
+                  type="text"
+                  className={`${inputBase} pl-10 pr-9`}
+                  placeholder="Inizia a digitare o clicca per vedere i clienti..."
+                  value={inlineClientQuery}
+                  onChange={(e) => handleInlineClientChange(e.target.value)}
+                  onFocus={() => { setInlineClientOpen(true); inlineClientSearch(inlineClientQuery); }}
+                  onBlur={() => setTimeout(() => setInlineClientOpen(false), 200)}
+                />
+                {inlineClientLoading && (
+                  <FiRefreshCw className="absolute right-9 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-blue-400 animate-spin" />
+                )}
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    // mouseDown previene il blur dell'input prima del click
+                    e.preventDefault();
+                    if (inlineClientOpen) {
+                      setInlineClientOpen(false);
+                    } else {
+                      setInlineClientOpen(true);
+                      inlineClientSearch(inlineClientQuery);
+                    }
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-200 hover:bg-[#243044] rounded transition"
+                  title={inlineClientOpen ? "Chiudi lista" : "Mostra tutti i clienti"}
+                >
+                  <FiChevronDown className={`w-4 h-4 transition-transform ${inlineClientOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
               <button
+                type="button"
                 onClick={() => setEditClientForm(true)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-medium text-slate-300 bg-[#141c27] hover:bg-[#243044] rounded transition flex items-center gap-1"
+                className="px-3 py-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 rounded-lg transition flex items-center gap-1 whitespace-nowrap"
                 title="Inserisci cliente nuovo manualmente"
               >
-                <FiPlus className="w-3 h-3" /> Nuovo
+                <FiPlus className="w-3.5 h-3.5" /> Nuovo cliente
               </button>
             </div>
             {inlineClientOpen && inlineClientResults.length > 0 && (
@@ -1797,46 +1944,129 @@ export default function InvoiceNew() {
           </div>
         )}
 
-        {/* Banner compatto cliente selezionato */}
-        {!editClientForm && (customerName.trim() || customerSurname.trim()) && (
-          <div className="bg-[#141c27]/60 border border-[#243044] rounded-lg p-3 flex items-start gap-3">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isCompany ? "bg-purple-500/15" : "bg-blue-500/15"}`}>
-              <FiUser className={`w-4 h-4 ${isCompany ? "text-purple-400" : "text-blue-400"}`} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                  {isCompany ? "Azienda" : "Persona fisica"}
-                </span>
-                <strong className="text-sm text-slate-100">
-                  {isCompany ? customerName : [customerName, customerSurname].filter(Boolean).join(" ")}
-                </strong>
-                {customerVat && <span className="text-[11px] text-slate-400 font-mono">P.IVA {customerVat}</span>}
-                {customerTax && <span className="text-[11px] text-slate-400 font-mono">CF {customerTax}</span>}
+        {/* Banner cliente selezionato — riepilogo completo */}
+        {!editClientForm && (customerName.trim() || customerSurname.trim()) && (() => {
+          const fullName = isCompany
+            ? customerName
+            : [customerName, customerSurname].filter(Boolean).join(" ");
+          const addressLine = [custStreet, custZip, custCity, custProv && `(${custProv})`]
+            .filter(Boolean).join(" ");
+          const country = (clientExtras?.country || custCountry || "IT").toUpperCase();
+          const isForeign = country !== "IT";
+          // Età anagrafica (solo PF se data nascita)
+          let ageHint = null;
+          if (!isCompany && customerBirthDate) {
+            const d = new Date(customerBirthDate);
+            if (Number.isFinite(d.getTime())) {
+              const age = Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+              ageHint = `${age} anni`;
+            }
+          }
+          return (
+            <div className="bg-[#141c27]/60 border border-[#243044] rounded-lg p-3 space-y-2">
+              {/* Riga 1: identità + IDs fiscali */}
+              <div className="flex items-start gap-3">
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isCompany ? "bg-purple-500/15" : "bg-blue-500/15"}`}>
+                  <FiUser className={`w-4 h-4 ${isCompany ? "text-purple-400" : "text-blue-400"}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${isCompany ? "text-purple-400 bg-purple-500/10" : "text-blue-400 bg-blue-500/10"}`}>
+                      {isCompany ? "Azienda" : "Persona fisica"}
+                    </span>
+                    <strong className="text-sm text-slate-100">{fullName || "—"}</strong>
+                    {clientExtras?.codice && (
+                      <span className="text-[10px] text-slate-500 font-mono">#{clientExtras.codice}</span>
+                    )}
+                    {ageHint && <span className="text-[10px] text-slate-500">{ageHint}</span>}
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap mt-1 text-[11px]">
+                    {customerVat && (
+                      <span className="text-slate-300">
+                        <span className="text-slate-500">P.IVA </span>
+                        <span className="font-mono">{customerVat}</span>
+                      </span>
+                    )}
+                    {customerTax && (
+                      <span className="text-slate-300">
+                        <span className="text-slate-500">CF </span>
+                        <span className="font-mono">{customerTax}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => setEditClientForm(true)}
+                    className="text-[11px] font-medium text-slate-400 hover:text-slate-200 px-2 py-1 hover:bg-[#1a2536] rounded transition"
+                  >
+                    Modifica
+                  </button>
+                  <button
+                    onClick={clearCustomerData}
+                    title="Cambia cliente"
+                    className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-              <div className="text-[11px] text-slate-500 mt-1 truncate">
-                {[custStreet, custZip, custCity, custProv && `(${custProv})`].filter(Boolean).join(" ")}
-                {codiceDest && <span className="ml-2">• Cod. Dest. <span className="font-mono">{codiceDest}</span></span>}
-                {pecDest && <span className="ml-2">• PEC {pecDest}</span>}
-              </div>
+
+              {/* Riga 2: indirizzo */}
+              {addressLine && (
+                <div className="flex items-center gap-2 text-[11px] text-slate-400 pl-12">
+                  <FiMapPin className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                  <span>{addressLine}{isForeign && ` · ${country}`}</span>
+                </div>
+              )}
+
+              {/* Riga 3: contatti (email, telefono) */}
+              {(clientExtras?.email || clientExtras?.phone) && (
+                <div className="flex items-center gap-3 flex-wrap text-[11px] text-slate-400 pl-12">
+                  {clientExtras.email && (
+                    <span className="inline-flex items-center gap-1">
+                      <FiMail className="w-3 h-3 text-slate-500" />
+                      {clientExtras.email}
+                    </span>
+                  )}
+                  {clientExtras.phone && (
+                    <span className="inline-flex items-center gap-1">
+                      <FiPhone className="w-3 h-3 text-slate-500" />
+                      {clientExtras.phone}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Riga 4: canale SdI */}
+              {(codiceDest || pecDest) && (
+                <div className="flex items-center gap-3 flex-wrap text-[11px] pl-12">
+                  {codiceDest && (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded">SDI</span>
+                      <span className="text-slate-400">Cod. Dest.</span>
+                      <span className="text-slate-200 font-mono">{codiceDest}</span>
+                    </span>
+                  )}
+                  {pecDest && (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-sky-400 bg-sky-500/10 px-1 py-0.5 rounded">PEC</span>
+                      <span className="text-slate-300">{pecDest}</span>
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Avviso se manca canale SdI per aziende */}
+              {isCompany && !codiceDest && !pecDest && (
+                <div className="flex items-start gap-2 pl-12 text-[10px] text-amber-400/80">
+                  <FiInfo className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                  <span>Manca Codice Destinatario o PEC: SdI userà <span className="font-mono">0000000</span> (cliente recupera la fattura dal portale AdE).</span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={() => setEditClientForm(true)}
-                className="text-[11px] font-medium text-slate-400 hover:text-slate-200 px-2 py-1 hover:bg-[#1a2536] rounded transition"
-              >
-                Modifica
-              </button>
-              <button
-                onClick={clearCustomerData}
-                title="Cambia cliente"
-                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition"
-              >
-                <FiX className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Form manuale (solo se editClientForm o nessun cliente) */}
         {(editClientForm || (!customerName.trim() && !customerSurname.trim() && !inlineClientOpen && inlineClientQuery === "")) && editClientForm && (
@@ -2214,7 +2444,7 @@ export default function InvoiceNew() {
       </section>
 
       {/* Dati Documento */}
-      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 space-y-3">
+      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-3 space-y-2">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 bg-amber-500/10 rounded-lg flex items-center justify-center">
             <FiFileText className="w-4 h-4 text-amber-400" />
@@ -2258,7 +2488,7 @@ export default function InvoiceNew() {
       </section>
 
       {/* Righe */}
-      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 space-y-3">
+      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-3 space-y-2">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-teal-500/10 rounded-lg flex items-center justify-center">
@@ -2286,27 +2516,23 @@ export default function InvoiceNew() {
           </div>
         </div>
 
-        <div className="overflow-x-auto" style={{ overflowY: 'visible' }}>
-          <table className="w-full" style={{ overflowY: 'visible', tableLayout: 'fixed' }}>
+        <div style={{ overflow: 'visible' }}>
+          <table className="w-full" style={{ overflow: 'visible', tableLayout: 'fixed' }}>
+            {/* Columns: 8 Codice, 44 Descrizione, 6 Q.tà, 10 Prezzo, 7 IVA, 7 Sc., 13 Totale, 5 X */}
             <colgroup>
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '34%' }} />
-              <col style={{ width: '8%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '9%' }} />
-              <col style={{ width: '9%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '6%' }} />
+              {[8, 44, 6, 10, 7, 7, 13, 5].map((w, i) => (
+                <col key={i} style={{ width: `${w}%` }} />
+              ))}
             </colgroup>
             <thead className="bg-[#141c27]/50">
               <tr>
-                <th className="text-left px-2 py-3 text-sm font-semibold">Codice</th>
-                <th className="text-left px-2 py-3 text-sm font-semibold">Descrizione</th>
+                <th className="text-left px-2 py-3 text-sm font-semibold" title="Codice articolo/voce (opzionale)">Codice</th>
+                <th className="text-left px-2 py-3 text-sm font-semibold">Descrizione voce</th>
                 <th className="text-left px-2 py-3 text-sm font-semibold">Q.tà</th>
                 <th className="text-left px-2 py-3 text-sm font-semibold">Prezzo €</th>
                 <th className="text-left px-2 py-3 text-sm font-semibold">IVA %</th>
                 <th className="text-left px-2 py-3 text-sm font-semibold">Sc. %</th>
-                <th className="text-left px-2 py-3 text-sm font-semibold">Totale €</th>
+                <th className="text-right px-2 py-3 text-sm font-semibold">Totale €</th>
                 <th className="text-left px-2 py-3 text-sm font-semibold"></th>
               </tr>
             </thead>
@@ -2328,19 +2554,41 @@ export default function InvoiceNew() {
                 return (
                   <tr key={i} className="hover:bg-[#141c27]/50 transition-colors">
                     <td className="px-2 py-2">
-                      <input
-                        className={`${inputBase} w-full text-sm`}
-                        value={r.descr}
-                        onChange={(e) => patchRow(i, { descr: e.target.value })}
-                        onFocus={(e) => e.target.select()}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const inputs = Array.from(document.querySelectorAll('tr input:not([disabled]):not([readonly])')); const idx = inputs.indexOf(e.target); if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus(); } }}
-                        placeholder="Codice"
-                      />
+                      <div className="relative">
+                        <input
+                          className={`${inputBase} w-full text-sm font-mono`}
+                          value={r.descr}
+                          onChange={(e) => handleCodeChange(i, e.target.value)}
+                          onFocus={(e) => { e.target.select(); if (allPresets.length === 0) loadAllPresets(); }}
+                          onBlur={() => setTimeout(() => { setDescrSuggRow(null); setDescrSuggestions([]); }, 200)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const inputs = Array.from(document.querySelectorAll('tr input:not([disabled]):not([readonly])')); const idx = inputs.indexOf(e.target); if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus(); } }}
+                          placeholder="opz."
+                          title="Codice articolo (es. PREST-001). Opzionale."
+                        />
+                        {descrSuggRow === i && descrSuggestions.length > 0 && r.descr && (
+                          <div className="absolute z-[200] left-0 top-full mt-1 bg-[#141c27] border border-[#243044] rounded-lg shadow-2xl max-h-48 overflow-y-auto"
+                            style={{ minWidth: '280px' }}
+                          >
+                            {descrSuggestions.map((p) => (
+                              <button
+                                key={p.code || p.description}
+                                type="button"
+                                className="w-full px-3 py-2 text-left hover:bg-[#1a2536] border-b border-[#243044] last:border-b-0"
+                                onMouseDown={(e) => { e.preventDefault(); applyDescrPreset(i, p); }}
+                              >
+                                {p.code && <div className="text-[10px] text-emerald-400 font-mono">{p.code}</div>}
+                                <div className="text-xs text-slate-200 font-medium">{p.description}</div>
+                                <div className="text-[10px] text-slate-500">€{p.price} × {p.qty} — IVA {p.vat_perc}%</div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-2 py-2">
                       <div className="relative">
                         <input
-                          className={`${inputBase} w-full text-sm`}
+                          className={`${inputBase} w-full text-base`}
                           value={r.item_description || ''}
                           onChange={(e) => handleDescrChange(i, e.target.value)}
                           onFocus={(e) => { e.target.select(); if (allPresets.length === 0) loadAllPresets(); }}
@@ -2371,8 +2619,8 @@ export default function InvoiceNew() {
                       <input
                         type="number"
                         className={`${inputBase} w-full text-sm`}
-                        value={r.qty}
-                        onChange={(e) => patchRow(i, { qty: asNum(e.target.value) })}
+                        value={r.qty === 0 ? '' : r.qty}
+                        onChange={(e) => patchRow(i, { qty: e.target.value === '' ? 0 : asNum(e.target.value) })}
                         onFocus={(e) => e.target.select()}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const inputs = Array.from(document.querySelectorAll('tr input:not([disabled]):not([readonly])')); const idx = inputs.indexOf(e.target); if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus(); } }}
                         placeholder="1"
@@ -2384,11 +2632,11 @@ export default function InvoiceNew() {
                       <input
                         type="number"
                         className={`${inputBase} w-full text-sm`}
-                        value={r.price}
-                        onChange={(e) => patchRow(i, { price: asNum(e.target.value) })}
+                        value={r.price === 0 ? '' : r.price}
+                        onChange={(e) => patchRow(i, { price: e.target.value === '' ? 0 : asNum(e.target.value) })}
                         onFocus={(e) => e.target.select()}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const inputs = Array.from(document.querySelectorAll('tr input:not([disabled]):not([readonly])')); const idx = inputs.indexOf(e.target); if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus(); } }}
-                        placeholder="0"
+                        placeholder="0,00"
                         min={0}
                         step="0.01"
                       />
@@ -2397,8 +2645,8 @@ export default function InvoiceNew() {
                       <input
                         type="number"
                         className={`${inputBase} w-full text-sm`}
-                        value={r.vat_perc}
-                        onChange={(e) => patchRow(i, { vat_perc: asNum(e.target.value) })}
+                        value={r.vat_perc === 0 ? '' : r.vat_perc}
+                        onChange={(e) => patchRow(i, { vat_perc: e.target.value === '' ? 0 : asNum(e.target.value) })}
                         onFocus={(e) => e.target.select()}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const inputs = Array.from(document.querySelectorAll('tr input:not([disabled]):not([readonly])')); const idx = inputs.indexOf(e.target); if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus(); } }}
                         placeholder="22"
@@ -2534,112 +2782,50 @@ export default function InvoiceNew() {
         </section>
       )}
 
-      {/* Sconto/Abbuoni */}
-      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 space-y-3">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center">
-            <FiPercent className="w-4 h-4 text-purple-400" />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-slate-200">Sconto/Abbuoni</h2>
-            <p className="text-xs text-slate-500">Applica sconto o abbuono sulla fattura</p>
-          </div>
-        </div>
-        <div className="grid md:grid-cols-3 gap-3">
-          <Field label="Tipo sconto">
-            <select
-              className={inputBase}
-              value={discountType}
-              onChange={(e) => {
-                setDiscountType(e.target.value);
-                if (e.target.value === "none") setDiscountValue(0);
-              }}
-            >
-              <option value="none">Nessuno</option>
-              <option value="percentage">Percentuale (%)</option>
-              <option value="fixed">Importo fisso (€)</option>
-            </select>
-          </Field>
-          {discountType !== "none" && (
-            <Field label={discountType === "percentage" ? "Percentuale (%)" : "Importo (€)"}>
-              <input
-                type="number"
-                className={inputBase}
-                value={discountValue}
-                onChange={(e) => setDiscountValue(asNum(e.target.value))}
-                min={0}
-                step={discountType === "percentage" ? "1" : "0.01"}
-                placeholder={discountType === "percentage" ? "10" : "50.00"}
-              />
-            </Field>
-          )}
-          {discountType !== "none" && (
-            <div className="flex items-end">
-              <div className="w-full p-3 bg-[#141c27] rounded-lg text-sm">
-                <div className="text-slate-400">Sconto applicato:</div>
-                <div className="text-sm font-semibold text-slate-200">
-                  {discountType === "percentage"
-                    ? `${discountValue}% (${EUR((totals.totale * discountValue) / 100)})`
-                    : EUR(discountValue)}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Riepilogo IVA */}
-      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 space-y-3">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 bg-red-500/10 rounded-lg flex items-center justify-center">
+      {/* Riepilogo IVA — collassabile (raramente serve, il VPS calcola
+          DatiRiepilogo dalle righe). Mostralo solo se l'utente vuole
+          configurare Natura/Esigibilità diverse dal default. */}
+      <section className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowRiepilogoIva(v => !v)}
+          className="w-full px-3 py-2 flex items-center justify-between gap-2 hover:bg-[#1e2b3d] transition"
+        >
+          <div className="flex items-center gap-2">
             <FiDollarSign className="w-4 h-4 text-red-400" />
+            <span className="text-sm font-medium text-slate-200">Configurazione IVA avanzata</span>
+            <span className="text-[10px] text-slate-500">— opzionale</span>
           </div>
-          <div>
-            <h2 className="text-sm font-semibold text-slate-200">Riepilogo IVA</h2>
-            <p className="text-xs text-slate-500">Dettagli IVA</p>
+          <FiChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showRiepilogoIva ? 'rotate-180' : ''}`} />
+        </button>
+        {showRiepilogoIva && (
+          <div className="p-3 border-t border-[#243044] space-y-3">
+            <div className="text-[11px] text-slate-500 bg-[#141c27] border border-[#243044] rounded p-2 flex items-start gap-2">
+              <FiInfo className="w-3 h-3 text-sky-400 mt-0.5 flex-shrink-0" />
+              <span>L'<strong>aliquota IVA</strong> viene calcolata automaticamente dalle righe (raggruppata per aliquota+natura). Qui imposti solo i parametri di esigibilità e l'eventuale natura globale.</span>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">
+              <Field label="Natura IVA globale" hint="Solo se TUTTE le righe sono esenti/fuori campo">
+                <select className={inputBase} value={riepNatura} onChange={(e) => setRiepNatura(e.target.value)}>
+                  {naturaIvaOptions.map((o) => (
+                    <option key={o.v} value={o.v}>{o.l}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Esigibilità IVA" hint="I=Immediata · D=Differita · S=Scissione pagamenti">
+                <select className={inputBase} value={riepEsig} onChange={(e) => setRiepEsig(e.target.value)}>
+                  {esigIvaOptions.map((o) => (
+                    <option key={o.v} value={o.v}>{o.l}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
           </div>
-        </div>
-        <div className="grid md:grid-cols-4 gap-3">
-          <Field label="Aliquota IVA (%)">
-            <input
-              className={inputBase}
-              type="number"
-              min={0}
-              value={riepAliq}
-              onChange={(e) => setRiepAliq(asNum(e.target.value))}
-              placeholder="22"
-            />
-          </Field>
-          <Field 
-            label="Natura (se fuori campo IVA)" 
-            hint="Compila solo se l'operazione è esente, non imponibile, etc."
-          >
-            <select 
-              className={inputBase} 
-              value={riepNatura} 
-              onChange={(e) => setRiepNatura(e.target.value)}
-            >
-              {naturaIvaOptions.map((o) => (
-                <option key={o.v} value={o.v}>
-                  {o.l}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Esigibilità IVA">
-            <select className={inputBase} value={riepEsig} onChange={(e) => setRiepEsig(e.target.value)}>
-              {esigIvaOptions.map((o) => (
-                <option key={o.v} value={o.v}>
-                  {o.l}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
+        )}
       </section>
 
       {/* Bollo, Ritenuta, Cassa */}
-      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 space-y-3">
+      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-3 space-y-2">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center">
             <FiFileText className="w-4 h-4 text-amber-400" />
@@ -2738,7 +2924,7 @@ export default function InvoiceNew() {
       </section>
 
       {/* Pagamento */}
-      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 space-y-3">
+      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-3 space-y-2">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
             <FiCreditCard className="w-4 h-4 text-blue-400" />
@@ -2776,34 +2962,48 @@ export default function InvoiceNew() {
             </select>
           </Field>
           
-          {/* IBAN: solo per Bonifico (MP05) e RIBA (MP12) */}
+          {/* Coordinate bancarie: solo per Bonifico (MP05) e RIBA (MP12) */}
           {(modPag === 'MP05' || modPag === 'MP12') && (
-            <Field label="IBAN" hint="Obbligatorio per bonifico/RIBA">
-              <input
-                className={inputBase}
-                value={iban}
-                onChange={(e) => setIban(e.target.value.replace(/\s+/g, "").toUpperCase())}
-                placeholder="IT60X0542811101000000123456"
-              />
-            </Field>
-          )}
-          
-          {/* Beneficiario: solo per Bonifico (MP05) e RIBA (MP12) */}
-          {(modPag === 'MP05' || modPag === 'MP12') && (
-            <Field label="Beneficiario (opz.)">
-              <input
-                className={inputBase}
-                value={beneficiario}
-                onChange={(e) => setBeneficiario(e.target.value)}
-                placeholder="Ragione sociale beneficiario"
-              />
-            </Field>
+            <>
+              <Field label="IBAN" hint="Obbligatorio per bonifico/RIBA">
+                <input
+                  className={inputBase}
+                  value={iban}
+                  onChange={(e) => setIban(e.target.value.replace(/\s+/g, "").toUpperCase())}
+                  placeholder="IT60X0542811101000000123456"
+                />
+              </Field>
+              <Field label="Banca (opz.)">
+                <input
+                  className={inputBase}
+                  value={banca}
+                  onChange={(e) => setBanca(e.target.value)}
+                  placeholder="Es. Intesa Sanpaolo"
+                />
+              </Field>
+              <Field label="BIC / SWIFT (opz.)">
+                <input
+                  className={inputBase}
+                  value={bic}
+                  onChange={(e) => setBic(e.target.value.replace(/\s+/g, "").toUpperCase())}
+                  placeholder="BCITITMM"
+                />
+              </Field>
+              <Field label="Beneficiario (opz.)">
+                <input
+                  className={inputBase}
+                  value={beneficiario}
+                  onChange={(e) => setBeneficiario(e.target.value)}
+                  placeholder="Ragione sociale beneficiario"
+                />
+              </Field>
+            </>
           )}
         </div>
       </section>
 
       {/* Note */}
-      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 space-y-3">
+      <section className="bg-[#1a2536] rounded-xl border border-[#243044] p-3 space-y-2">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 bg-slate-500/10 rounded-lg flex items-center justify-center">
             <FiFileText className="w-4 h-4 text-slate-400" />
@@ -2837,27 +3037,6 @@ export default function InvoiceNew() {
           />
         </Field>
       </section>
-
-      {/* Azioni — Design L */}
-      <div className="flex justify-end gap-2 pt-4 border-t border-[#243044]">
-        <button
-          onClick={() => navigate("/fatture")}
-          className="h-8 px-3 text-xs font-medium rounded-lg border border-[#243044] bg-[#1a2536] text-slate-300 hover:bg-[#243044] transition-colors"
-        >
-          Annulla
-        </button>
-        <button
-          onClick={save}
-          disabled={saving}
-          className="h-8 px-4 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
-        >
-          {saving ? (
-            <><FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> Salvataggio…</>
-          ) : (
-            <><FiSave className="w-3.5 h-3.5" /> Salva Fattura</>
-          )}
-        </button>
-      </div>
 
       {/* Modale ricerca clienti */}
       {showClientSearch && (
