@@ -8,7 +8,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { FiSave, FiUpload, FiDownload, FiTrash2, FiBell, FiImage, FiGlobe, FiDatabase, FiStar, FiPlus, FiUsers, FiFileText, FiRefreshCw, FiCheck, FiX, FiAlertCircle, FiInfo, FiEdit3, FiDownload as FiDownloadIcon, FiUser, FiCreditCard, FiLock, FiMenu, FiSettings, FiNavigation, FiTruck, FiGrid, FiClipboard, FiCalendar, FiBookOpen, FiMapPin, FiSmartphone } from "react-icons/fi";
+import { FiSave, FiUpload, FiDownload, FiTrash2, FiBell, FiImage, FiGlobe, FiDatabase, FiStar, FiPlus, FiUsers, FiFileText, FiRefreshCw, FiCheck, FiX, FiAlertCircle, FiInfo, FiEdit3, FiDownload as FiDownloadIcon, FiUser, FiCreditCard, FiLock, FiMenu, FiSettings, FiNavigation, FiTruck, FiGrid, FiClipboard, FiCalendar, FiBookOpen, FiMapPin, FiSmartphone, FiSearch } from "react-icons/fi";
 import RifiutiLimitiSettings from "./RifiutiLimitiSettings";
 import MarketplaceSettings from "../components/settings/MarketplaceSettings";
 import OrganizationSettings from "../components/settings/OrganizationSettings";
@@ -20,14 +20,15 @@ import SecuritySettings from "../components/settings/SecuritySettings";
 import NotificationSettings from "../components/settings/NotificationSettings";
 import DemolizioneSettings from "../components/settings/DemolizioneSettings";
 import RentriDeviceOnboarding from "../components/settings/RentriDeviceOnboarding";
-import FrantumatoriPreset from "../components/settings/FrantumatoriPreset";
 import SdiSettings from "../components/settings/SdiSettings";
 import { supabaseBrowser } from "../lib/supabase-browser";
 import { useOrg } from "../context/OrgContext";
 import { filterTabsByRole } from "../lib/permissions";
+import { useSubscription } from "../hooks/useSubscription";
 import Modal from "../components/Modal";
 import PropTypes from "prop-types";
 import { Field, Toggle, Card, Section } from "../components/ui/SettingsUI";
+import { SettingsDirtyProvider, StickySaveBar, useSectionDirty, useSettingsDirty } from "../components/settings/_ui";
 
 // Regimi fiscali italiani completi (FatturaPA)
 const REGIMI_FISCALI = [
@@ -50,6 +51,44 @@ const REGIMI_FISCALI = [
   { value: "RF18", label: "RF18 - Altro" },
   { value: "RF19", label: "RF19 - Forfettario (art.1 c.54-89 L.190/2014)" },
 ];
+
+// Validatori formali — ritornano stringa errore o null se valido. Usati on-blur
+// e prima del save per popolare lo stato `fieldErrors` e mostrare il bordo rosso
+// nel Field via la prop `error` (già supportata da components/ui/SettingsUI).
+const validators = {
+  iban: (v) => {
+    if (!v) return null;
+    const s = v.replace(/\s/g, "").toUpperCase();
+    if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(s)) return "IBAN non valido (es. IT60X0542811101000000123456)";
+    return null;
+  },
+  email: (v) => {
+    if (!v) return null;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Email non valida";
+    return null;
+  },
+  piva: (v) => {
+    if (!v) return null;
+    if (!/^\d{11}$/.test(v.replace(/\s/g, ""))) return "P.IVA deve essere 11 cifre";
+    return null;
+  },
+  codiceFiscale: (v) => {
+    if (!v) return null;
+    const s = v.toUpperCase().trim();
+    if (!/^([A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]|\d{11})$/.test(s)) return "Codice Fiscale non valido";
+    return null;
+  },
+  sdiCode: (v) => {
+    if (!v) return null;
+    if (!/^[A-Z0-9]{6,7}$/.test(v.toUpperCase().trim())) return "Codice Destinatario SDI: 6 (PA) o 7 (B2B) caratteri";
+    return null;
+  },
+  pec: (v) => {
+    if (!v) return null;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "PEC non valida";
+    return null;
+  },
+};
 
 // Tabs con permessi granulari
 const ALL_TABS = [
@@ -91,6 +130,7 @@ const ALL_TABS = [
     icon: FiTrash2,
     description: "Limiti, certificati e configurazioni RENTRI",
     requiredPermission: "settings.rifiuti",
+    requiredModule: "rentri",
     group: "moduli",
   },
   {
@@ -99,6 +139,7 @@ const ALL_TABS = [
     icon: FiGlobe,
     description: "Collega eBay, Subito.it, Shopify",
     requiredPermission: "settings.marketplace",
+    requiredModule: "marketplace",
     group: "moduli",
   },
   {
@@ -107,6 +148,7 @@ const ALL_TABS = [
     icon: FiFileText,
     description: "Voci preimpostate, termini e note fatture",
     requiredPermission: "settings.company",
+    requiredModule: "fatturazione",
     group: "moduli",
   },
   {
@@ -115,6 +157,7 @@ const ALL_TABS = [
     icon: FiClipboard,
     description: "Voci preimpostate, validità e note preventivi",
     requiredPermission: "settings.company",
+    requiredModule: "preventivi",
     group: "moduli",
   },
   {
@@ -123,6 +166,7 @@ const ALL_TABS = [
     icon: FiMapPin,
     description: "Zone, posizioni e gestione piazzale",
     requiredPermission: "settings.general",
+    requiredModule: "piazzale",
     group: "moduli",
   },
   {
@@ -131,14 +175,16 @@ const ALL_TABS = [
     icon: FiTruck,
     description: "Configurazione trasporti e workflow autisti",
     requiredPermission: "settings.general",
+    requiredModule: "trasporti",
     group: "moduli",
   },
   {
     key: "demolizione",
     label: "Demolizione VFU",
     icon: FiTruck,
-    description: "Voci fattura, importi e template demolizione",
+    description: "Credenziali RVFU, opzioni operative, voci fattura demolizione",
     requiredPermission: "settings.general",
+    requiredModule: "rvfu",
     group: "moduli",
   },
   {
@@ -147,6 +193,7 @@ const ALL_TABS = [
     icon: FiCalendar,
     description: "Orari, festivi, durata appuntamenti e colori",
     requiredPermission: "settings.general",
+    requiredModule: "calendario",
     group: "moduli",
   },
   {
@@ -155,6 +202,7 @@ const ALL_TABS = [
     icon: FiBookOpen,
     description: "Categorie, tag, campi custom e pipeline",
     requiredPermission: "settings.company",
+    requiredModule: "clienti",
     group: "moduli",
   },
   {
@@ -163,17 +211,9 @@ const ALL_TABS = [
     icon: FiNavigation,
     description: "Dispositivi GPS e tracking live trasporti",
     requiredPermission: "settings.general",
+    requiredModule: "tracking",
     group: "moduli",
   },
-  {
-    key: "general",
-    label: "Generali",
-    icon: FiSettings,
-    description: "Lingua, fuso orario, workflow",
-    requiredPermission: "settings.general",
-    group: "sistema",
-  },
-
   {
     key: "notifications",
     label: "Notifiche",
@@ -204,6 +244,7 @@ const ALL_TABS = [
     icon: FiFileText,
     description: "Configurazione credenziali e invio SDI",
     requiredPermission: "settings.company",
+    requiredModule: "fatturazione",
     group: "moduli",
   },
 ];
@@ -371,17 +412,55 @@ const DEFAULTS = {
   },
 };
 
+// Wrapper che fornisce il Context per la barra di salvataggio globale.
+// Tutti i componenti figli registrano il proprio stato dirty + save/reset
+// via useSectionDirty; la StickySaveBar li aggrega in un'unica barra in fondo.
 export default function Settings() {
+  return (
+    <SettingsDirtyProvider>
+      <SettingsContent />
+      <StickySaveBar />
+    </SettingsDirtyProvider>
+  );
+}
+
+function SettingsContent() {
   const supabase = supabaseBrowser();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { orgId: currentOrg, orgName, orgs, setCurrentOrg, refresh, role } = useOrg();
+  const { isModuleActive, modules: orgModules } = useSubscription();
 
-  // Filtra tab in base al ruolo utente
-  const TABS = useMemo(() => filterTabsByRole(ALL_TABS, role || "owner"), [role]);
+  // Filtra tab in base al ruolo utente E ai moduli abilitati per l'org.
+  // Se l'admin (o demo PATCH) disattiva un modulo (es. 'fatturazione'),
+  // sparisce anche la voce Settings corrispondente.
+  // Defensive: se org_modules è vuoto (utente fresco o transient), mostra
+  // tutti i tab — eviti soft-lock con sidebar vuota.
+  const TABS = useMemo(() => {
+    const byRole = filterTabsByRole(ALL_TABS, role || "owner");
+    const hasAnyModule = Array.isArray(orgModules) && orgModules.length > 0;
+    if (!hasAnyModule) return byRole;
+    return byRole.filter(t => !t.requiredModule || isModuleActive(t.requiredModule));
+  }, [role, orgModules, isModuleActive]);
 
   const [activeTab, setActiveTab] = useState("profile");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  // Filtro live tab nella sidebar (utile con 19 tab)
+  const [tabSearch, setTabSearch] = useState("");
+  // Errori di validazione per campo, keyed by path stabile (es. "invoices.iban").
+  // Popolato on-blur dal helper `validateField` e letto via Field error prop.
+  const [fieldErrors, setFieldErrors] = useState({});
+  const validateField = useCallback((key, value) => {
+    const validator = validators[key.split(".").pop()];
+    if (!validator) return;
+    const err = validator(value);
+    setFieldErrors((prev) => {
+      if (err === (prev[key] || null)) return prev;
+      const next = { ...prev };
+      if (err) next[key] = err; else delete next[key];
+      return next;
+    });
+  }, []);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -598,23 +677,84 @@ export default function Settings() {
     }
   }, [currentOrg, rentriEnv, showToast, loadRentriEnvironment]);
 
-  // Carica impostazioni iniziali
+  // Carica impostazioni iniziali — da org_settings (Supabase) + fallback localStorage.
+  // Strategia:
+  //   1. Carica appearance da localStorage subito (serve all'avvio app prima dell'org).
+  //   2. Se c'è currentOrg, leggi org_settings (chiavi per sezione).
+  //   3. Se org_settings è vuoto ma c'è una vecchia copia in localStorage,
+  //      migrala silenziosamente al DB (one-shot migration).
   useEffect(() => {
     const loadSettings = async () => {
       try {
         setLoading(true);
-        // Carica da localStorage come fallback
-        const savedSettings = localStorage.getItem('rm-settings');
-        if (savedSettings) {
-          const parsed = JSON.parse(savedSettings);
-          setCompany({ ...DEFAULTS.company, ...parsed.company });
-          setAppearance({ ...DEFAULTS.appearance, ...parsed.appearance });
-          setGeneral({ ...DEFAULTS.general, ...parsed.general });
-          setQuotes({ ...DEFAULTS.quotes, ...parsed.quotes });
-          setInvoices({ ...DEFAULTS.invoices, ...parsed.invoices });
-          setNotify({ ...DEFAULTS.notify, ...parsed.notify });
+
+        // 1) Appearance subito da localStorage (UI-only)
+        try {
+          const lsAppearance = localStorage.getItem('rm-appearance');
+          if (lsAppearance) {
+            const parsed = JSON.parse(lsAppearance);
+            setAppearance({ ...DEFAULTS.appearance, ...parsed });
+          }
+        } catch { /* ignore */ }
+
+        if (!currentOrg) {
+          // No org → fallback completo a localStorage (uso individuale)
+          const savedSettings = localStorage.getItem('rm-settings');
+          if (savedSettings) {
+            const parsed = JSON.parse(savedSettings);
+            setCompany({ ...DEFAULTS.company, ...parsed.company });
+            setGeneral({ ...DEFAULTS.general, ...parsed.general });
+            setQuotes({ ...DEFAULTS.quotes, ...parsed.quotes });
+            setInvoices({ ...DEFAULTS.invoices, ...parsed.invoices });
+            setNotify({ ...DEFAULTS.notify, ...parsed.notify });
+          }
+          return;
         }
 
+        // 2) Carica da org_settings (Supabase) — chiave per sezione
+        const KEYS = ['company', 'appearance', 'general', 'quotes', 'invoices', 'notify',
+                      'piazzale', 'trasporti', 'calendario', 'crmClienti'];
+        const { data, error } = await supabase
+          .from('org_settings')
+          .select('key, value')
+          .eq('org_id', currentOrg)
+          .in('key', KEYS);
+        if (error) throw error;
+
+        const byKey = Object.fromEntries((data || []).map(r => [r.key, r.value]));
+
+        if (byKey.company)    setCompany({ ...DEFAULTS.company, ...byKey.company });
+        if (byKey.appearance) setAppearance({ ...DEFAULTS.appearance, ...byKey.appearance });
+        if (byKey.general)    setGeneral({ ...DEFAULTS.general, ...byKey.general });
+        if (byKey.quotes)     setQuotes({ ...DEFAULTS.quotes, ...byKey.quotes });
+        if (byKey.invoices)   setInvoices({ ...DEFAULTS.invoices, ...byKey.invoices });
+        if (byKey.notify)     setNotify({ ...DEFAULTS.notify, ...byKey.notify });
+        if (byKey.piazzale)   setPiazzale({ ...DEFAULTS.piazzale, ...byKey.piazzale });
+        if (byKey.trasporti)  setTrasporti({ ...DEFAULTS.trasporti, ...byKey.trasporti });
+        if (byKey.calendario) setCalendario({ ...DEFAULTS.calendario, ...byKey.calendario });
+        if (byKey.crmClienti) setCrmClienti({ ...DEFAULTS.crmClienti, ...byKey.crmClienti });
+
+        // 3) Migrazione one-shot: se DB vuoto ma c'è copia localStorage, salva su DB
+        if (Object.keys(byKey).length === 0) {
+          const savedSettings = localStorage.getItem('rm-settings');
+          if (savedSettings) {
+            try {
+              const parsed = JSON.parse(savedSettings);
+              const rows = KEYS
+                .filter(k => parsed[k])
+                .map(k => ({ org_id: currentOrg, key: k, value: parsed[k] }));
+              if (rows.length > 0) {
+                await supabase.from('org_settings').upsert(rows, { onConflict: 'org_id,key' });
+                // Applica anche allo state
+                if (parsed.company)    setCompany({ ...DEFAULTS.company, ...parsed.company });
+                if (parsed.general)    setGeneral({ ...DEFAULTS.general, ...parsed.general });
+                if (parsed.quotes)     setQuotes({ ...DEFAULTS.quotes, ...parsed.quotes });
+                if (parsed.invoices)   setInvoices({ ...DEFAULTS.invoices, ...parsed.invoices });
+                if (parsed.notify)     setNotify({ ...DEFAULTS.notify, ...parsed.notify });
+              }
+            } catch { /* ignore JSON parse error */ }
+          }
+        }
       } catch (err) {
         console.error("Error loading settings:", err);
         showToast("error", "Errore durante il caricamento delle impostazioni");
@@ -624,6 +764,7 @@ export default function Settings() {
     };
 
     loadSettings();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentOrg]);
 
   // Propaga le modifiche di "appearance" (tema, densità, sidebar) all'intera app
@@ -654,21 +795,39 @@ export default function Settings() {
     setDirty(snapshot !== lastSavedRef.current && !loading);
   }, [snapshot, loading]);
 
+  // Registra la sezione legacy nel Context globale così la StickySaveBar
+  // può aggregarla insieme alle sezioni delegate (Profile, Sdi, ecc.).
+  useSectionDirty(
+    "settings_legacy",
+    dirty,
+    () => saveAll(),
+    () => loadSettings(),
+    "Impostazioni principali",
+  );
+
   // ===== Blocco navigazione se dirty (compatibile con HashRouter) =====
-  const [showDirtyModal, setShowDirtyModal] = useState(false);
-  const [pendingNavUrl, setPendingNavUrl] = useState(null);
-  const dirtyRef = useRef(dirty);
-  dirtyRef.current = dirty;
+  // Considera sia il dirty della pagina Legacy sia quello aggregato dal
+  // SettingsDirtyContext (Profilo, SDI, Notifiche, ecc.). Se modifichi un
+  // sub-modulo non puoi cambiare tab/uscire senza confermare la perdita.
+  const dirtyCtx = useSettingsDirty();
+  const anyDirty = dirty || (dirtyCtx?.anyDirty || false);
+  const dirtyRef = useRef(anyDirty);
+  dirtyRef.current = anyDirty;
+  const dirtyCtxRef = useRef(dirtyCtx);
+  dirtyCtxRef.current = dirtyCtx;
 
   useEffect(() => {
     const handleHashChange = (e) => {
       if (dirtyRef.current) {
-        // Blocca navigazione: torna alla pagina settings
-        const confirmed = window.confirm('Hai modifiche non salvate nelle impostazioni. Vuoi uscire senza salvare?');
+        const labels = dirtyCtxRef.current?.dirtyLabels || [];
+        const where = labels.length ? `\n\nSezioni modificate: ${labels.join(", ")}` : "";
+        const confirmed = window.confirm(`Hai modifiche non salvate nelle impostazioni. Vuoi uscire senza salvare?${where}`);
         if (!confirmed) {
-          // Ripristina l'hash precedente
           e.preventDefault();
           window.history.pushState(null, '', e.oldURL);
+        } else {
+          // Reset di tutte le sezioni dirty registrate via context
+          dirtyCtxRef.current?.resetAll?.();
         }
       }
     };
@@ -679,7 +838,7 @@ export default function Settings() {
   // Blocca uscita da Settings se dirty (non salvato)
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (dirty) {
+      if (dirtyRef.current) {
         e.preventDefault();
         e.returnValue = 'Hai modifiche non salvate. Sei sicuro di voler uscire?';
         return 'Hai modifiche non salvate. Sei sicuro di voler uscire?';
@@ -687,45 +846,82 @@ export default function Settings() {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [dirty]);
+  }, []);
+
+  // Cambio tab con conferma se ci sono modifiche dirty (legacy o sub-moduli).
+  // Wrap di setActiveTab: se dirty, chiede conferma; se OK, resetta le
+  // sezioni dirty del context (per evitare che la stickybar resti visibile).
+  const guardedSetActiveTab = useCallback((nextTab) => {
+    if (dirtyRef.current) {
+      const labels = dirtyCtxRef.current?.dirtyLabels || [];
+      const where = labels.length ? `\n\nSezioni modificate: ${labels.join(", ")}` : "";
+      const ok = window.confirm(`Hai modifiche non salvate. Vuoi cambiare sezione senza salvare?${where}`);
+      if (!ok) return;
+      dirtyCtxRef.current?.resetAll?.();
+    }
+    setActiveTab(nextTab);
+  }, [setActiveTab]);
 
   // Salvataggio
   const saveAll = async () => {
     try {
-      setSaving(true);
-      const settings = { company, appearance, general, quotes, invoices, notify };
-
-      // Salva in localStorage
-      localStorage.setItem('rm-settings', JSON.stringify(settings));
-      lastSavedRef.current = JSON.stringify(settings);
-
-      // Salva anche in org_settings per uso nelle fatture SDI
-      if (currentOrg && company) {
-        try {
-          // Salva dati azienda in org_settings per uso nelle fatture
-          const { error: orgSettingsError } = await supabase
-            .from('org_settings')
-            .upsert({
-              org_id: currentOrg,
-              key: 'company',
-              value: company,
-              updated_at: new Date().toISOString(),
-            }, {
-              onConflict: 'org_id,key'
-            });
-
-          if (orgSettingsError) {
-            console.warn('Errore salvataggio org_settings:', orgSettingsError);
-            // Non bloccare il salvataggio se fallisce
-          }
-        } catch (e) {
-          console.warn('Errore salvataggio org_settings:', e);
-          // Non bloccare il salvataggio se fallisce
-        }
+      // Validazione preventiva su campi vincolati: se qualunque validatore
+      // restituisce errore, blocca il save e mostra toast (gli errori per-campo
+      // sono già visibili tramite Field error prop via fieldErrors).
+      const preflightChecks = {
+        "invoices.iban": validators.iban(invoices.defaultFields?.iban || ""),
+      };
+      const failed = Object.entries(preflightChecks).filter(([, err]) => err);
+      if (failed.length > 0) {
+        setFieldErrors((prev) => {
+          const next = { ...prev };
+          failed.forEach(([key, err]) => { next[key] = err; });
+          return next;
+        });
+        showToast("error", `Correggi i campi non validi prima di salvare: ${failed.map(([k]) => k).join(", ")}`);
+        return;
       }
 
+      setSaving(true);
+
+      // Tutte le sezioni da persistere (ognuna come riga separata in org_settings).
+      const sections = {
+        company, appearance, general, quotes, invoices, notify,
+        piazzale, trasporti, calendario, crmClienti,
+      };
+
+      // Backup locale (anche per fast-load + caso offline)
+      localStorage.setItem('rm-settings', JSON.stringify(sections));
+      localStorage.setItem('rm-appearance', JSON.stringify(appearance));
+
+      if (currentOrg) {
+        // Batch upsert su org_settings — una riga per sezione (key/value).
+        // Pattern coerente con SDI/RENTRI/altri moduli che già usano org_settings.
+        const rows = Object.entries(sections).map(([key, value]) => ({
+          org_id: currentOrg,
+          key,
+          value,
+          updated_at: new Date().toISOString(),
+        }));
+
+        const { error } = await supabase
+          .from('org_settings')
+          .upsert(rows, { onConflict: 'org_id,key' });
+
+        if (error) {
+          // Su errore DB: mostro errore ma le impostazioni sono comunque in localStorage
+          console.error('[Settings] saveAll org_settings error:', error);
+          showToast('error', `Impostazioni salvate solo in locale: ${error.message}`);
+          // Non resetto dirty: l'utente sa che c'è ancora qualcosa da sincronizzare
+          return;
+        }
+      } else {
+        showToast('info', 'Salvataggio solo locale: nessuna organizzazione attiva.');
+      }
+
+      lastSavedRef.current = snapshot;
       setDirty(false);
-      showToast("success", "Impostazioni salvate con successo");
+      showToast('success', currentOrg ? 'Impostazioni salvate sul cloud' : 'Impostazioni salvate (locale)');
 
       // Se c'è un parametro return, torna alla pagina precedente dopo il salvataggio
       const returnPath = searchParams.get('return');
@@ -735,8 +931,8 @@ export default function Settings() {
         }, 500);
       }
     } catch (err) {
-      console.error("Error saving settings:", err);
-      showToast("error", "Errore durante il salvataggio");
+      console.error('Error saving settings:', err);
+      showToast('error', `Errore durante il salvataggio: ${err?.message || ''}`);
     } finally {
       setSaving(false);
     }
@@ -860,10 +1056,19 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex items-center gap-3">
-          <FiRefreshCw className="w-6 h-6 animate-spin text-blue-400" />
-          <p className="text-slate-400">Caricamento impostazioni...</p>
+      <div className="space-y-5 animate-pulse">
+        <div>
+          <div className="h-5 w-32 bg-[#243044] rounded mb-2" />
+          <div className="h-3 w-64 bg-[#1a2536] rounded" />
+        </div>
+        <div className="flex gap-4">
+          <div className="hidden md:block w-72 shrink-0 bg-[#0a1119] border border-[#1f2a3d] rounded-xl h-96" />
+          <div className="flex-1 space-y-4">
+            <div className="bg-[#1a2536] border border-[#243044] rounded-xl h-20" />
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-[#1a2536] border border-[#243044] rounded-xl h-40" />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -880,9 +1085,9 @@ export default function Settings() {
         {/* Mobile sidebar toggle */}
         <button
           onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-          className="md:hidden inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-300 bg-[#1a2536] border border-[#243044] rounded-lg"
+          className="md:hidden inline-flex items-center gap-1.5 h-10 px-4 text-xs font-medium text-slate-200 bg-[#1a2536] border border-[#243044] rounded-lg hover:bg-[#1e2b3d] transition"
         >
-          <FiMenu className="w-3.5 h-3.5" />
+          <FiMenu className="w-4 h-4" />
           {TABS.find(t => t.key === activeTab)?.label || "Menu"}
         </button>
       </div>
@@ -896,11 +1101,11 @@ export default function Settings() {
               return (
                 <button
                   key={tab.key}
-                  onClick={() => { setActiveTab(tab.key); setMobileSidebarOpen(false); }}
-                  className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors ${activeTab === tab.key ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-[#141c27]"
+                  onClick={() => { guardedSetActiveTab(tab.key); setMobileSidebarOpen(false); }}
+                  className={`flex items-center gap-2 min-h-11 px-3 py-2.5 rounded-lg text-xs transition-colors ${activeTab === tab.key ? "bg-blue-600 text-white" : "text-slate-200 hover:bg-[#141c27] hover:text-white"
                     }`}
                 >
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <Icon className="w-4 h-4 shrink-0" />
                   <span className="truncate">{tab.label}</span>
                 </button>
               );
@@ -910,30 +1115,46 @@ export default function Settings() {
       )}
 
       <div className="flex gap-4 flex-1">
-        {/* Sidebar — grouped by category */}
-        <aside className="hidden md:block w-64 shrink-0">
-          <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-3 sticky top-4">
-            <nav className="space-y-3">
+        {/* Sidebar — sfondo scuro, larga, lunga, con search */}
+        <aside className="hidden md:block w-72 shrink-0">
+          <div className="bg-[#0a1119] rounded-xl border border-[#1f2a3d] p-4 sticky top-4 min-h-[calc(100vh-8rem)]">
+            {/* Search */}
+            <div className="relative mb-4">
+              <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+              <input
+                type="text"
+                value={tabSearch || ""}
+                onChange={(e) => setTabSearch(e.target.value)}
+                placeholder="Cerca impostazione…"
+                className="w-full h-8 pl-8 pr-2 text-xs bg-[#141c27] border border-[#243044] rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 outline-none transition"
+              />
+            </div>
+
+            <nav className="space-y-4">
               {TAB_GROUPS.map((group) => {
-                const groupTabs = TABS.filter(t => t.group === group.key);
+                const groupTabs = TABS.filter(t => t.group === group.key)
+                  .filter(t => !tabSearch || t.label.toLowerCase().includes(tabSearch.toLowerCase()));
                 if (groupTabs.length === 0) return null;
                 return (
                   <div key={group.key}>
-                    <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 px-2">{group.label}</h3>
-                    <div className="space-y-0.5">
+                    <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 px-2">
+                      {group.label}
+                    </h3>
+                    <div className="space-y-1">
                       {groupTabs.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.key;
                         return (
                           <button
                             key={tab.key}
-                            onClick={() => setActiveTab(tab.key)}
-                            className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors ${isActive
-                              ? "bg-blue-600 text-white"
-                              : "text-slate-300 hover:bg-[#141c27]"
-                              }`}
+                            onClick={() => guardedSetActiveTab(tab.key)}
+                            className={`w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors ${
+                              isActive
+                                ? "bg-blue-600 text-white font-semibold shadow-sm shadow-blue-600/30"
+                                : "text-slate-200 hover:bg-[#141c27] hover:text-white"
+                            }`}
                           >
-                            <Icon className="w-3.5 h-3.5 shrink-0" />
+                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-slate-400"}`} />
                             <span className="truncate">{tab.label}</span>
                           </button>
                         );
@@ -948,44 +1169,43 @@ export default function Settings() {
 
         {/* Content */}
         <div className="flex-1 space-y-4 min-w-0">
-          {/* Action Bar */}
-          <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {dirty && (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-amber-400 bg-amber-500/10 rounded-full">
-                    <FiAlertCircle className="w-3 h-3" />
-                    Non salvato
-                  </span>
-                )}
+          {/* Header tab — icona + titolo + descrizione (dati da ALL_TABS).
+              Sostituisce la vecchia action bar in cima. Esporta/Importa
+              passano come azioni minori a destra; Salva diventa sticky in fondo. */}
+          {(() => {
+            const current = ALL_TABS.find(t => t.key === activeTab);
+            if (!current) return null;
+            const Icon = current.icon;
+            return (
+              <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4 flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center shrink-0">
+                  <Icon className="w-5 h-5 text-blue-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-semibold text-slate-100">{current.label}</h2>
+                  {current.description && (
+                    <p className="text-xs text-slate-500 mt-0.5">{current.description}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={exportConfig}
+                    className="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs text-slate-400 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#243044] transition-colors"
+                  >
+                    <FiDownload className="w-3.5 h-3.5" />
+                    Esporta
+                  </button>
+                  <button
+                    onClick={importConfig}
+                    className="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs text-slate-400 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#243044] transition-colors"
+                  >
+                    <FiUpload className="w-3.5 h-3.5" />
+                    Importa
+                  </button>
+                </div>
               </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={exportConfig}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-400 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#243044] transition-colors"
-                >
-                  <FiDownload className="w-3.5 h-3.5" />
-                  Esporta
-                </button>
-                <button
-                  onClick={importConfig}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-400 bg-[#141c27] border border-[#243044] rounded-lg hover:bg-[#243044] transition-colors"
-                >
-                  <FiUpload className="w-3.5 h-3.5" />
-                  Importa
-                </button>
-                <button
-                  onClick={saveAll}
-                  disabled={saving || !dirty}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {saving ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiSave className="w-3.5 h-3.5" />}
-                  {saving ? "Salvataggio..." : "Salva"}
-                </button>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Profile Tab */}
           {activeTab === "profile" && (
@@ -1240,144 +1460,6 @@ export default function Settings() {
 
 
 
-          {/* General Tab */}
-          {activeTab === "general" && (
-            <div className="space-y-4">
-              <Section title="Impostazioni Generali" desc="Configura lingua, fuso orario e altre preferenze di sistema">
-                <div className="grid md:grid-cols-2 gap-3">
-                  <Field label="Lingua">
-                    <select
-                      className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                      value={general.language}
-                      onChange={(e) => setGeneral(prev => ({ ...prev, language: e.target.value }))}
-                    >
-                      <option value="it">Italiano</option>
-                      <option value="en">English</option>
-                    </select>
-                  </Field>
-
-                  <Field label="Fuso Orario">
-                    <input
-                      type="text"
-                      className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                      placeholder="Europe/Rome"
-                      value={general.timezone}
-                      onChange={(e) => setGeneral(prev => ({ ...prev, timezone: e.target.value }))}
-                    />
-                  </Field>
-
-                  <Field label="Unità di Misura">
-                    <select
-                      className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                      value={general.units}
-                      onChange={(e) => setGeneral(prev => ({ ...prev, units: e.target.value }))}
-                    >
-                      <option value="metric">Metriche (km, °C)</option>
-                      <option value="imperial">Imperiali (mi, °F)</option>
-                    </select>
-                  </Field>
-
-                  <Field label="Provider Mappe">
-                    <select
-                      className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                      value={general.mapProvider}
-                      onChange={(e) => setGeneral(prev => ({ ...prev, mapProvider: e.target.value }))}
-                    >
-                      <option value="google">Google Maps</option>
-                      <option value="osm">OpenStreetMap</option>
-                    </select>
-                  </Field>
-                </div>
-              </Section>
-
-              <Section title="Workflow Trasporti" desc="Configura stati, SLA e requisiti per i trasporti">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-md font-medium text-slate-200 mb-3">Stati Disponibili</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {["da fare", "in corso", "completato", "in attesa", "annullato"].map((status) => {
-                        const isEnabled = general.workflow.statuses.includes(status);
-                        return (
-                          <button
-                            key={status}
-                            onClick={() => {
-                              setGeneral(prev => ({
-                                ...prev,
-                                workflow: {
-                                  ...prev.workflow,
-                                  statuses: isEnabled
-                                    ? prev.workflow.statuses.filter(s => s !== status)
-                                    : [...prev.workflow.statuses, status]
-                                }
-                              }));
-                            }}
-                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isEnabled
-                              ? "bg-blue-600 text-white"
-                              : "bg-[#243044]  text-slate-300 hover:bg-[#243044] "
-                              }`}
-                          >
-                            {status}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <Field label="Stato Predefinito">
-                      <select
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        value={general.workflow.defaultStatus}
-                        onChange={(e) => setGeneral(prev => ({
-                          ...prev,
-                          workflow: { ...prev.workflow, defaultStatus: e.target.value }
-                        }))}
-                      >
-                        {general.workflow.statuses.map(status => (
-                          <option key={status} value={status}>{status}</option>
-                        ))}
-                      </select>
-                    </Field>
-
-                    <Field label="SLA Intervento (minuti)" tooltip="Tempo obiettivo dalla presa in carico all'arrivo">
-                      <input
-                        type="number"
-                        min={5}
-                        step={5}
-                        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
-                        value={general.workflow.slaMinutes}
-                        onChange={(e) => setGeneral(prev => ({
-                          ...prev,
-                          workflow: { ...prev.workflow, slaMinutes: Number.parseInt(e.target.value, 10) || 0 }
-                        }))}
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="space-y-4">
-                    <Toggle
-                      label="Richiedi foto per completare trasporto"
-                      checked={general.workflow.requirePhotoOnComplete}
-                      onChange={(checked) => setGeneral(prev => ({
-                        ...prev,
-                        workflow: { ...prev.workflow, requirePhotoOnComplete: checked }
-                      }))}
-                    />
-
-                    <Toggle
-                      label="Richiedi firma del cliente"
-                      checked={general.workflow.requireSignature}
-                      onChange={(checked) => setGeneral(prev => ({
-                        ...prev,
-                        workflow: { ...prev.workflow, requireSignature: checked }
-                      }))}
-                    />
-                  </div>
-                </div>
-              </Section>
-            </div>
-          )}
-
           {/* Notifications Tab */}
           {activeTab === "notifications" && (
             <div className="space-y-4">
@@ -1460,7 +1542,7 @@ export default function Settings() {
                     <div className="space-y-3">
                       <Field label="Termini di Pagamento">
                         <select
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                           value={invoices.defaultFields?.paymentTerms || ""}
                           onChange={e => setInvoices(p => ({ ...p, defaultFields: { ...p.defaultFields, paymentTerms: e.target.value } }))}
                         >
@@ -1476,7 +1558,7 @@ export default function Settings() {
                       </Field>
                       <Field label="Metodo di Pagamento">
                         <select
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                           value={invoices.defaultFields?.paymentMethod || ""}
                           onChange={e => setInvoices(p => ({ ...p, defaultFields: { ...p.defaultFields, paymentMethod: e.target.value } }))}
                         >
@@ -1489,18 +1571,23 @@ export default function Settings() {
                           <option value="satispay">Satispay</option>
                         </select>
                       </Field>
-                      <Field label="IBAN Predefinito">
+                      <Field label="IBAN Predefinito" error={fieldErrors["invoices.iban"]}>
                         <input
                           type="text"
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none font-mono"
+                          className={`w-full px-3 py-1.5 text-xs border rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-2 outline-none font-mono ${
+                            fieldErrors["invoices.iban"]
+                              ? "border-red-500/60 focus:ring-red-500/60"
+                              : "border-[#243044] focus:ring-blue-500/60 focus:border-blue-500/60"
+                          }`}
                           placeholder="IT60X0542811101000000123456"
                           value={invoices.defaultFields?.iban || ""}
                           onChange={e => setInvoices(p => ({ ...p, defaultFields: { ...p.defaultFields, iban: e.target.value } }))}
+                          onBlur={(e) => validateField("invoices.iban", e.target.value)}
                         />
                       </Field>
                       <Field label="Note Predefinite Fattura">
                         <textarea
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none resize-none"
+                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/60 outline-none resize-none"
                           rows={3}
                           placeholder="Es: Pagamento tramite bonifico bancario entro i termini indicati."
                           value={invoices.defaultFields?.notes || ""}
@@ -1585,7 +1672,7 @@ export default function Settings() {
                               updated[idx] = { ...updated[idx], enabled: !updated[idx].enabled };
                               setInvoices(p => ({ ...p, availableFields: updated }));
                             }}
-                            className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                            className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                           />
                           <span className="text-xs text-slate-300">{field.label}</span>
                         </label>
@@ -1606,7 +1693,7 @@ export default function Settings() {
                     <div className="space-y-3">
                       <Field label="Termini di Pagamento">
                         <select
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                           value={quotes.defaultFields?.paymentTerms || ""}
                           onChange={e => setQuotes(p => ({ ...p, defaultFields: { ...p.defaultFields, paymentTerms: e.target.value } }))}
                         >
@@ -1623,14 +1710,14 @@ export default function Settings() {
                           type="number"
                           min={1}
                           max={365}
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                           value={quotes.defaultFields?.validityDays || 30}
                           onChange={e => setQuotes(p => ({ ...p, defaultFields: { ...p.defaultFields, validityDays: parseInt(e.target.value) || 30 } }))}
                         />
                       </Field>
                       <Field label="Note Predefinite Preventivo">
                         <textarea
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none resize-none"
+                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/60 outline-none resize-none"
                           rows={3}
                           placeholder="Es: Preventivo valido 30 giorni dalla data di emissione. Prezzi IVA esclusa."
                           value={quotes.defaultFields?.notes || ""}
@@ -1739,7 +1826,7 @@ export default function Settings() {
                       <div className="space-y-3">
                         <Field label="Zona Predefinita Ingresso">
                           <select
-                            className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                            className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                             value={piazzale.defaultZone || ""}
                             onChange={e => setPiazzale(p => ({ ...p, defaultZone: e.target.value }))}
                           >
@@ -1748,30 +1835,30 @@ export default function Settings() {
                             ))}
                           </select>
                         </Field>
-                        <label className="flex items-center gap-3 cursor-pointer">
+                        <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                           <input
                             type="checkbox"
                             checked={piazzale.autoAssignPosition}
                             onChange={() => setPiazzale(p => ({ ...p, autoAssignPosition: !p.autoAssignPosition }))}
-                            className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                            className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                           />
                           <span className="text-xs text-slate-300">Assegna posizione automaticamente</span>
                         </label>
-                        <label className="flex items-center gap-3 cursor-pointer">
+                        <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                           <input
                             type="checkbox"
                             checked={piazzale.requirePhotoOnEntry}
                             onChange={() => setPiazzale(p => ({ ...p, requirePhotoOnEntry: !p.requirePhotoOnEntry }))}
-                            className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                            className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                           />
                           <span className="text-xs text-slate-300">Richiedi foto all&apos;ingresso</span>
                         </label>
-                        <label className="flex items-center gap-3 cursor-pointer">
+                        <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                           <input
                             type="checkbox"
                             checked={piazzale.trackMovements}
                             onChange={() => setPiazzale(p => ({ ...p, trackMovements: !p.trackMovements }))}
-                            className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                            className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                           />
                           <span className="text-xs text-slate-300">Traccia spostamenti tra zone</span>
                         </label>
@@ -1812,7 +1899,7 @@ export default function Settings() {
                     <div className="space-y-3">
                       <Field label="Stato Predefinito">
                         <select
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                           value={trasporti.defaultStatus || "da fare"}
                           onChange={e => setTrasporti(p => ({ ...p, defaultStatus: e.target.value }))}
                         >
@@ -1826,14 +1913,14 @@ export default function Settings() {
                           type="number"
                           min={1}
                           max={20}
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                           value={trasporti.maxStopsPerTrip || 5}
                           onChange={e => setTrasporti(p => ({ ...p, maxStopsPerTrip: parseInt(e.target.value) || 5 }))}
                         />
                       </Field>
                       <Field label="Note Predefinite Trasporto">
                         <textarea
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none resize-none"
+                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/60 outline-none resize-none"
                           rows={2}
                           placeholder="Note che appariranno su ogni nuovo trasporto"
                           value={trasporti.defaultNotes || ""}
@@ -1845,57 +1932,57 @@ export default function Settings() {
 
                   <Card title="Requisiti Trasporto">
                     <div className="space-y-3">
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={trasporti.requireDriverAssignment}
                           onChange={() => setTrasporti(p => ({ ...p, requireDriverAssignment: !p.requireDriverAssignment }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">Richiedi assegnazione autista</span>
                       </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={trasporti.requireVehicleAssignment}
                           onChange={() => setTrasporti(p => ({ ...p, requireVehicleAssignment: !p.requireVehicleAssignment }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">Richiedi assegnazione veicolo</span>
                       </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={trasporti.requirePhotoOnPickup}
                           onChange={() => setTrasporti(p => ({ ...p, requirePhotoOnPickup: !p.requirePhotoOnPickup }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">Richiedi foto al ritiro</span>
                       </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={trasporti.requirePhotoOnDelivery}
                           onChange={() => setTrasporti(p => ({ ...p, requirePhotoOnDelivery: !p.requirePhotoOnDelivery }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">Richiedi foto alla consegna</span>
                       </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={trasporti.requireSignatureOnDelivery}
                           onChange={() => setTrasporti(p => ({ ...p, requireSignatureOnDelivery: !p.requireSignatureOnDelivery }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">Richiedi firma alla consegna</span>
                       </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={trasporti.autoNotifyDriver}
                           onChange={() => setTrasporti(p => ({ ...p, autoNotifyDriver: !p.autoNotifyDriver }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">Notifica automatica autista</span>
                       </label>
@@ -1917,7 +2004,7 @@ export default function Settings() {
                         <Field label="Inizio Giornata">
                           <input
                             type="time"
-                            className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                            className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                             value={calendario.orarioLavorativo?.inizio || "08:00"}
                             onChange={e => setCalendario(p => ({ ...p, orarioLavorativo: { ...p.orarioLavorativo, inizio: e.target.value } }))}
                           />
@@ -1925,18 +2012,18 @@ export default function Settings() {
                         <Field label="Fine Giornata">
                           <input
                             type="time"
-                            className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                            className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                             value={calendario.orarioLavorativo?.fine || "18:00"}
                             onChange={e => setCalendario(p => ({ ...p, orarioLavorativo: { ...p.orarioLavorativo, fine: e.target.value } }))}
                           />
                         </Field>
                       </div>
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={calendario.pausa?.abilitata}
                           onChange={() => setCalendario(p => ({ ...p, pausa: { ...p.pausa, abilitata: !p.pausa.abilitata } }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">Pausa pranzo</span>
                       </label>
@@ -1945,7 +2032,7 @@ export default function Settings() {
                           <Field label="Inizio Pausa">
                             <input
                               type="time"
-                              className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                              className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                               value={calendario.pausa?.inizio || "13:00"}
                               onChange={e => setCalendario(p => ({ ...p, pausa: { ...p.pausa, inizio: e.target.value } }))}
                             />
@@ -1953,7 +2040,7 @@ export default function Settings() {
                           <Field label="Fine Pausa">
                             <input
                               type="time"
-                              className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                              className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                               value={calendario.pausa?.fine || "14:00"}
                               onChange={e => setCalendario(p => ({ ...p, pausa: { ...p.pausa, fine: e.target.value } }))}
                             />
@@ -1987,7 +2074,7 @@ export default function Settings() {
                       </Field>
                       <Field label="Durata Predefinita Appuntamento">
                         <select
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                           value={calendario.durataDefaultMinuti || 60}
                           onChange={e => setCalendario(p => ({ ...p, durataDefaultMinuti: Number.parseInt(e.target.value) }))}
                         >
@@ -2003,7 +2090,7 @@ export default function Settings() {
                       </Field>
                       <Field label="Vista Predefinita">
                         <select
-                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
                           value={calendario.vistaDefault || "settimana"}
                           onChange={e => setCalendario(p => ({ ...p, vistaDefault: e.target.value }))}
                         >
@@ -2012,12 +2099,12 @@ export default function Settings() {
                           <option value="mese">Mese</option>
                         </select>
                       </Field>
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={calendario.mostraWeekend}
                           onChange={() => setCalendario(p => ({ ...p, mostraWeekend: !p.mostraWeekend }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">Mostra weekend nel calendario</span>
                       </label>
@@ -2135,7 +2222,7 @@ export default function Settings() {
                       <input
                         type="text"
                         id="newTag"
-                        className="flex-1 px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
+                        className="flex-1 px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/60 outline-none"
                         placeholder="Nuovo tag..."
                         onKeyDown={e => {
                           if (e.key === "Enter" && e.target.value.trim()) {
@@ -2173,7 +2260,7 @@ export default function Settings() {
                               updated[idx] = { ...updated[idx], abilitato: !updated[idx].abilitato };
                               setCrmClienti(p => ({ ...p, campiCustom: updated }));
                             }}
-                            className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                            className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                           />
                           <div className="flex-1">
                             <span className="text-xs text-slate-200">{campo.label}</span>
@@ -2187,39 +2274,39 @@ export default function Settings() {
                   {/* Requisiti */}
                   <Card title="Requisiti Anagrafica Cliente">
                     <div className="space-y-3">
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={crmClienti.requireEmail}
                           onChange={() => setCrmClienti(p => ({ ...p, requireEmail: !p.requireEmail }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">Email obbligatoria</span>
                       </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={crmClienti.requirePhone}
                           onChange={() => setCrmClienti(p => ({ ...p, requirePhone: !p.requirePhone }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">Telefono obbligatorio</span>
                       </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={crmClienti.requirePIVA}
                           onChange={() => setCrmClienti(p => ({ ...p, requirePIVA: !p.requirePIVA }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">P.IVA / Codice Fiscale obbligatorio</span>
                       </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-[#141c27]/50 -mx-2 px-2 rounded">
                         <input
                           type="checkbox"
                           checked={crmClienti.autoAssignCategory}
                           onChange={() => setCrmClienti(p => ({ ...p, autoAssignCategory: !p.autoAssignCategory }))}
-                          className="rounded border-[#243044] text-blue-500 focus:ring-blue-500/40"
+                          className="w-4 h-4 rounded border-[#243044] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
                         />
                         <span className="text-xs text-slate-300">Assegna categoria automaticamente (Privato se CF, Azienda se P.IVA)</span>
                       </label>
@@ -2275,12 +2362,19 @@ export default function Settings() {
                   </div>
                 </Card>
               </div>
+
+              <div className="mt-4">
+                <DemoDataCard orgId={currentOrg} showToast={showToast} />
+              </div>
             </Section>
           )}
         </div>
       </div>
 
 
+
+      {/* La save bar globale è renderizzata dal Provider in <Settings />.
+          Aggrega legacy + sezioni delegate (Profile, Sdi, ecc.) via Context. */}
 
       {/* Toast Notification — auto-dismiss */}
       {toast.msg && (
@@ -2326,7 +2420,7 @@ function NewOrgForm({ onCreate }) {
       <Field label="Nome Organizzazione" required>
         <input
           type="text"
-          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-blue-500/40 outline-none"
+          className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#1a2536] text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-blue-500/60 outline-none"
           placeholder="es. Carrozzeria Rossi"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -2341,6 +2435,96 @@ function NewOrgForm({ onCreate }) {
         {busy ? "Creazione..." : "Crea Organizzazione"}
       </button>
     </form>
+  );
+}
+
+// DemoDataCard — popola/svuota dati demo per l'org corrente.
+// Backend: funzioni Postgres seed_demo_data(p_org_id) / clear_demo_data(p_org_id).
+function DemoDataCard({ orgId, showToast }) {
+  const supabase = supabaseBrowser();
+  const [busy, setBusy] = useState(false);
+  const [lastResult, setLastResult] = useState(null);
+
+  const handleSeed = async () => {
+    if (!orgId) {
+      showToast("error", "Nessuna organizzazione selezionata");
+      return;
+    }
+    if (!window.confirm("Inserire i dati demo (clienti, mezzi, trasporti, fatture, ricambi)?\n\nIdempotente: ri-eseguibile senza duplicati.")) return;
+    try {
+      setBusy(true);
+      const { data, error } = await supabase.rpc("seed_demo_data", { p_org_id: orgId });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      setLastResult(row);
+      showToast("success", `Dati demo caricati: ${row?.clients_added ?? 0} clienti, ${row?.transports_added ?? 0} trasporti, ${row?.invoices_added ?? 0} fatture`);
+    } catch (e) {
+      console.error("seed_demo_data error:", e);
+      showToast("error", `Errore: ${e.message || "impossibile caricare dati demo"}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleClear = async () => {
+    if (!orgId) {
+      showToast("error", "Nessuna organizzazione selezionata");
+      return;
+    }
+    if (!window.confirm("Rimuovere TUTTI i dati demo dall'organizzazione?\n\nVerranno cancellati clienti, mezzi, trasporti, fatture e ricambi con prefisso DEMO-.")) return;
+    try {
+      setBusy(true);
+      const { error } = await supabase.rpc("clear_demo_data", { p_org_id: orgId });
+      if (error) throw error;
+      setLastResult(null);
+      showToast("success", "Dati demo rimossi");
+    } catch (e) {
+      console.error("clear_demo_data error:", e);
+      showToast("error", `Errore: ${e.message || "impossibile rimuovere dati demo"}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card title="Dati Demo (sviluppo / test)">
+      <div className="space-y-3">
+        <p className="text-xs text-slate-500">
+          Popola l'app con dati realistici per testare tutti i moduli: 10 clienti,
+          3 autisti, 5 mezzi, 6 veicoli piazzale, 12 trasporti (standard/soccorso/conto terzi/mezzi speciali),
+          5 fatture e 10 ricambi. Tutti i record sono marcati con prefisso <code className="bg-[#141c27] px-1 rounded">DEMO-</code> e
+          possono essere rimossi in qualsiasi momento.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleSeed}
+            disabled={busy || !orgId}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {busy ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
+            Carica dati demo
+          </button>
+          <button
+            onClick={handleClear}
+            disabled={busy || !orgId}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+          >
+            <FiTrash2 className="w-3.5 h-3.5" />
+            Rimuovi dati demo
+          </button>
+        </div>
+        {lastResult && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-[#243044]">
+            {Object.entries(lastResult).map(([k, v]) => (
+              <div key={k} className="text-xs">
+                <span className="text-slate-500">{k.replace(/_/g, ' ')}: </span>
+                <span className="text-slate-200 font-medium">{String(v)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -2512,7 +2696,7 @@ function InvoicePresetForm({ onAdd, initial = null, onCancel = null }) {
           </div>
           <input
             type="text"
-            className="w-full px-3 py-1.5 text-xs font-mono uppercase border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
+            className="w-full px-3 py-1.5 text-xs font-mono uppercase border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/60 outline-none"
             placeholder="es: SMOMOT, RIC-001"
             value={codeAuto ? effectiveCode : code}
             onChange={e => {
@@ -2527,7 +2711,7 @@ function InvoicePresetForm({ onAdd, initial = null, onCancel = null }) {
           <label className="text-[10px] text-slate-500 mb-0.5 block">Descrizione prodotto/servizio</label>
           <input
             type="text"
-            className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
+            className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/60 outline-none"
             placeholder="Es: Smontaggio motore, Trasporto veicolo..."
             value={desc}
             onChange={e => setDesc(e.target.value)}
@@ -2541,7 +2725,7 @@ function InvoicePresetForm({ onAdd, initial = null, onCancel = null }) {
             type="number"
             step="0.01"
             min="0"
-            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
             placeholder="0.00"
             value={price}
             onChange={e => setPrice(e.target.value)}
@@ -2553,7 +2737,7 @@ function InvoicePresetForm({ onAdd, initial = null, onCancel = null }) {
             type="number"
             step="1"
             min="1"
-            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
             value={qty}
             onChange={e => setQty(e.target.value)}
           />
@@ -2561,7 +2745,7 @@ function InvoicePresetForm({ onAdd, initial = null, onCancel = null }) {
         <div>
           <label className="text-[10px] text-slate-500 mb-0.5 block">Unità</label>
           <select
-            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
             value={unit}
             onChange={e => setUnit(e.target.value)}
           >
@@ -2577,7 +2761,7 @@ function InvoicePresetForm({ onAdd, initial = null, onCancel = null }) {
         <div>
           <label className="text-[10px] text-slate-500 mb-0.5 block">IVA %</label>
           <select
-            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
             value={vat}
             onChange={e => setVat(e.target.value)}
           >
@@ -2631,7 +2815,7 @@ function PiazzaleZoneForm({ onAdd }) {
       <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Nuova zona</div>
       <input
         type="text"
-        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
+        className="w-full px-3 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/60 outline-none"
         placeholder="Nome zona (es: Zona F - Veicoli elettrici)"
         value={name}
         onChange={e => setName(e.target.value)}
@@ -2640,7 +2824,7 @@ function PiazzaleZoneForm({ onAdd }) {
         <div>
           <label className="text-[10px] text-slate-500 mb-0.5 block">Tipo</label>
           <select
-            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
             value={type}
             onChange={e => setType(e.target.value)}
           >
@@ -2659,7 +2843,7 @@ function PiazzaleZoneForm({ onAdd }) {
             type="number"
             min="1"
             max="500"
-            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+            className="w-full px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
             value={capacity}
             onChange={e => setCapacity(e.target.value)}
           />
@@ -2709,13 +2893,13 @@ function CalendarioFestivoForm({ onAdd }) {
     <div className="flex gap-2">
       <input
         type="date"
-        className="px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/40 outline-none"
+        className="px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 focus:ring-1 focus:ring-blue-500/60 outline-none"
         value={data}
         onChange={e => setData(e.target.value)}
       />
       <input
         type="text"
-        className="flex-1 px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
+        className="flex-1 px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/60 outline-none"
         placeholder="Nome festività"
         value={nome}
         onChange={e => setNome(e.target.value)}
@@ -2757,7 +2941,7 @@ function CrmCategoriaForm({ onAdd, placeholder }) {
       />
       <input
         type="text"
-        className="flex-1 px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/40 outline-none"
+        className="flex-1 px-2 py-1.5 text-xs border border-[#243044] rounded-lg bg-[#141c27] text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-blue-500/60 outline-none"
         placeholder={placeholder || "Nome categoria (es: Carrozzeria)"}
         value={nome}
         onChange={e => setNome(e.target.value)}
