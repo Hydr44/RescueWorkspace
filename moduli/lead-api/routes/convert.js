@@ -181,8 +181,10 @@ module.exports = function createConvertRouter(supabase) {
       if (targetOrgId) {
         try {
           // Scrivi su `org_settings.key='company'` (JSONB merge) — fonte
-          // canonica usata dal desktop e da ClientControlsPanel.
-          // La vecchia tabella `company_settings` è deprecata.
+          // canonica usata dal desktop (companySettingsService._getOrgInfoAzienda)
+          // e da ClientControlsPanel. Include codice_destinatario perché il
+          // desktop legge SDI da qui.
+          const sdiCode = process.env.SDI_RECIPIENT_CODE || null;
           const companyValue = {
             company_name: lead.company || lead.name || '',
             vat: lead.vat_number || null,
@@ -193,6 +195,7 @@ module.exports = function createConvertRouter(supabase) {
             email: lead.email || null,
             forma_giuridica: lead.forma_giuridica || null,
             codice_ateco: lead.codice_ateco || null,
+            codice_destinatario: sdiCode,
             address: {
               street: lead.address_street || null,
               city: lead.address_city || null,
@@ -206,15 +209,15 @@ module.exports = function createConvertRouter(supabase) {
             updated_at: new Date().toISOString(),
           }, { onConflict: 'org_id,key' });
 
-          // Scrivi codice destinatario SDI in org_settings.key='sdi' (JSONB merge).
-          // Letto da Settings desktop, onboarding wizard, ClientControlsPanel.
-          if (process.env.SDI_RECIPIENT_CODE) {
+          // Propaga anche su `org_settings.key='sdi'` (JSONB) per coerenza
+          // con ClientControlsPanel + endpoints SDI server-side.
+          if (sdiCode) {
             const { data: cur } = await supabase
               .from('org_settings').select('value')
               .eq('org_id', targetOrgId).eq('key', 'sdi').maybeSingle();
             const sdiValue = {
               ...((cur?.value) || {}),
-              codice_destinatario: process.env.SDI_RECIPIENT_CODE,
+              codice_destinatario: sdiCode,
             };
             await supabase.from('org_settings').upsert({
               org_id: targetOrgId, key: 'sdi', value: sdiValue,

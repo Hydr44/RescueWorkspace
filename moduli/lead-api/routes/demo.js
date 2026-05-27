@@ -252,8 +252,11 @@ module.exports = function createDemoRouter(supabase) {
         })
         .eq('id', leadId);
 
-      // 9. Crea/aggiorna `org_settings.key='company'` (JSONB) e `key='sdi'`
-      // con dati dal lead. La vecchia tabella company_settings è deprecata.
+      // 9. Crea/aggiorna `org_settings.key='company'` (JSONB) — fonte
+      // canonica letta dal desktop (_getOrgInfoAzienda) e da
+      // ClientControlsPanel. Include codice_destinatario (il desktop
+      // legge SDI da qui).
+      const sdiCode = process.env.SDI_RECIPIENT_CODE || null;
       const companyValue = {
         company_name: company_name || lead.company || '',
         vat: vat_number || lead.vat_number || null,
@@ -262,6 +265,7 @@ module.exports = function createDemoRouter(supabase) {
         pec: lead.pec || null,
         forma_giuridica: lead.forma_giuridica || null,
         codice_ateco: lead.codice_ateco || null,
+        codice_destinatario: sdiCode,
         phone: phone || lead.phone || null,
         email: lead.email,
         address: {
@@ -277,14 +281,14 @@ module.exports = function createDemoRouter(supabase) {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'org_id,key' });
 
-      // SDI code in org_settings.key='sdi'
-      if (process.env.SDI_RECIPIENT_CODE) {
+      // Propaga anche su org_settings.key='sdi' per coerenza con ClientControlsPanel.
+      if (sdiCode) {
         const { data: curSdi } = await supabase
           .from('org_settings').select('value')
           .eq('org_id', org.id).eq('key', 'sdi').maybeSingle();
         const sdiValue = {
           ...((curSdi?.value) || {}),
-          codice_destinatario: process.env.SDI_RECIPIENT_CODE,
+          codice_destinatario: sdiCode,
         };
         await supabase.from('org_settings').upsert({
           org_id: org.id, key: 'sdi', value: sdiValue,
