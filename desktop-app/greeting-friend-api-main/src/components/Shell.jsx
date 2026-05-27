@@ -84,10 +84,15 @@ export default function Shell({ children }) {
     }
   });
 
-  // Redirect to setup if not complete — solo su pagine non escluse
+  // Redirect to setup if not complete — solo su pagine non escluse.
+  // Per le org demo: skip totale. Il setup wizard è pensato per clienti
+  // produzione che devono configurare cert RENTRI, credenziali SDI, ecc.
+  // Una demo è esplorativa, non richiede onboarding.
   useEffect(() => {
     if (onboardingLoading) return;
     if (isComplete) return;
+    if (demoLoading) return;
+    if (isDemo) return;
 
     // Fallback: controlla direttamente localStorage per evitare race condition
     // (Shell e SetupWizard hanno istanze separate di useOnboarding, lo stato
@@ -106,7 +111,7 @@ export default function Shell({ children }) {
 
     console.log('[Shell] Setup not complete, redirecting to /setup');
     navigate('/setup', { replace: true });
-  }, [isComplete, onboardingLoading, location.pathname, navigate]);
+  }, [isComplete, onboardingLoading, isDemo, demoLoading, location.pathname, navigate]);
   const [globalSearch, setGlobalSearch] = useState("");
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -129,7 +134,7 @@ export default function Shell({ children }) {
   // non vede una sidebar quasi vuota.
   const hasAnyModule = Array.isArray(orgModules) && orgModules.length > 0;
   const moduleVisible = (m) => !hasAnyModule || isModuleActive(m);
-  const { isDemo } = useDemo();
+  const { isDemo, loading: demoLoading } = useDemo();
   const supabase = supabaseBrowser();
 
   // Carica versione app, P.IVA org e Sync status
