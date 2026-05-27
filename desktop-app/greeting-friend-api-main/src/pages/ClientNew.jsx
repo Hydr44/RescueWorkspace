@@ -14,7 +14,7 @@ import {
   FiArrowLeft, FiSave, FiUser, FiCheck,
   FiAlertTriangle, FiInfo, FiRefreshCw, FiZap,
   FiAlertCircle, FiX, FiBriefcase,
-  FiFileText, FiPhone, FiMapPin, FiShield, FiDollarSign,
+  FiFileText, FiPhone, FiMapPin, FiDollarSign,
   FiUsers, FiLock, FiEdit3
 } from "react-icons/fi";
 
@@ -137,9 +137,6 @@ export default function ClientNew() {
   const [addressSuggestions, setAddressSuggestions] = useState([]);
   const [showAddrSugg, setShowAddrSugg] = useState(false);
   const [draftStatus, setDraftStatus] = useState(""); // saving | saved | ""
-  // Accordion: una sezione aperta alla volta (l'utente clicca per cambiare)
-  const [openSection, setOpenSection] = useState("anagrafica");
-  const toggleSection = (id) => setOpenSection(prev => prev === id ? "" : id);
 
   /* ─── Completion % ─── */
   const completionPercent = useMemo(() => {
@@ -529,39 +526,39 @@ export default function ClientNew() {
         </div>
       )}
 
-      {/* ── Single-column layout con tipo+categoria sempre visibili + accordion sezioni ── */}
-      <div className="max-w-3xl mx-auto space-y-3">
-
-        {/* Tipo Cliente + Categoria — sempre visibili in cima (compatto) */}
-        <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
-          <div className="grid grid-cols-2 gap-2 mb-3">
+      {/* ── Tipo Cliente + Categoria full-width (sempre visibili in cima) ── */}
+      <div className="max-w-6xl mx-auto bg-[#1a2536] rounded-xl border border-[#243044] p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Selettore tipo cliente */}
+          <div className="grid grid-cols-2 gap-2">
             {[
               { val: false, label: "Persona Fisica", sub: "Privato", Icon: FiUser },
-              { val: true, label: "Azienda", sub: "Persona giuridica", Icon: FiBriefcase },
+              { val: true,  label: "Azienda",        sub: "Persona giuridica", Icon: FiBriefcase },
             ].map(opt => (
               <button key={String(opt.val)} type="button" onClick={() => setIsCompany(opt.val)}
-                className={`p-2.5 rounded-lg border-2 transition-all text-left ${
+                className={`p-3 rounded-lg border-2 transition-all text-left ${
                   isCompany === opt.val
                     ? "border-blue-500 bg-blue-500/10 text-blue-400"
                     : "border-[#243044] bg-[#141c27] text-slate-400 hover:border-slate-600"
                 }`}>
-                <div className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-md flex items-center justify-center ${
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
                     isCompany === opt.val ? "bg-blue-500/20" : "bg-[#243044]"
                   }`}>
-                    <opt.Icon className="w-3 h-3" />
+                    <opt.Icon className="w-3.5 h-3.5" />
                   </div>
                   <div>
                     <div className="text-xs font-medium">{opt.label}</div>
-                    <div className="text-[9px] opacity-60">{opt.sub}</div>
+                    <div className="text-[10px] opacity-60">{opt.sub}</div>
                   </div>
                 </div>
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] text-slate-500 mb-1 block">Categoria</label>
+          {/* Categoria + sconto inline */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2">
+              <label className="text-[10px] text-slate-500 mb-1 block">Categoria Cliente</label>
               <select value={categoriaCliente} onChange={e => setCategoriaCliente(e.target.value)}
                 className={inputCls(false)}>
                 <option value="privato_occasionale">Privato Occasionale</option>
@@ -574,25 +571,27 @@ export default function ClientNew() {
               </select>
             </div>
             <div>
-              <label className="text-[10px] text-slate-500 mb-1 block">Sconto predefinito (%)</label>
+              <label className="text-[10px] text-slate-500 mb-1 block">Sconto %</label>
               <input type="number" value={scontoDefault} onChange={e => setScontoDefault(e.target.value)}
                 className={inputCls(false)} placeholder="0" min="0" max="100" step="0.5" />
             </div>
           </div>
         </div>
+      </div>
 
-        {/* === Anagrafica === */}
-        <div className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden">
-          <button type="button" onClick={() => toggleSection("anagrafica")}
-            className="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-[#1e2b3d] transition-colors">
-            <FiUser className="w-3.5 h-3.5 text-blue-400" />
-            <h2 className="text-xs font-semibold text-slate-200">
+      {/* ── 2-column grid (max-w container) ── */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* LEFT COLUMN */}
+        <div className="space-y-4">
+
+          {/* Dati anagrafici / azienda */}
+          <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
+            <h2 className="text-xs font-semibold text-slate-200 mb-3 flex items-center gap-2 pb-2 border-b border-[#243044]">
+              <FiUser className="w-3.5 h-3.5 text-blue-400" />
               {isCompany ? "Dati Azienda" : "Dati Anagrafici"}
             </h2>
-            <span className="ml-auto text-slate-500 text-xs">{openSection === "anagrafica" ? "▾" : "▸"}</span>
-          </button>
-          {openSection === "anagrafica" && (
-            <div className="p-4 pt-0 space-y-3">
+            <div className="space-y-3">
               {isCompany ? (
                 <>
                   <div>
@@ -771,20 +770,15 @@ export default function ClientNew() {
                 </>
               )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* === Documento (solo persona fisica) === */}
-        {!isCompany && (
-          <div className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden">
-            <button type="button" onClick={() => toggleSection("documento")}
-              className="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-[#1e2b3d] transition-colors">
-              <FiFileText className="w-3.5 h-3.5 text-purple-400" />
-              <h2 className="text-xs font-semibold text-slate-200">Documento d'identità</h2>
-              <span className="ml-auto text-slate-500 text-xs">{openSection === "documento" ? "▾" : "▸"}</span>
-            </button>
-            {openSection === "documento" && (
-              <div className="p-4 pt-0 space-y-3">
+          {/* Documento (solo persona fisica) */}
+          {!isCompany && (
+            <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
+              <h2 className="text-xs font-semibold text-slate-200 mb-3 flex items-center gap-2 pb-2 border-b border-[#243044]">
+                <FiFileText className="w-3.5 h-3.5 text-purple-400" /> Documento d'identità
+              </h2>
+              <div className="space-y-3">
                 <div>
                   <label className="text-[10px] text-slate-500 mb-1 block">Tipo Documento</label>
                   <select value={tipoDocumento} onChange={e => setTipoDocumento(e.target.value)}
@@ -807,20 +801,15 @@ export default function ClientNew() {
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* === Contatti === */}
-        <div className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden">
-          <button type="button" onClick={() => toggleSection("contatti")}
-            className="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-[#1e2b3d] transition-colors">
-            <FiPhone className="w-3.5 h-3.5 text-cyan-400" />
-            <h2 className="text-xs font-semibold text-slate-200">Contatti</h2>
-            <span className="ml-auto text-slate-500 text-xs">{openSection === "contatti" ? "▾" : "▸"}</span>
-          </button>
-          {openSection === "contatti" && (
-            <div className="p-4 pt-0 space-y-2">
+          {/* Contatti */}
+          <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
+            <h2 className="text-xs font-semibold text-slate-200 mb-3 flex items-center gap-2 pb-2 border-b border-[#243044]">
+              <FiPhone className="w-3.5 h-3.5 text-cyan-400" /> Contatti
+            </h2>
+            <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] text-slate-500 mb-1 block">Email</label>
@@ -848,19 +837,18 @@ export default function ClientNew() {
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* === Indirizzo === */}
-        <div className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden">
-          <button type="button" onClick={() => toggleSection("indirizzo")}
-            className="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-[#1e2b3d] transition-colors">
-            <FiMapPin className="w-3.5 h-3.5 text-emerald-400" />
-            <h2 className="text-xs font-semibold text-slate-200">Indirizzo</h2>
-            <span className="ml-auto text-slate-500 text-xs">{openSection === "indirizzo" ? "▾" : "▸"}</span>
-          </button>
-          {openSection === "indirizzo" && (
-            <div className="p-4 pt-0 space-y-3">
+        {/* RIGHT COLUMN */}
+        <div className="space-y-4">
+
+          {/* Indirizzo */}
+          <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
+            <h2 className="text-xs font-semibold text-slate-200 mb-3 flex items-center gap-2 pb-2 border-b border-[#243044]">
+              <FiMapPin className="w-3.5 h-3.5 text-emerald-400" /> Indirizzo
+            </h2>
+            <div className="space-y-3">
               <div className="relative">
                 <label className="text-[10px] text-slate-500 mb-1 block">Via / Indirizzo</label>
                 <input type="text" value={via}
@@ -918,22 +906,14 @@ export default function ClientNew() {
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* === SDI / Fatturazione === */}
-        <div className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden">
-          <button type="button" onClick={() => toggleSection("sdi")}
-            className="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-[#1e2b3d] transition-colors">
-            <FiZap className="w-3.5 h-3.5 text-amber-400" />
-            <h2 className="text-xs font-semibold text-slate-200">Fatturazione Elettronica (SDI)</h2>
-            <span className="ml-auto text-slate-500 text-xs">{openSection === "sdi" ? "▾" : "▸"}</span>
-          </button>
-          {openSection === "sdi" && (
-            <div className="p-4 pt-0 space-y-3">
-              <p className="text-[10px] text-slate-500 italic mb-1 flex items-center gap-1">
-                <FiInfo className="w-3 h-3" /> Per fatturazione elettronica al cliente
-              </p>
+          {/* SDI */}
+          <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
+            <h2 className="text-xs font-semibold text-slate-200 mb-3 flex items-center gap-2 pb-2 border-b border-[#243044]">
+              <FiZap className="w-3.5 h-3.5 text-amber-400" /> Fatturazione Elettronica (SDI)
+            </h2>
+            <div className="space-y-3">
               <div>
                 <label className="text-[10px] text-slate-500 mb-1 block">Codice Destinatario</label>
                 <input type="text" value={codiceDestinatario}
@@ -956,19 +936,14 @@ export default function ClientNew() {
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* === Dati Commerciali === */}
-        <div className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden">
-          <button type="button" onClick={() => toggleSection("commerciale")}
-            className="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-[#1e2b3d] transition-colors">
-            <FiDollarSign className="w-3.5 h-3.5 text-yellow-400" />
-            <h2 className="text-xs font-semibold text-slate-200">Dati Commerciali</h2>
-            <span className="ml-auto text-slate-500 text-xs">{openSection === "commerciale" ? "▾" : "▸"}</span>
-          </button>
-          {openSection === "commerciale" && (
-            <div className="p-4 pt-0 space-y-3">
+          {/* Dati Commerciali */}
+          <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
+            <h2 className="text-xs font-semibold text-slate-200 mb-3 flex items-center gap-2 pb-2 border-b border-[#243044]">
+              <FiDollarSign className="w-3.5 h-3.5 text-yellow-400" /> Dati Commerciali
+            </h2>
+            <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] text-slate-500 mb-1 block">Modalità Pagamento</label>
@@ -998,20 +973,15 @@ export default function ClientNew() {
                   className={inputCls(false)} placeholder="0.00" min="0" step="100" />
               </div>
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* === Referente (solo aziende) === */}
-        {isCompany && (
-          <div className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden">
-            <button type="button" onClick={() => toggleSection("referente")}
-              className="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-[#1e2b3d] transition-colors">
-              <FiUsers className="w-3.5 h-3.5 text-indigo-400" />
-              <h2 className="text-xs font-semibold text-slate-200">Referente aziendale</h2>
-              <span className="ml-auto text-slate-500 text-xs">{openSection === "referente" ? "▾" : "▸"}</span>
-            </button>
-            {openSection === "referente" && (
-              <div className="p-4 pt-0 space-y-2">
+          {/* Referente Aziendale (solo aziende) */}
+          {isCompany && (
+            <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
+              <h2 className="text-xs font-semibold text-slate-200 mb-3 flex items-center gap-2 pb-2 border-b border-[#243044]">
+                <FiUsers className="w-3.5 h-3.5 text-indigo-400" /> Referente Aziendale
+              </h2>
+              <div className="space-y-2">
                 <div>
                   <label className="text-[10px] text-slate-500 mb-1 block">Nome Referente</label>
                   <input type="text" value={nomeReferente} onChange={e => setNomeReferente(e.target.value)}
@@ -1030,20 +1000,15 @@ export default function ClientNew() {
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* === Privacy & Consensi === */}
-        <div className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden">
-          <button type="button" onClick={() => toggleSection("privacy")}
-            className="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-[#1e2b3d] transition-colors">
-            <FiLock className="w-3.5 h-3.5 text-rose-400" />
-            <h2 className="text-xs font-semibold text-slate-200">Privacy & Consensi</h2>
-            <span className="ml-auto text-slate-500 text-xs">{openSection === "privacy" ? "▾" : "▸"}</span>
-          </button>
-          {openSection === "privacy" && (
-            <div className="p-4 pt-0 space-y-2">
+          {/* Privacy & Consensi */}
+          <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
+            <h2 className="text-xs font-semibold text-slate-200 mb-3 flex items-center gap-2 pb-2 border-b border-[#243044]">
+              <FiLock className="w-3.5 h-3.5 text-rose-400" /> Privacy & Consensi
+            </h2>
+            <div className="space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={consensoPrivacy} onChange={e => setConsensoPrivacy(e.target.checked)}
                   className="w-4 h-4 rounded border-[#243044] bg-[#141c27] text-blue-600 focus:ring-1 focus:ring-blue-500/30" />
@@ -1061,19 +1026,14 @@ export default function ClientNew() {
                 <p className="text-[9px] text-slate-600 mt-1">Separa i tag con virgole</p>
               </div>
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* === Codice & Note === */}
-        <div className="bg-[#1a2536] rounded-xl border border-[#243044] overflow-hidden">
-          <button type="button" onClick={() => toggleSection("note")}
-            className="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-[#1e2b3d] transition-colors">
-            <FiEdit3 className="w-3.5 h-3.5 text-slate-400" />
-            <h2 className="text-xs font-semibold text-slate-200">Codice & Note interne</h2>
-            <span className="ml-auto text-slate-500 text-xs">{openSection === "note" ? "▾" : "▸"}</span>
-          </button>
-          {openSection === "note" && (
-            <div className="p-4 pt-0 space-y-3">
+          {/* Codice + Note */}
+          <div className="bg-[#1a2536] rounded-xl border border-[#243044] p-4">
+            <h2 className="text-xs font-semibold text-slate-200 mb-3 flex items-center gap-2 pb-2 border-b border-[#243044]">
+              <FiEdit3 className="w-3.5 h-3.5 text-slate-400" /> Codice & Note interne
+            </h2>
+            <div className="space-y-3">
               <div>
                 <label className="text-[10px] text-slate-500 mb-1 block">Codice Cliente</label>
                 <div className="flex gap-2">
@@ -1092,9 +1052,8 @@ export default function ClientNew() {
                   placeholder="Note aggiuntive..." />
               </div>
             </div>
-          )}
+          </div>
         </div>
-
       </div>
 
       {/* ── Footer ── */}
