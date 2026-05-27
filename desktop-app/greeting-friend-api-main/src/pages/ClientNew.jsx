@@ -602,13 +602,23 @@ export default function ClientNew() {
                     <label className="text-[10px] text-slate-500 mb-1 block">Partita IVA <span className="text-red-500">*</span></label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <input type="text" value={piva} onChange={e => setPiva(e.target.value.toUpperCase())}
+                        <input type="text" value={piva}
+                          onChange={e => setPiva(e.target.value.toUpperCase())}
+                          onBlur={() => {
+                            // Auto-fill OpenAPI on blur se P.IVA valida e nome/indirizzo vuoti
+                            const clean = piva.replace(/\s/g, "").toUpperCase().replace(/^IT/, "");
+                            if (clean.length === 11 && /^\d{11}$/.test(clean) && validatePIVA(piva).valid && !loadingPIVA) {
+                              if (!nome.trim() || !via.trim() || !codiceFiscale.trim()) handlePIVAAutoFill();
+                            }
+                          }}
                           className={`${inputCls(errors.piva)} font-mono pr-7`} placeholder="IT12345678901" />
                         {piva.trim() && (
                           <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                            {validatePIVA(piva).valid
-                              ? <FiCheck className="w-3 h-3 text-emerald-400" />
-                              : <FiAlertTriangle className="w-3 h-3 text-red-400" />}
+                            {loadingPIVA
+                              ? <div className="w-3 h-3 border border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                              : validatePIVA(piva).valid
+                                ? <FiCheck className="w-3 h-3 text-emerald-400" />
+                                : <FiAlertTriangle className="w-3 h-3 text-red-400" />}
                           </div>
                         )}
                       </div>

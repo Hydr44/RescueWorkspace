@@ -266,11 +266,13 @@ export async function searchAddress(address) {
  * @returns {Promise<Object>} Dettagli completi dell'indirizzo
  */
 export async function selectAddressWithDetails(suggestion) {
+  let result = null;
+
   // Se è da Google Maps e ha place_id, ottieni i dettagli
   if (suggestion._googleMaps && suggestion.place_id) {
     const details = await getPlaceDetails(suggestion.place_id);
     if (details) {
-      return {
+      result = {
         street: details.street || '',
         number: details.number || '',
         zip: details.zip || '',
@@ -282,16 +284,38 @@ export async function selectAddressWithDetails(suggestion) {
       };
     }
   }
-  
-  // Altrimenti usa i dati già presenti (OpenStreetMap o dati manuali)
-  return {
-    street: suggestion.street || '',
-    number: suggestion.houseNumber || '',
-    zip: suggestion.postcode || '',
-    city: suggestion.city || '',
-    province: suggestion.province || '',
-    provinceCode: suggestion.provinceCode || '',
-    country: 'IT',
-    displayName: suggestion.displayName || ''
-  };
+
+  // Fallback: dati già presenti (OpenStreetMap o manuali)
+  if (!result) {
+    result = {
+      street: suggestion.street || '',
+      number: suggestion.houseNumber || '',
+      zip: suggestion.postcode || '',
+      city: suggestion.city || '',
+      province: suggestion.province || '',
+      provinceCode: suggestion.provinceCode || '',
+      country: 'IT',
+      displayName: suggestion.displayName || ''
+    };
+  }
+
+  // Fallback CAP/provincia da dataset comuni italiani:
+  // Google Places spesso ritorna città senza CAP per piccoli centri italiani.
+  if (result.city && (!result.zip || !result.provinceCode)) {
+    try {
+      const { findComuneExact } = await import('./comuniItaliani');
+      const comune = await findComuneExact(result.city, result.provinceCode);
+      if (comune) {
+        if (!result.zip && comune.cap) result.zip = comune.cap;
+        if (!result.provinceCode && comune.sigla) {
+          result.provinceCode = comune.sigla;
+          result.province = comune.provincia;
+        }
+      }
+    } catch (e) {
+      console.warn('[google-maps] comuni fallback fallito:', e.message);
+    }
+  }
+
+  return result;
 }
