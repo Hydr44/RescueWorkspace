@@ -458,20 +458,20 @@ export default function ClientNew() {
   return (
     <div className="space-y-4">
 
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      {/* ── Header sticky ── */}
+      <div className="sticky top-0 z-30 -mx-4 px-4 py-2 bg-[#0a1119]/95 backdrop-blur border-b border-[#243044] flex items-center justify-between">
+        <div className="flex items-center gap-3 min-w-0">
           <button onClick={handleExit}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#243044] bg-[#1a2536] text-slate-400 hover:bg-[#1e2b3d] transition">
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#243044] bg-[#1a2536] text-slate-400 hover:bg-[#1e2b3d] transition flex-shrink-0">
             <FiArrowLeft className="w-4 h-4" />
           </button>
-          <div>
-            <h1 className="text-lg font-semibold text-slate-100">
+          <div className="min-w-0">
+            <h1 className="text-base font-semibold text-slate-100 truncate">
               {editId ? "Modifica Cliente" : "Nuovo Cliente"}
             </h1>
             <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-xs text-slate-500">
-                {editId ? "Aggiorna le informazioni" : "Compila i dati del nuovo cliente"}
+              <p className="text-[10px] text-slate-500 truncate">
+                {editId ? "Aggiorna le informazioni" : (isCompany ? "Azienda / P.IVA" : "Persona fisica")}
               </p>
               {draftStatus === "saving" && (
                 <span className="inline-flex items-center px-1.5 py-px rounded text-[9px] font-medium bg-blue-500/10 text-blue-400">
@@ -486,20 +486,18 @@ export default function ClientNew() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* Completion ring */}
-          <div className="flex items-center gap-2 mr-2">
-            <div className="w-9 h-9 relative">
-              <svg className="w-9 h-9 -rotate-90" viewBox="0 0 36 36">
-                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#243044" strokeWidth="3" />
-                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none"
-                  stroke={completionPercent >= 80 ? "#10b981" : completionPercent >= 50 ? "#f59e0b" : "#64748b"}
-                  strokeWidth="3" strokeDasharray={`${completionPercent}, 100`} strokeLinecap="round" />
-              </svg>
-              <span className={`absolute inset-0 flex items-center justify-center text-[8px] font-semibold ${
-                completionPercent >= 80 ? "text-emerald-400" : completionPercent >= 50 ? "text-amber-400" : "text-slate-500"
-              }`}>{completionPercent}%</span>
-            </div>
+          <div className="w-8 h-8 relative" title={`Completezza ${completionPercent}%`}>
+            <svg className="w-8 h-8 -rotate-90" viewBox="0 0 36 36">
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#243044" strokeWidth="3" />
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none"
+                stroke={completionPercent >= 80 ? "#10b981" : completionPercent >= 50 ? "#f59e0b" : "#64748b"}
+                strokeWidth="3" strokeDasharray={`${completionPercent}, 100`} strokeLinecap="round" />
+            </svg>
+            <span className={`absolute inset-0 flex items-center justify-center text-[8px] font-semibold ${
+              completionPercent >= 80 ? "text-emerald-400" : completionPercent >= 50 ? "text-amber-400" : "text-slate-500"
+            }`}>{completionPercent}%</span>
           </div>
           <button onClick={handleExit}
             className="h-8 px-3 text-xs font-medium text-slate-400 bg-[#1a2536] border border-[#243044] rounded-lg hover:bg-[#1e2b3d] transition">
@@ -690,19 +688,34 @@ export default function ClientNew() {
                         }, 200)}
                         className={inputCls(false)} placeholder="Roma" />
                       {showBirthPlaceSugg && birthPlaceSuggestions.length > 0 && (
-                        <div className="absolute z-50 w-full mt-1 bg-[#141c27] border border-[#243044] rounded-md max-h-48 overflow-y-auto">
+                        <div className="absolute z-50 w-full mt-1 bg-[#141c27] border border-[#243044] rounded-md max-h-56 overflow-y-auto">
                           {birthPlaceSuggestions.map((s, idx) => (
-                            <div key={idx} className="px-3 py-1.5 hover:bg-[#1a2536] cursor-pointer text-xs border-b border-[#243044] last:border-b-0"
+                            <button type="button" key={idx}
+                              className="w-full px-3 py-1.5 hover:bg-[#1a2536] cursor-pointer text-xs border-b border-[#243044] last:border-b-0 text-left"
                               onClick={() => {
                                 setLuogoNascita(s.nome);
                                 setLuogoNascitaCode(s.codiceCatastale);
                                 setShowBirthPlaceSugg(false);
                                 setBirthPlaceSuggestions([]);
                               }}>
-                              <span className="font-medium text-slate-200">{s.nome}</span>
-                              <span className="text-slate-500 ml-1">({s.sigla}) — {s.codiceCatastale}</span>
-                            </div>
+                              <div className="flex items-baseline justify-between gap-2">
+                                <span className="font-medium text-slate-200">{s.nome}</span>
+                                <span className="text-[9px] text-slate-500 font-mono">{s.codiceCatastale}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 mt-0.5">
+                                {s.provincia} ({s.sigla}){s.cap ? ` · CAP ${s.cap}` : ''}
+                              </div>
+                            </button>
                           ))}
+                        </div>
+                      )}
+                      {luogoNascitaCode && (
+                        <div className="text-[10px] text-emerald-400 mt-0.5">
+                          Codice catastale {luogoNascitaCode}
+                          {(() => {
+                            const sel = birthPlaceSuggestions.find(s => s.codiceCatastale === luogoNascitaCode);
+                            return sel ? ` · ${sel.provincia} (${sel.sigla})${sel.cap ? ` · CAP ${sel.cap}` : ''}` : '';
+                          })()}
                         </div>
                       )}
                     </div>
