@@ -74,6 +74,8 @@ export default function Shell({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isComplete, loading: onboardingLoading } = useOnboarding();
+  // useDemo va dichiarato PRIMA del redirect-effect che lo legge.
+  const { isDemo, loading: demoLoading } = useDemo();
 
   const [appearance, setAppearance] = useState(() => {
     try {
@@ -128,13 +130,13 @@ export default function Shell({ children }) {
 
   const { orgName, orgId, isAdmin } = useOrg();
   const { activeModules, isModuleActive, plan, statusInfo, daysLeft, modules: orgModules } = useSubscription();
+  // (useDemo è già stato chiamato in cima per via del setup-redirect effect)
   // Modulo è "abilitato" se l'org lo ha in org_modules (status=active|trial).
   // Defensivo: se org_modules è completamente vuoto (transient post-attivazione
   // o profilo non ancora popolato) fall-back ai default base così l'utente
   // non vede una sidebar quasi vuota.
   const hasAnyModule = Array.isArray(orgModules) && orgModules.length > 0;
   const moduleVisible = (m) => !hasAnyModule || isModuleActive(m);
-  const { isDemo, loading: demoLoading } = useDemo();
   const supabase = supabaseBrowser();
 
   // Carica versione app, P.IVA org e Sync status
