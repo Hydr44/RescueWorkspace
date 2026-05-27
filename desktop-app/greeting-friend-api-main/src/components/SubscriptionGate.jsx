@@ -6,14 +6,18 @@
  * Wrappa i children e li mostra solo se l'abbonamento è valido.
  */
 import { useSubscription } from "@/hooks/useSubscription";
+import { useDemo } from "@/hooks/useDemo";
 import { signOutAndGo } from "@/lib/auth";
 import { FiAlertCircle, FiCreditCard, FiRefreshCw, FiMail, FiLogOut } from "react-icons/fi";
 
 export default function SubscriptionGate({ children }) {
   const { subscription, plan, isValid, daysLeft, statusInfo, loading, refresh } = useSubscription();
+  const { isDemo, loading: demoLoading } = useDemo();
 
-  // Loading — mostra spinner leggero
-  if (loading) {
+  // Loading — mostra spinner leggero. Aspettiamo entrambi: subscription
+  // e is_demo (così evitiamo flash "Nessun abbonamento" se la demo è
+  // valida ma la subscription row non c'è ancora o ha valori legacy).
+  if (loading || demoLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#0c1929]">
         <div className="text-center space-y-4">
@@ -22,6 +26,14 @@ export default function SubscriptionGate({ children }) {
         </div>
       </div>
     );
+  }
+
+  // Bypass per org demo: l'accesso è sempre permesso (esplorativo).
+  // Le restrizioni demo (blocco SDI/RENTRI/RVFU) sono gestite altrove
+  // via useDemo.demoBlock e dai middleware server-side. Qui non serve
+  // un abbonamento per usare la demo.
+  if (isDemo) {
+    return <>{children}</>;
   }
 
   // Abbonamento valido — mostra app

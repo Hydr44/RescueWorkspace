@@ -7,6 +7,15 @@
  */
 
 export const PLANS = {
+  demo: {
+    id: "demo",
+    label: "Demo",
+    monthlyPrice: 0,
+    yearlyPrice: 0,
+    maxModules: 4,
+    description: "Account demo a tempo — tutti i moduli abilitati in lettura/scrittura, ma invii SDI/RENTRI/RVFU bloccati.",
+    color: "amber",
+  },
   starter: {
     id: "starter",
     label: "Starter",
