@@ -28,7 +28,14 @@ module.exports = function createDemoRouter(supabase) {
         postal_code,
         duration_days = 7,
         modules = ['trasporti', 'tracking', 'calendario', 'clienti', 'mezzi', 'piazzale', 'autisti', 'ricambi', 'preventivi', 'report'],
-        special_modules = []
+        special_modules = [],
+        // v2 (Mag 2026): distinzione tipo demo + seed dati.
+        // - demo_type: 'showcase' | 'trial' | 'pilot'
+        // - seed_data: se true chiama public.seed_demo_data(org_id) per popolare
+        //   clienti/autisti/mezzi/trasporti/fatture/ricambi/piazzale demo.
+        demo_type = null,
+        seed_data = false,
+        seed_profile = null,
       } = req.body;
 
       // 1. Carica lead
@@ -168,22 +175,84 @@ module.exports = function createDemoRouter(supabase) {
         console.error('[DEMO] Member creation error:', memberError);
       }
 
-      // 7. Crea record lead_demos
-      const { data: demo, error: demoError } = await supabase
-        .from('lead_demos')
-        .insert({
-          lead_id: leadId,
-          demo_account_id: userId,
-          demo_org_id: org.id,
-          duration_days,
-          modules_enabled: allModules,
-          status: 'active',
+      // 6a. Popola `org_modules` con i moduli selezionati. La desktop app
+      //     legge questa tabella (via useSubscription → activeModules) per
+      //     mostrare/nascondere voci di sidebar tipo Fatture/RVFU/RENTRI/
+      //     Contabilità. `orgs.desktop_modules` da solo NON basta.
+      //     status='trial' segnala che è una demo a tempo.
+      try {
+        const moduleRows = allModules.map(m => ({
+          org_id: org.id,
+          module: m,
+          status: 'trial',
           activated_at: new Date().toISOString(),
           expires_at: expiresAt.toISOString(),
-          created_by: req.body.staff_id || null
-        })
+          updated_at: new Date().toISOString(),
+        }));
+        if (moduleRows.length > 0) {
+          const { error: omErr } = await supabase
+            .from('org_modules')
+            .upsert(moduleRows, { onConflict: 'org_id,module' });
+          if (omErr) console.error('[DEMO] org_modules upsert error (non-fatal):', omErr.message);
+        }
+      } catch (omCatch) {
+        console.error('[DEMO] org_modules exception (non-fatal):', omCatch.message);
+      }
+
+      // 6b. Seed dati demo se richiesto (showcase/pilot).
+      // La funzione SQL `public.seed_demo_data(p_org_id)` è idempotente
+      // (ON CONFLICT su prefisso DEMO-), quindi anche se la chiamiamo due
+      // volte non duplica. Errore qui non blocca: la demo può essere usata
+      // comunque, il seed è "nice to have".
+      let seedAppliedCounters = null;
+      if (seed_data === true) {
+        try {
+          const { data: counters, error: seedErr } = await supabase.rpc('seed_demo_data', { p_org_id: org.id });
+          if (seedErr) {
+            console.error('[DEMO] seed_demo_data error (non-fatal):', seedErr.message);
+          } else {
+            seedAppliedCounters = Array.isArray(counters) ? counters[0] : counters;
+            console.log('[DEMO] Seed applicato:', seedAppliedCounters);
+          }
+        } catch (seedCatch) {
+          console.error('[DEMO] seed_demo_data exception (non-fatal):', seedCatch.message);
+        }
+      }
+
+      // 7. Crea record lead_demos. Includiamo demo_type e sample_data_loaded
+      // se le colonne esistono (gestito gracefully — l'insert ignora chiavi
+      // ignote se Postgrest le marca? No, fallisce. Quindi facciamo un
+      // payload "safe" e proviamo l'estensione separatamente).
+      const leadDemoPayload = {
+        lead_id: leadId,
+        demo_account_id: userId,
+        demo_org_id: org.id,
+        duration_days,
+        modules_enabled: allModules,
+        status: 'active',
+        activated_at: new Date().toISOString(),
+        expires_at: expiresAt.toISOString(),
+        sample_data_loaded: seed_data === true,
+        created_by: req.body.staff_id || null
+      };
+      if (demo_type) leadDemoPayload.demo_type = demo_type;
+      if (seed_profile) leadDemoPayload.seed_profile = seed_profile;
+
+      let { data: demo, error: demoError } = await supabase
+        .from('lead_demos')
+        .insert(leadDemoPayload)
         .select()
         .single();
+
+      // Fallback: se colonne demo_type/seed_profile non esistono ancora in
+      // DB, ritenta senza quelle chiavi (codice 42703 = undefined_column).
+      if (demoError && /column .* does not exist|42703/i.test(demoError.message || '')) {
+        console.warn('[DEMO] lead_demos extended cols mancanti, retry senza demo_type/seed_profile:', demoError.message);
+        delete leadDemoPayload.demo_type;
+        delete leadDemoPayload.seed_profile;
+        const retry = await supabase.from('lead_demos').insert(leadDemoPayload).select().single();
+        demo = retry.data; demoError = retry.error;
+      }
 
       if (demoError) {
         console.error('[DEMO] Demo record creation error:', demoError);
@@ -308,7 +377,10 @@ module.exports = function createDemoRouter(supabase) {
           reused_existing_user: reusedExistingUser,
           expires_at: expiresAt.toISOString(),
           modules: allModules,
-          duration_days
+          duration_days,
+          demo_type: demo_type || null,
+          seed_applied: seed_data === true,
+          seed_counters: seedAppliedCounters,
         }
       });
 

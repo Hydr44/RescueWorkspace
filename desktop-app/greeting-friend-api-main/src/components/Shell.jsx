@@ -14,6 +14,7 @@ import "@/styles/header-fix.css";
 import "@/styles/split-design.css";
 import AiAssistantPanel from "./AiAssistantPanel";
 import NotificationDropdown from "./NotificationDropdown";
+import RouteTransition from "./RouteTransition";
 import { useOnboarding } from "@/hooks/useOnboarding";
 
 import {
@@ -121,7 +122,13 @@ export default function Shell({ children }) {
   const { toast, hideToast } = useToastContext();
 
   const { orgName, orgId, isAdmin } = useOrg();
-  const { activeModules, plan, statusInfo, daysLeft } = useSubscription();
+  const { activeModules, isModuleActive, plan, statusInfo, daysLeft, modules: orgModules } = useSubscription();
+  // Modulo è "abilitato" se l'org lo ha in org_modules (status=active|trial).
+  // Defensivo: se org_modules è completamente vuoto (transient post-attivazione
+  // o profilo non ancora popolato) fall-back ai default base così l'utente
+  // non vede una sidebar quasi vuota.
+  const hasAnyModule = Array.isArray(orgModules) && orgModules.length > 0;
+  const moduleVisible = (m) => !hasAnyModule || isModuleActive(m);
   const { isDemo } = useDemo();
   const supabase = supabaseBrowser();
 
@@ -188,13 +195,21 @@ export default function Shell({ children }) {
     window.dispatchEvent(new CustomEvent("rm-appearance-change", { detail: newAppearance }));
   };
 
+  // Segmenti tecnici di routing senza una pagina propria — vanno mostrati
+  // nel breadcrumb come label SENZA link cliccabile (altrimenti l'utente
+  // atterra su 404, es. /demolizioni-rvfu/dettaglio senza id).
+  const NON_NAVIGABLE_SEGMENTS = new Set([
+    'dettaglio', 'cerca', 'nuova', 'nuovo', 'new', 'modifica', 'edit',
+  ]);
+
   // Genera breadcrumb basato sulla route corrente
   const generateBreadcrumb = (pathname) => {
     const segments = pathname.split('/').filter(Boolean);
-    const breadcrumb = [{ label: 'Dashboard', path: '/', icon: FiHome }];
-    
-    // Rileva UUID (standard format)
+    const breadcrumb = [{ label: 'Dashboard', path: '/', icon: FiHome, navigable: true }];
+
+    // Rileva UUID (standard format) e ID numerici (es. idVFU di ACI)
     const isUUID = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    const isNumericId = (s) => /^\d+$/.test(s);
     
     // Label leggibili per contesto (quando il segmento precedente è X, il UUID diventa Y)
     const detailLabelMap = {
@@ -254,14 +269,16 @@ export default function Shell({ children }) {
         'pagamenti': 'Pagamenti',
       };
       
-      // Se è un UUID, usa label contestuale basata sul segmento precedente
-      if (isUUID(segment)) {
+      // UUID o ID numerico: label contestuale + navigable
+      if (isUUID(segment) || isNumericId(segment)) {
         const prevSegment = index > 0 ? segments[index - 1] : '';
         const label = detailLabelMap[prevSegment] || 'Dettaglio';
-        breadcrumb.push({ label, path: currentPath });
+        breadcrumb.push({ label, path: currentPath, navigable: true });
       } else {
         const label = labelMap[segment] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
-        breadcrumb.push({ label, path: currentPath });
+        // Segmenti tecnici → mostrati come testo (no link)
+        const navigable = !NON_NAVIGABLE_SEGMENTS.has(segment.toLowerCase());
+        breadcrumb.push({ label, path: currentPath, navigable });
       }
     });
     
@@ -478,7 +495,7 @@ export default function Shell({ children }) {
   if (isSetupPage) {
     return (
       <div className="flex flex-col h-screen bg-[#0c1420]">
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto"><RouteTransition>{children}</RouteTransition></main>
         <Toast
           show={toast.show}
           text={toast.text}
@@ -541,36 +558,52 @@ export default function Shell({ children }) {
         <nav className="flex-1 px-2 py-3 space-y-4 overflow-y-auto min-h-0">
               <Section title="Operativo" collapsed={sidebarMode === "collapsed"}>
                 <SideLink to="/"            icon={FiHome}      label="Dashboard"   onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
-                <SideLink to="/trasporti"   icon={FiTruck}     label="Trasporti"   onClick={() => setOpen(false)} count={counts.transports} collapsed={sidebarMode === "collapsed"} />
-                <SideLink to="/tracking"    icon={FiNavigation} label="Tracking GPS" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+                {moduleVisible('trasporti') && (
+                  <SideLink to="/trasporti"   icon={FiTruck}     label="Trasporti"   onClick={() => setOpen(false)} count={counts.transports} collapsed={sidebarMode === "collapsed"} />
+                )}
+                {moduleVisible('tracking') && (
+                  <SideLink to="/tracking"    icon={FiNavigation} label="Tracking GPS" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+                )}
                 {activeModules.rvfu && (
                   <SideLink to="/demolizioni-rvfu" icon={RVFUSidebarIcon}  label="Demolizioni RVFU" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
                 )}
                 {activeModules.rentri && (
                   <SideLink to="/rifiuti"     icon={FiTrash2}    label="Rifiuti RENTRI" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
                 )}
-                <SideLink to="/calendario"  icon={FiCalendar}  label="Calendario"  onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+                {moduleVisible('calendario') && (
+                  <SideLink to="/calendario"  icon={FiCalendar}  label="Calendario"  onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+                )}
               </Section>
 
           <Section title="Anagrafiche" collapsed={sidebarMode === "collapsed"}>
-            <SideLink to="/clienti"   icon={FiUser}    label="Clienti"  onClick={() => setOpen(false)} count={counts.clients} collapsed={sidebarMode === "collapsed"} />
-            <SideLink to="/mezzi"     icon={FiLayers}  label="Mezzi"    onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+            {moduleVisible('clienti') && (
+              <SideLink to="/clienti"   icon={FiUser}    label="Clienti"  onClick={() => setOpen(false)} count={counts.clients} collapsed={sidebarMode === "collapsed"} />
+            )}
+            {moduleVisible('mezzi') && (
+              <SideLink to="/mezzi"     icon={FiLayers}  label="Mezzi"    onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+            )}
             {activeModules.piazzale && (
               <SideLink to="/piazzale"  icon={FiMapPin}  label="Piazzale" onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
             )}
-            <SideLink to="/autisti"   icon={FiUsers}   label="Autisti"  onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+            {moduleVisible('autisti') && (
+              <SideLink to="/autisti"   icon={FiUsers}   label="Autisti"  onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+            )}
             {activeModules.ricambi && (
               <SideLink to="/ricambi"   icon={RicambiSidebarIcon} label="Ricambi"  onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
             )}
           </Section>
 
-          <Section title="Vendite" collapsed={sidebarMode === "collapsed"}>
-            <SideLink to="/vendite/preventivi"   icon={FiFileText}     label="Preventivi"  onClick={() => setOpen(false)} count={counts.quotes} collapsed={sidebarMode === "collapsed"} />
-          </Section>
+          {moduleVisible('preventivi') && (
+            <Section title="Vendite" collapsed={sidebarMode === "collapsed"}>
+              <SideLink to="/vendite/preventivi"   icon={FiFileText}     label="Preventivi"  onClick={() => setOpen(false)} count={counts.quotes} collapsed={sidebarMode === "collapsed"} />
+            </Section>
+          )}
 
           <Section title="Analisi" collapsed={sidebarMode === "collapsed"}>
-            <SideLink to="/report"     icon={FiBarChart2} label="Report"      onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
-            {activeModules.sdi && (
+            {moduleVisible('report') && (
+              <SideLink to="/report"     icon={FiBarChart2} label="Report"      onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
+            )}
+            {(activeModules.sdi || activeModules.fatturazione || isModuleActive('fatturazione')) && (
               <SideLink to="/fatture"    icon={FiFileText}  label="Fatture"     onClick={() => setOpen(false)} collapsed={sidebarMode === "collapsed"} />
             )}
           </Section>
@@ -657,18 +690,29 @@ export default function Shell({ children }) {
                   {index > 0 && (
                     <FiChevronRight className="w-3.5 h-3.5 text-slate-600 mx-1" />
                   )}
-                  {index === breadcrumb.length - 1 ? (
-                    <span className="font-medium text-slate-300 truncate">
-                      {item.label}
-                    </span>
-                  ) : (
-                    <Link
-                      to={item.path}
-                      className="text-slate-500 hover:text-slate-300 truncate transition-colors"
-                    >
-                      {item.label}
-                    </Link>
-                  )}
+                  {(() => {
+                    const isLast = index === breadcrumb.length - 1;
+                    // L'ultimo è sempre testo. Altrimenti: link solo se la
+                    // pagina target esiste (navigable). Segmenti tecnici
+                    // (`dettaglio`, `cerca`, …) restano label non-cliccabile.
+                    if (isLast || item.navigable === false) {
+                      return (
+                        <span className={isLast
+                          ? 'font-medium text-slate-300 truncate'
+                          : 'text-slate-500 truncate cursor-default'}>
+                          {item.label}
+                        </span>
+                      );
+                    }
+                    return (
+                      <Link
+                        to={item.path}
+                        className="text-slate-500 hover:text-slate-300 truncate transition-colors"
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })()}
                 </div>
               ))}
             </nav>
@@ -699,7 +743,7 @@ export default function Shell({ children }) {
             <span className="text-amber-300/70 text-xs">Stai esplorando RescueManager con dati di esempio. Le funzioni di invio SDI, RENTRI e RVFU sono disabilitate.</span>
           </div>
         )}
-        <main className={`${contentPaddingClass} overflow-auto flex-1`}>{children}</main>
+        <main className={`${contentPaddingClass} overflow-auto flex-1`}><RouteTransition>{children}</RouteTransition></main>
       </div>
      </div>
      {/* end wrapper sidebar + content */}
