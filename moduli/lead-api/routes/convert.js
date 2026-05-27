@@ -55,139 +55,119 @@ module.exports = function createConvertRouter(supabase) {
         })
         .eq('id', quote.id);
 
-      // 4. Se lead ha un org demo, converti a produzione
-      let targetOrgId = lead.demo_org_id || null;
-      let targetUserId = lead.demo_account_id || null;
-      let hasDemo = !!lead.demo_org_id;
+      // 4. Architettura nuova: org_demo e org_prod sono SEMPRE separate.
+      //    All'acquisto creiamo una nuova org pulita; la demo (se esiste)
+      //    viene hard-deleted a fine flusso. L'utente Supabase è lo stesso
+      //    (stessa email) — viene aggiunto come `org_members` della nuova org.
+      const demoOrgIdToDelete = lead.demo_org_id || null;
+      const hasDemo = !!demoOrgIdToDelete;
 
-      if (lead.demo_org_id) {
-        const allModules = [...(quote.base_modules || []), ...(quote.special_modules || [])];
+      // STEP 1: ottieni/crea utente Supabase (stessa email del lead)
+      let userId = lead.demo_account_id || null;
 
-        await supabase
-          .from('orgs')
-          .update({
-            is_demo: false,
-            demo_expires_at: null,
-            web_access_enabled: true,
-            web_features: ['all'],
-            desktop_access_enabled: true,
-            desktop_modules: allModules
-          })
-          .eq('id', lead.demo_org_id);
-
-        // Aggiorna demo record
-        await supabase
-          .from('lead_demos')
-          .update({ status: 'converted' })
-          .eq('lead_id', lead.id)
-          .eq('status', 'active');
-
-        // Pulisci dati demo
-        const tables = ['transports', 'clients', 'vehicles'];
-        for (const table of tables) {
-          await supabase
-            .from(table)
-            .delete()
-            .eq('org_id', lead.demo_org_id)
-            .eq('is_demo', true);
-        }
-
-      } else {
-        // Se non ha demo org, crea nuova org produzione
-        // STEP 1: Prima crea/recupera utente (serve created_by per il trigger DB su orgs)
-        let userId = null;
-
-        if (lead.demo_account_id) {
-          userId = lead.demo_account_id;
-        } else if (lead.email) {
-          const tempPassword = generateConversionPassword();
-          const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-            email: lead.email,
-            password: tempPassword,
-            email_confirm: true,
-            user_metadata: { full_name: lead.name, force_password_change: true }
-          });
-
-          if (authData?.user) {
-            userId = authData.user.id;
-          } else if (authError?.code === 'email_exists') {
-            console.log('[CONVERT] User already exists, fetching by email:', lead.email);
-            const { data: existingUsers } = await supabase.auth.admin.listUsers();
-            userId = existingUsers?.users?.find(u => u.email === lead.email)?.id || null;
-            if (userId) console.log('[CONVERT] Found existing user:', userId);
-          } else if (authError) {
-            console.error('[CONVERT] createUser error:', authError.message);
-          }
-        }
-
-        if (!userId) {
-          return res.status(500).json({ error: 'Errore creazione utente: impossibile creare o trovare utente' });
-        }
-
-        targetUserId = userId;
-
-        // STEP 2: Crea org con created_by=userId (evita trigger DB che fallisce con null)
-        const allModules = [...(quote.base_modules || []), ...(quote.special_modules || [])];
-        const { data: newOrg, error: orgError } = await supabase
-          .from('orgs')
-          .insert({
-            name: lead.company || lead.name,
-            is_demo: false,
-            web_access_enabled: true,
-            web_features: ['all'],
-            desktop_access_enabled: true,
-            desktop_modules: allModules,
-            converted_from_lead_id: lead.id,
-            created_by: userId
-          })
-          .select()
-          .single();
-
-        if (orgError) {
-          return res.status(500).json({ error: 'Errore creazione organizzazione', details: orgError.message });
-        }
-
-        targetOrgId = newOrg.id;
-
-        // STEP 3: Crea profilo, org_members, operator
-        await supabase.from('profiles').upsert({
-          id: userId,
+      if (!userId && lead.email) {
+        const tempPassword = generateConversionPassword();
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
           email: lead.email,
-          full_name: lead.name,
-          current_org: newOrg.id,
-          provider: 'email'
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: { full_name: lead.name, force_password_change: true }
         });
 
-        await supabase.from('org_members').upsert({
-          org_id: newOrg.id,
-          user_id: userId,
-          role: 'owner'
-        }, { onConflict: 'org_id,user_id' });
-
-        const nameParts = (lead.name || '').trim().split(' ');
-        const demoPasswordHash = '$2b$12$g4MkvgG7GkX0xRyVexVCfeJ9fIao/k5IvzDsHCC4l7ggxa88WVQ2e';
-        await supabase.from('operators').upsert({
-          org_id: newOrg.id,
-          user_id: userId,
-          nome: nameParts[0] || 'Utente',
-          cognome: nameParts.slice(1).join(' ') || 'Nuovo',
-          email: lead.email,
-          ruolo: 'admin',
-          attivo: true,
-          codice_operatore: 'ADM001',
-          password_hash: demoPasswordHash
-        }, { onConflict: 'org_id,email' });
-
-        lead.demo_account_id = userId;
-        lead.demo_org_id = newOrg.id;
+        if (authData?.user) {
+          userId = authData.user.id;
+        } else if (authError?.code === 'email_exists') {
+          console.log('[CONVERT] User already exists, fetching by email:', lead.email);
+          const { data: existingUsers } = await supabase.auth.admin.listUsers();
+          userId = existingUsers?.users?.find(u => u.email === lead.email)?.id || null;
+          if (userId) console.log('[CONVERT] Found existing user:', userId);
+        } else if (authError) {
+          console.error('[CONVERT] createUser error:', authError.message);
+        }
       }
 
-      // 5. Aggiorna lead → converted
+      if (!userId) {
+        return res.status(500).json({ error: 'Errore creazione utente: impossibile creare o trovare utente' });
+      }
+
+      // STEP 2: crea SEMPRE una nuova org produzione (NO flip della demo)
+      const allModules = [...(quote.base_modules || []), ...(quote.special_modules || [])];
+      const { data: newOrg, error: orgError } = await supabase
+        .from('orgs')
+        .insert({
+          name: lead.company || lead.name,
+          is_demo: false,
+          web_access_enabled: true,
+          web_features: ['all'],
+          desktop_access_enabled: true,
+          desktop_modules: allModules,
+          converted_from_lead_id: lead.id,
+          created_by: userId
+        })
+        .select()
+        .single();
+
+      if (orgError) {
+        return res.status(500).json({ error: 'Errore creazione organizzazione', details: orgError.message });
+      }
+
+      const targetOrgId = newOrg.id;
+      const targetUserId = userId;
+
+      // STEP 3: profilo (current_org → nuova org PRIMA del delete demo),
+      //         org_members, operator
+      await supabase.from('profiles').upsert({
+        id: userId,
+        email: lead.email,
+        full_name: lead.name,
+        current_org: newOrg.id,
+        provider: 'email'
+      });
+
+      await supabase.from('org_members').upsert({
+        org_id: newOrg.id,
+        user_id: userId,
+        role: 'owner'
+      }, { onConflict: 'org_id,user_id' });
+
+      const nameParts = (lead.name || '').trim().split(' ');
+      const demoPasswordHash = '$2b$12$g4MkvgG7GkX0xRyVexVCfeJ9fIao/k5IvzDsHCC4l7ggxa88WVQ2e';
+      await supabase.from('operators').upsert({
+        org_id: newOrg.id,
+        user_id: userId,
+        nome: nameParts[0] || 'Utente',
+        cognome: nameParts.slice(1).join(' ') || 'Nuovo',
+        email: lead.email,
+        ruolo: 'admin',
+        attivo: true,
+        codice_operatore: 'ADM001',
+        password_hash: demoPasswordHash
+      }, { onConflict: 'org_id,email' });
+
+      // STEP 4: hard-delete della org demo (e tutti i suoi dati).
+      // La funzione SQL `delete_org_cascade` rifiuta org non-demo per safety.
+      // Errori qui sono loggati ma non bloccano la conversione (la prod è già
+      // creata e attiva — la demo verrà rimossa al prossimo reset manuale).
+      if (demoOrgIdToDelete) {
+        const { error: deleteErr } = await supabase.rpc('delete_org_cascade', {
+          target_org_id: demoOrgIdToDelete
+        });
+        if (deleteErr) {
+          console.error('[CONVERT] delete_org_cascade error (non-fatal):', deleteErr.message);
+        } else {
+          console.log('[CONVERT] Demo org hard-deleted:', demoOrgIdToDelete);
+        }
+      }
+
+      // 5. Aggiorna lead → converted. `demo_org_id` viene nullato da
+      // delete_org_cascade ma lo settiamo qui esplicito anche nel caso il
+      // delete sia fallito (così l'admin panel non mostra ref dangling).
       await supabase
         .from('leads')
         .update({
           status: 'converted',
           converted_at: new Date().toISOString(),
+          demo_org_id: null,
           updated_at: new Date().toISOString()
         })
         .eq('id', lead.id);
@@ -301,8 +281,9 @@ module.exports = function createConvertRouter(supabase) {
       res.json({
         success: true,
         message: 'Lead convertito con successo',
-        org_id: lead.demo_org_id,
-        user_id: lead.demo_account_id
+        org_id: targetOrgId,
+        user_id: targetUserId,
+        demo_deleted: hasDemo
       });
 
     } catch (err) {

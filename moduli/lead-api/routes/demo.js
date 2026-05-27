@@ -66,7 +66,11 @@ module.exports = function createDemoRouter(supabase) {
       // 2. Genera password temporanea
       const tempPassword = generateTempPassword();
 
-      // 3. Crea utente auth in Supabase
+      // 3. Crea utente auth in Supabase. Se la mail esiste già (lead in
+      //    conversione tornato dopo demo cancellata, oppure lead duplicato)
+      //    riusiamo l'utente esistente invece di errare. Con la nuova
+      //    architettura (org_demo separata da org_prod) un utente può avere
+      //    più org: questo è il caso normale, non più un edge case.
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: lead.email,
         password: tempPassword,
@@ -80,27 +84,34 @@ module.exports = function createDemoRouter(supabase) {
 
       console.log('[DEMO] createUser response:', JSON.stringify({ authData, authError }, null, 2));
 
-      if (authError) {
-        console.error('[DEMO] Auth error:', authError);
-        // Se utente esiste già, prova a recuperarlo
-        if (authError.message.includes('already been registered') || authError.message.includes('already exists')) {
-          return res.status(400).json({ 
-            error: 'Utente già registrato con questa email. Controlla se esiste già un account.',
-            details: authError.message
-          });
+      let userId = null;
+      let reusedExistingUser = false;
+
+      if (authData?.user?.id) {
+        userId = authData.user.id;
+      } else if (authError && (authError.code === 'email_exists'
+                               || (authError.message || '').includes('already been registered')
+                               || (authError.message || '').includes('already exists'))) {
+        // Utente già in auth: recupero per email
+        console.log('[DEMO] User exists, fetching by email:', lead.email);
+        const { data: existingUsers, error: listErr } = await supabase.auth.admin.listUsers();
+        if (listErr) {
+          return res.status(500).json({ error: 'Errore lookup utente esistente', details: listErr.message });
         }
+        const found = existingUsers?.users?.find(u => u.email === lead.email);
+        if (!found?.id) {
+          return res.status(500).json({ error: 'Utente già registrato ma non recuperabile da listUsers' });
+        }
+        userId = found.id;
+        reusedExistingUser = true;
+        console.log('[DEMO] Reusing existing user:', userId);
+      } else if (authError) {
+        console.error('[DEMO] Auth error:', authError);
         return res.status(500).json({ error: 'Errore creazione utente', details: authError.message });
-      }
-
-      if (!authData || !authData.user || !authData.user.id) {
+      } else {
         console.error('[DEMO] Invalid authData:', authData);
-        return res.status(500).json({ 
-          error: 'Errore creazione utente', 
-          details: 'authData.user.id is null or undefined' 
-        });
+        return res.status(500).json({ error: 'Errore creazione utente', details: 'authData.user.id is null or undefined' });
       }
-
-      const userId = authData.user.id;
 
       // 4. Crea organizzazione demo
       const allModules = [...modules, ...special_modules];
@@ -290,7 +301,11 @@ module.exports = function createDemoRouter(supabase) {
           user_id: userId,
           org_id: org.id,
           email: lead.email,
-          temp_password: tempPassword,
+          // Se l'utente esisteva già la tempPassword generata NON è stata
+          // applicata (la sua password resta quella precedente). In quel
+          // caso lo staff deve usare il setup_password_url o "resend recovery".
+          temp_password: reusedExistingUser ? null : tempPassword,
+          reused_existing_user: reusedExistingUser,
           expires_at: expiresAt.toISOString(),
           modules: allModules,
           duration_days
