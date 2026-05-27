@@ -180,27 +180,50 @@ module.exports = function createConvertRouter(supabase) {
       // 5.5. Copia dati aziendali del lead in company_settings
       if (targetOrgId) {
         try {
-          await supabase.from('company_settings').upsert({
-            org_id: targetOrgId,
+          // Scrivi su `org_settings.key='company'` (JSONB merge) — fonte
+          // canonica usata dal desktop e da ClientControlsPanel.
+          // La vecchia tabella `company_settings` è deprecata.
+          const companyValue = {
             company_name: lead.company || lead.name || '',
-            vat_number: lead.vat_number || null,
-            codice_fiscale: lead.codice_fiscale || null,
+            vat: lead.vat_number || null,
+            piva: lead.vat_number || null,
+            tax_code: lead.codice_fiscale || null,
             pec: lead.pec || null,
             phone: lead.phone || null,
             email: lead.email || null,
-            address_street: lead.address_street || null,
-            address_city: lead.address_city || null,
-            address_province: lead.address_province || null,
-            address_postal_code: lead.address_postal_code || null,
-            address_country: 'IT',
             forma_giuridica: lead.forma_giuridica || null,
             codice_ateco: lead.codice_ateco || null,
-            sdi_recipient_code: process.env.SDI_RECIPIENT_CODE || null,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'org_id' });
-          console.log('[CONVERT] company_settings aggiornato per org_id:', targetOrgId);
+            address: {
+              street: lead.address_street || null,
+              city: lead.address_city || null,
+              province: lead.address_province || null,
+              zip: lead.address_postal_code || null,
+              country: 'IT',
+            },
+          };
+          await supabase.from('org_settings').upsert({
+            org_id: targetOrgId, key: 'company', value: companyValue,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'org_id,key' });
+
+          // Scrivi codice destinatario SDI in org_settings.key='sdi' (JSONB merge).
+          // Letto da Settings desktop, onboarding wizard, ClientControlsPanel.
+          if (process.env.SDI_RECIPIENT_CODE) {
+            const { data: cur } = await supabase
+              .from('org_settings').select('value')
+              .eq('org_id', targetOrgId).eq('key', 'sdi').maybeSingle();
+            const sdiValue = {
+              ...((cur?.value) || {}),
+              codice_destinatario: process.env.SDI_RECIPIENT_CODE,
+            };
+            await supabase.from('org_settings').upsert({
+              org_id: targetOrgId, key: 'sdi', value: sdiValue,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'org_id,key' });
+          }
+          console.log('[CONVERT] org_settings (company + sdi) aggiornato per org_id:', targetOrgId);
         } catch (csErr) {
-          console.error('[CONVERT] company_settings upsert error:', csErr.message);
+          console.error('[CONVERT] org_settings upsert error:', csErr.message);
         }
 
         // 5.6. Aggiorna/crea org_subscriptions → active

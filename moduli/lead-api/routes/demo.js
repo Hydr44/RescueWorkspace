@@ -252,27 +252,45 @@ module.exports = function createDemoRouter(supabase) {
         })
         .eq('id', leadId);
 
-      // 9. Crea/aggiorna company_settings con tutti i dati dal lead
-      await supabase
-        .from('company_settings')
-        .upsert({
-          org_id: org.id,
-          created_by: userId,
-          company_name: company_name || lead.company || '',
-          vat_number: vat_number || lead.vat_number || null,
-          codice_fiscale: lead.codice_fiscale || null,
-          pec: lead.pec || null,
-          forma_giuridica: lead.forma_giuridica || null,
-          codice_ateco: lead.codice_ateco || null,
-          phone: phone || lead.phone || null,
-          email: lead.email,
-          address_street: address || lead.address_street || null,
-          address_city: city || lead.address_city || null,
-          address_province: province || lead.address_province || null,
-          address_postal_code: postal_code || lead.address_postal_code || null,
-          address_country: 'IT',
-          sdi_recipient_code: process.env.SDI_RECIPIENT_CODE || null
-        }, { onConflict: 'org_id' });
+      // 9. Crea/aggiorna `org_settings.key='company'` (JSONB) e `key='sdi'`
+      // con dati dal lead. La vecchia tabella company_settings è deprecata.
+      const companyValue = {
+        company_name: company_name || lead.company || '',
+        vat: vat_number || lead.vat_number || null,
+        piva: vat_number || lead.vat_number || null,
+        tax_code: lead.codice_fiscale || null,
+        pec: lead.pec || null,
+        forma_giuridica: lead.forma_giuridica || null,
+        codice_ateco: lead.codice_ateco || null,
+        phone: phone || lead.phone || null,
+        email: lead.email,
+        address: {
+          street: address || lead.address_street || null,
+          city: city || lead.address_city || null,
+          province: province || lead.address_province || null,
+          zip: postal_code || lead.address_postal_code || null,
+          country: 'IT',
+        },
+      };
+      await supabase.from('org_settings').upsert({
+        org_id: org.id, key: 'company', value: companyValue,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'org_id,key' });
+
+      // SDI code in org_settings.key='sdi'
+      if (process.env.SDI_RECIPIENT_CODE) {
+        const { data: curSdi } = await supabase
+          .from('org_settings').select('value')
+          .eq('org_id', org.id).eq('key', 'sdi').maybeSingle();
+        const sdiValue = {
+          ...((curSdi?.value) || {}),
+          codice_destinatario: process.env.SDI_RECIPIENT_CODE,
+        };
+        await supabase.from('org_settings').upsert({
+          org_id: org.id, key: 'sdi', value: sdiValue,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'org_id,key' });
+      }
 
       // 9b. Crea org_subscriptions (trial)
       await supabase
