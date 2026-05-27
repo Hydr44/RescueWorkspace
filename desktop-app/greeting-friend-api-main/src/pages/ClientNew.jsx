@@ -35,7 +35,7 @@ try { ({ autoFillFromPIVA } = await import("@/lib/openapi-company")); } catch { 
    comuni completo (8000+ comuni ISTAT)
    ═══════════════════════════════════════════════ */
 import { calcolaCodiceFiscale } from "@/lib/codiceFiscale";
-import { searchComuni, getComuneByName } from "@/lib/comuniItaliani";
+import { searchComuni, getComuneByName, findComuneExact } from "@/lib/comuniItaliani";
 
 /* ═══════════════════════════════════════════════
    Utility: P.IVA validation
@@ -102,6 +102,8 @@ export default function ClientNew() {
   const [luogoNascitaCode, setLuogoNascitaCode] = useState("");
   const [birthPlaceSuggestions, setBirthPlaceSuggestions] = useState([]);
   const [showBirthPlaceSugg, setShowBirthPlaceSugg] = useState(false);
+  const [cittaSuggestions, setCittaSuggestions] = useState([]);
+  const [showCittaSugg, setShowCittaSugg] = useState(false);
   
   /* ─── Nuovi campi priorità alta (1-4) ─── */
   const [tipoDocumento, setTipoDocumento] = useState("CI"); // CI, Patente, Passaporto
@@ -887,6 +889,59 @@ export default function ClientNew() {
                 )}
               </div>
               <div className="grid grid-cols-3 gap-2">
+                <div className="relative">
+                  <label className="text-[10px] text-slate-500 mb-1 block">Città</label>
+                  <input type="text" value={citta}
+                    onChange={async (e) => {
+                      const v = e.target.value;
+                      setCitta(v);
+                      // CAP/prov si riempiono solo da selezione esplicita (no
+                      // sostituzione automatica del CAP che l'utente potrebbe
+                      // aver già messo)
+                      if (v.length >= 2) {
+                        const results = await searchComuni(v);
+                        setCittaSuggestions(results);
+                        setShowCittaSugg(results.length > 0);
+                      } else {
+                        setCittaSuggestions([]);
+                        setShowCittaSugg(false);
+                      }
+                    }}
+                    onBlur={() => setTimeout(async () => {
+                      // Se l'utente esce dal campo senza selezionare, e CAP/prov
+                      // sono vuoti, prova fallback su match esatto del nome
+                      if (citta && (!cap || !provincia)) {
+                        const comune = await findComuneExact(citta, provincia);
+                        if (comune) {
+                          if (!cap) setCap(comune.cap || "");
+                          if (!provincia) setProvincia(comune.sigla || "");
+                        }
+                      }
+                      setShowCittaSugg(false);
+                    }, 200)}
+                    className={inputCls(false)} placeholder="Gela" autoComplete="off" />
+                  {showCittaSugg && cittaSuggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-[#141c27] border border-[#243044] rounded-md max-h-56 overflow-y-auto">
+                      {cittaSuggestions.map((s, idx) => (
+                        <button type="button" key={idx}
+                          className="w-full px-3 py-1.5 hover:bg-[#1a2536] cursor-pointer text-xs border-b border-[#243044] last:border-b-0 text-left"
+                          onClick={() => {
+                            setCitta(s.nome);
+                            if (s.cap) setCap(s.cap);
+                            if (s.sigla) setProvincia(s.sigla);
+                            setShowCittaSugg(false);
+                            setCittaSuggestions([]);
+                          }}>
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="font-medium text-slate-200">{s.nome}</span>
+                            <span className="text-[10px] text-slate-500">{s.cap}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">{s.provincia} ({s.sigla})</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div>
                   <label className="text-[10px] text-slate-500 mb-1 block">CAP</label>
                   <input type="text" value={cap} onChange={e => setCap(e.target.value.replace(/\D/g, "").slice(0, 5))}
@@ -894,14 +949,10 @@ export default function ClientNew() {
                   {errors.cap && <div className="text-[10px] text-red-400 mt-0.5">{errors.cap}</div>}
                 </div>
                 <div>
-                  <label className="text-[10px] text-slate-500 mb-1 block">Città</label>
-                  <input type="text" value={citta} onChange={e => setCitta(e.target.value)} className={inputCls(false)} placeholder="Roma" />
-                </div>
-                <div>
                   <label className="text-[10px] text-slate-500 mb-1 block">Prov.</label>
                   <input type="text" value={provincia}
                     onChange={e => setProvincia(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2))}
-                    className={`${inputCls(errors.provincia)} font-mono uppercase`} placeholder="RM" maxLength={2} />
+                    className={`${inputCls(errors.provincia)} font-mono uppercase`} placeholder="CL" maxLength={2} />
                   {errors.provincia && <div className="text-[10px] text-red-400 mt-0.5">{errors.provincia}</div>}
                 </div>
               </div>
