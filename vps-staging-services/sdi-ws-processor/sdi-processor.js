@@ -13,7 +13,16 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('node:child_process');
 const { createClient } = require('@supabase/supabase-js');
+
+// Estrae l'XML FatturaPA dal file firmato .p7m (CAdES/DER).
+function extractXml(p7mPath) {
+  const args = ['smime', '-verify', '-noverify', '-inform', 'DER', '-in', p7mPath];
+  const opt = { maxBuffer: 20 * 1024 * 1024 };
+  try { return execFileSync('openssl', args, opt).toString('utf8'); }
+  catch { try { return execFileSync('openssl', ['smime', '-verify', '-noverify', '-in', p7mPath], opt).toString('utf8'); } catch { return null; } }
+}
 if (globalThis.WebSocket === undefined) { try { globalThis.WebSocket = require('ws'); } catch { /* ok */ } }
 
 const STORAGE = process.env.SDI_WS_STORAGE_DIR || '/opt/sdi-ws-server/storage';
@@ -98,11 +107,15 @@ async function processIncoming(sb, dir, provider) {
     const dup1 = await sb.from('invoices').select('id').eq('org_id', org).filter('meta->sdi->trasmissione->>identificativo_sdi', 'eq', String(id)).limit(1);
     const dup2 = (dup1.data && dup1.data.length) ? { data: [1] } : await sb.from('invoices').select('id').eq('provider_ext_id', nomeFile).limit(1);
     if ((dup1.data && dup1.data.length) || (dup2.data && dup2.data.length)) { markDone(marker); continue; } // già presente
+    // Estrai l'XML FatturaPA dal .p7m firmato (per download + PDF conforme AdE).
+    const p7mPath = path.join(dir, f.replace(/\.meta\.json$/, ''));
+    const sdiXml = fs.existsSync(p7mPath) ? extractXml(p7mPath) : null;
     const meta = {
       sdi: { trasmissione: { identificativo_sdi: String(id), nome_file: nomeFile }, documento: { tipo_documento: d.tipo_documento } },
       source: { type: 'soap_rx_import' },
       sdi_environment: provider === 'sdi_prod' ? 'PROD' : 'TEST',
       invoice_data: d,
+      sdi_xml: sdiXml || undefined,
     };
     const payload = {
       org_id: org, direction: 'passive', sdi_status: 'received',
