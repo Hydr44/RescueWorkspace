@@ -84,6 +84,9 @@ async function processNotifiche(sb, dir) {
         const e = estraiErrori(xml)[0];
         if (e) { meta.sdi_rejection_code = e.codice; meta.sdi_rejection_description = e.descrizione; meta.sdi_rejection_suggestion = e.suggerimento; }
       }
+      // Salva l'XML della notifica per il download dall'admin (punto 1).
+      meta.sdi_notifiche = Object.assign({}, meta.sdi_notifiche || {});
+      meta.sdi_notifiche[tipo] = { tipo, tipo_lungo: TIPO_LONG[tipo], at: meta[key], xml };
       const { error } = await sb.from('invoices').update({ sdi_status: STATUS_MAP[tipo], meta }).eq('id', row.id);
       if (error) { console.error(`[notif] update fail ${nomeFile}: ${error.message}`); continue; }
       applied++; console.log(`[notif] ${nomeFile} ${tipo} -> ${STATUS_MAP[tipo]}`);
