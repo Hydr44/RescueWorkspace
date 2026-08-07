@@ -57,3 +57,6 @@ Thumbs.db
 supabase/.temp/
 *.bak
 *.bak-*
+
+# desktop-app ha il suo repo (Hydr44/RescueDesktop) — niente doppio-tracking
+desktop-app/
