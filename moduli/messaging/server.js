@@ -158,6 +158,19 @@ async function loadOrgCompany(orgId) {
   return data?.value || {};
 }
 
+// ── Contatore d'uso 'sms' (Fase 2) — BEST-EFFORT ──
+// Conta 1 per messaggio effettivamente inviato (WhatsApp/OTP). È solo misura,
+// mai bloccante: se increment_usage manca su prod o fallisce, logga e prosegue.
+// NON deve MAI far fallire l'invio sottostante.
+async function countSms(orgId, amount = 1) {
+  if (!orgId || !(amount > 0)) return;
+  try {
+    await supabase.rpc('increment_usage', { p_org_id: orgId, p_metric: 'sms', p_amount: amount });
+  } catch (e) {
+    console.warn('[usage] increment_usage sms fallito (best-effort):', e.message || e);
+  }
+}
+
 // Carica anche i campi "pesanti" del consenso (firma, condizioni) per il sigillo.
 async function loadTransportFull(transportId) {
   const { data, error } = await supabase
@@ -289,6 +302,8 @@ app.post('/api/messaging/transport-notify', requireCaller, async (req, res) => {
     }
     const sentLangs = results.filter((r) => r.ok).map((r) => r.lang);
     console.log(`[notify] ${numeroTrasporto(t)} -> ${maskPhone(to)} stato=${status} richieste=${toSend.join(',')} inviate=${sentLangs.join(',') || 'nessuna'}`);
+    // Contatore d'uso: 1 per messaggio effettivamente inviato (una per lingua).
+    if (sentLangs.length > 0) await countSms(t.org_id, sentLangs.length);
     res.json({ ok: sentLangs.length > 0, to: maskPhone(to), status, results });
   } catch (e) {
     console.error('[notify] error:', e.message, e.details || '');
@@ -325,6 +340,7 @@ app.post('/api/messaging/otp/send', requireCaller, async (req, res) => {
         plate: sd.targa || null,
       });
       console.log(`[otp] send(email) ${numeroTrasporto(t)} -> ${maskEmail(to)} type=${signerType} org=${company.company_name || '-'}`);
+      await countSms(t.org_id, 1); // 1 messaggio OTP effettivamente inviato
       return res.json({ ok: true, to: maskEmail(to), channel: 'email' });
     }
 
@@ -334,6 +350,7 @@ app.post('/api/messaging/otp/send', requireCaller, async (req, res) => {
     const code = await otp.createOtp(transport_id, { recipient: to, channel: 'whatsapp', signer_type: signerType, signer_name: signer_name || null });
     await wa.sendTemplate(to, TPL_OTP, 'it', wa.otpComponents(code));
     console.log(`[otp] send ${numeroTrasporto(t)} -> ${maskPhone(to)} type=${signerType}`);
+    await countSms(t.org_id, 1); // 1 messaggio OTP effettivamente inviato
     res.json({ ok: true, to: maskPhone(to), channel: 'whatsapp' });
   } catch (e) {
     console.error('[otp send] error:', e.message, e.details || '');
