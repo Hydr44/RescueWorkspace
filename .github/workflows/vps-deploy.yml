@@ -47,7 +47,7 @@ jobs:
             fi
             
             # Deploy each service
-            for service in assist-server rentri-api sdi-sftp-server lead-api ebay-oauth oauth-proxy-server; do
+            for service in assist-server rentri-api sdi-sftp-server lead-api ebay-oauth oauth-proxy-server regulatory-monitor; do
               if [ -d "$BASE_DIR/moduli/$service" ]; then
                 echo "📦 Deploying $service..."
                 cd $BASE_DIR/moduli/$service
@@ -61,7 +61,13 @@ jobs:
             else
               pm2 restart staging-ecosystem || pm2 start staging-ecosystem.config.js
             fi
-            
+
+            # Regulatory monitor: istanza singola, SOLO in produzione (evita email duplicate)
+            if [ "$ENV" == "production" ] && [ -d "$BASE_DIR/moduli/regulatory-monitor" ]; then
+              pm2 restart regulatory-monitor || pm2 start "$BASE_DIR/moduli/regulatory-monitor/ecosystem.config.js"
+              pm2 save
+            fi
+
             echo "✅ Deployment to $ENV complete!"
       
       - name: Notify deployment

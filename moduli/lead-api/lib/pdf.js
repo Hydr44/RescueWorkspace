@@ -51,8 +51,9 @@ async function generateQuotePDF(quote, lead) {
       // ─── Header ───
       doc.rect(0, 0, 595.28, 100).fill('#0f172a');
 
-      // Logo
+      // Logo (su card bianca per visibilità delle parti chiare del logo)
       const logoPath = require('path').join(__dirname, '../assets/logo-principale-a-colori.png');
+      doc.roundedRect(42, 17, 160, 44, 6).fill('#ffffff');
       doc.image(logoPath, 50, 25, { height: 28 });
       
       doc.fontSize(12).fillColor('#bfdbfe').text('Software Gestionale per Autodemolizioni', 50, 60);
@@ -196,12 +197,12 @@ async function generateQuotePDF(quote, lead) {
       doc.moveTo(50, y).lineTo(545, y).stroke('#10b981');
       y += 10;
 
-      doc.fontSize(14).fillColor('#10b981').text('Totale Mensile', 50, y);
+      doc.fontSize(14).fillColor('#10b981').text('Totale Mensile (IVA inclusa)', 50, y);
       doc.fontSize(14).fillColor('#10b981').text(fmt(quote.monthly_total) + '/mese', 400, y, { align: 'right', width: 145 });
       y += 22;
 
       if (quote.yearly_total) {
-        doc.fontSize(10).fillColor('#666666').text('Totale Annuale (-10% sconto)', 50, y);
+        doc.fontSize(10).fillColor('#666666').text('Totale Annuale (-10% sconto, IVA inclusa)', 50, y);
         doc.fontSize(10).fillColor('#666666').text(fmt(quote.yearly_total) + '/anno', 400, y, { align: 'right', width: 145 });
         y += 18;
       }
@@ -223,7 +224,7 @@ async function generateQuotePDF(quote, lead) {
       y += 12;
 
       doc.fontSize(8).fillColor('#999999');
-      doc.text('Questo preventivo è valido fino alla data di scadenza indicata. I prezzi sono IVA esclusa.', 50, y, { width: 500 });
+      doc.text('Questo preventivo è valido fino alla data di scadenza indicata. I prezzi indicati sono IVA inclusa.', 50, y, { width: 500 });
       y += 12;
       doc.text('Il servizio è soggetto ai Termini e Condizioni disponibili su rescuemanager.eu/terms.', 50, y, { width: 500 });
       y += 12;

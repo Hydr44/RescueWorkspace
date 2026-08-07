@@ -244,7 +244,9 @@ module.exports = function createConvertRouter(supabase) {
             org_id: targetOrgId,
             status: 'active',
             plan: quote.plan_type || 'starter',
-            billing_type: quote.billing_frequency || 'monthly',
+            // billing_type = METODO di pagamento (vincolo DB: stripe|manual|free|trial),
+            // NON la frequenza. La frequenza è già nel periodo (current_period_end).
+            billing_type: stripe_subscription_id ? 'stripe' : 'manual',
             current_period_start: new Date().toISOString(),
             current_period_end: periodEnd.toISOString(),
             trial_end: null,

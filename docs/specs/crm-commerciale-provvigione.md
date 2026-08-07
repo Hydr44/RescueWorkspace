@@ -285,3 +285,59 @@ Al raggiungimento di `status='attivato'` (o alias storico `converted`). La **tra
 - **Preventivo pagato**: già immutabile via stato quote (`paid`/`activated`) — fuori da questo trigger.
 - **Dati fiscali dell'`orgs`** (cliente creato): l'immutabilità lato org è dominio **admin** e l'agente esterno non ha accesso alle org (Fase 1 scoping), quindi rischio basso → eventuale trigger analogo su `orgs` è **rinviabile**.
 - Il commission_ledger (§3.4) **snapshotta** comunque `staff_id`/`amount` all'accrual, quindi lo storico provvigioni è già immune a modifiche successive; il lock dell'owner è protezione aggiuntiva/di chiarezza.
+
+---
+
+## 15. UX commerciale: testata dettaglio + form lead rifatto (DECISO 2026-07-10)
+
+> Modo di lavoro del commerciale (DECISO): **telefono + email**, con **"richiamo agenda"** come driver quotidiano. Il dettaglio lead oggi è una console di *attivazione* (demo/preventivi/dati fiscali), non un cruscotto di *vendita*. Modello di riferimento estetico: il form **"Nuovo Cliente" del desktop** ([`ClientNew.jsx`](../../desktop-app/greeting-friend-api-main/src/pages/ClientNew.jsx), stile datasheet `cf-*`) che l'utente vuole replicare.
+
+### 15.1 Fondamenta obbligatoria — chiudere il "buco a valle"
+Il form di creazione attuale ([`NewLeadPage.tsx`](../../admin-panel/src/pages/NewLeadPage.tsx)) **già raccoglie** qualifica + pipeline + attribution (settore, dimensione, mezzi/mese, software, pain_points, temperatura, `expected_deal_value`, `probability_to_close`, `next_followup_at`/`action`, source/UTM). Ma quei dati **muoiono a valle**:
+- Il tipo `Lead` ([`api.ts:68-102`](../../admin-panel/src/lib/api.ts)) **non li include** → il dettaglio non li mostra.
+- Il **PUT** `admin/leads/[id]` accetta **solo ~20 campi** base+fiscali → non sono **modificabili** dopo la creazione.
+
+**Prerequisito a qualunque UI**: estendere (a) il tipo `Lead` e (b) la whitelist `allowedFields` del PUT ai campi qualifica/pipeline/attribution. Colonne DB già tutte presenti (`20260512_lead_system_overhaul.sql`) → **nessuna migration**, solo tipo + endpoint.
+
+### 15.2 Testata commerciale (in cima a `LeadDetailPage`)
+Fascia compatta *"chi è · quanto vale · quanto ci guadagno · quando lo richiamo · come lo contatto"*:
+- Riga 1: nome · azienda · **temperatura** (pill editabile inline) · stage funnel.
+- Riga 2 (contatto): **telefono `tel:` cliccabile** · email · pulsanti **[Chiama] [Email] [WhatsApp]**.
+- Riga 3 (KPI): **Valore stimato** (`expected_deal_value`) · **Probabilità** (`probability_to_close`) · **Provvigione stimata** · **Prossimo richiamo** (`next_followup_at` + `[Richiama]`; rosso se scaduto).
+- Riga 4: Fonte (`source`) · Ultimo contatto (`last_activity_at`) · Owner (`assigned_staff_id`).
+- **Provvigione stimata (DECISO: mostrare subito)**: usa un importo fisso per commerciale = **anticipo di `staff.commission_amount`** (§3.3) come **solo campo + display**. Ledger/accrual/payout restano Fase 3. Mostra "€ X 🎯" (o "—" se owner senza importo). Nessuna dipendenza dal ledger.
+
+### 15.3 Azione "Registra chiamata" (cuore telefono→agenda)
+Dietro **[Chiama]** (dopo il `tel:`): mini-modale (coerente con [[feedback-important-actions-modal-or-page]]):
+> Esito `Risponde / Non risponde / Richiamare / Non interessato` → Note → **Prossimo richiamo** `[oggi][domani][+3g][data]` → Salva.
+
+Effetto: 1 riga `lead_activities` (`activity_type='call'` + esito) + set `next_followup_at`/`next_followup_action` + bump `last_activity_at`. Un gesto e il lead **rientra in agenda**. "Non interessato" propone anche `lost_reason` (§ mappa riuso).
+
+### 15.4 Vista "Da richiamare" (richiamo agenda — Fase 2)
+I *miei* lead con `next_followup_at ≤ oggi`, **scaduti in rosso** in cima. Apertura giornata: chiama → registra esito → il lead si ri-schedula. Riuso pattern coda di `RevisionePage.tsx` + `fetchAllOpenTasks()`.
+
+### 15.5 Form lead rifatto — stile desktop, ordine "da commerciale"
+Stesso *stile datasheet* del desktop, ma **ordine ribaltato** (un lead telefonico all'inizio non ha la P.IVA): contatto prima, **fiscale opzionale in fondo (DECISO)**.
+
+Sezioni: **Referente & contatto** → **Qualifica commerciale** → **Opportunità & follow-up** → **Provenienza** (UTM collassato) → **Dati fiscali** (collassata, opzionale, con auto-fill P.IVA) → **Assegnazione + note**.
+
+**Goodies da portare dal desktop** (oggi vivono in `desktop-app`, da condividere/portare in `admin-panel`):
+| Feature | Lib desktop | Nota per il lead |
+|---|---|---|
+| Auto-fill da P.IVA | `openapi-company.js` | riempie ragione sociale/indirizzo/PEC/cod.dest. anche a stadio lead |
+| Autocomplete indirizzo | `google-maps.js` | CAP/città/provincia automatici |
+| Autocomplete comuni | `comuniItaliani.js` | città |
+| Telefono con prefisso | `PhoneInput` (in ClientNew.jsx) | default +39 |
+| Anello completamento | (in ClientNew.jsx) | **tarato lead**: nome + (email\|tel) + settore + temperatura + fonte (NON il fiscale) |
+| Auto-save bozza | localStorage | ogni 2s |
+| NavGuard anti-perdita | admin ha già `useNavGuard` [[project-navguard-pattern]] | — |
+| Stile `cf-*` datasheet | admin ha già i `cf-*` (Fatturazione) | riuso diretto |
+
+**Twist lead-specifico**: il lookup "intelligente" non è (solo) la P.IVA ma il **controllo duplicati su email** — on-blur email → `findDuplicateLead` (`lead-dedup.ts`, già esiste) → "esiste già un lead con questa email · apri".
+
+### 15.6 Ordine di costruzione (quando si passa al codice)
+1. **Fondamenta** (§15.1): tipo `Lead` + whitelist PUT ai campi vendita. *(sblocca tutto)*
+2. **Testata** (§15.2) + **Registra chiamata** (§15.3) sul dettaglio. Anticipa `staff.commission_amount` (solo campo+display).
+3. **Form lead rifatto** (§15.5): porting goodies desktop + riordino sezioni + dedup email.
+4. **Vista "Da richiamare"** (§15.4). *(≈ Fase 2 della §11)*
+> Provvigione **completa** (ledger/accrual/clawback/payout) resta **Fase 3** (§8): qui si anticipa solo l'importo visibile.

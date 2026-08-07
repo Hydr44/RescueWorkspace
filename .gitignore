@@ -51,3 +51,9 @@ temp/
 
 # OS
 Thumbs.db
+
+# junk/backup (cleanup)
+.DS_Store
+supabase/.temp/
+*.bak
+*.bak-*

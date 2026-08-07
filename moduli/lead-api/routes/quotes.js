@@ -330,8 +330,10 @@ module.exports = function createQuotesRouter(supabase) {
         }
       }
 
-      // Costruisci email
-      const publicUrl = `https://rescuemanager.eu/quotes/${quote.public_uuid}`;
+      // Costruisci email — base URL guidata dall'env (come demo.js), non
+      // hardcoded: così staging email-a link staging e prod link prod.
+      const siteUrl = (process.env.SITE_URL || 'https://rescuemanager.eu').replace(/\/+$/, '');
+      const publicUrl = `${siteUrl}/quotes/${quote.public_uuid}`;
       const { html, text } = buildQuoteEmail({
         leadName: lead.name,
         quoteNumber: quote.quote_number,
