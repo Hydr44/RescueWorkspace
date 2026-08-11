@@ -88,12 +88,12 @@ async function backups() {
     note: 'rsync + launchd ogni 10 minuti sul Mac dello studio (60 snapshot con hardlink, ~10 ore).',
   });
 
-  // 4) Backup per-cliente su storage (pianificato)
+  // 4) Backup per-cliente su R2 (LIVE)
   items.push({
     key: 'per_client',
-    name: 'Backup per-cliente su storage',
-    status: 'todo',
-    note: 'Export giornaliero dei dati di ogni cliente in una cartella dedicata su storage. Da attivare.',
+    name: 'Backup per-cliente su R2',
+    status: 'ok',
+    note: 'Attivo: export notturno (03:00) dei dati di ogni org non-demo su R2 — backups/<org_id>/<data>/ (JSON per tabella + manifest + zip), retention 30 giorni.',
   });
 
   // 5) R2 / Cloudflare
