@@ -38,4 +38,14 @@ async function presign(key, expiresIn = 120) {
   return getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: key }), { expiresIn });
 }
 
-module.exports = { configured, listAll, presign, BUCKET };
+async function getText(key) {
+  const r = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+  return r.Body.transformToString();
+}
+
+async function put(key, body, contentType) {
+  const { PutObjectCommand } = require('@aws-sdk/client-s3');
+  await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: body, ContentType: contentType }));
+}
+
+module.exports = { configured, listAll, presign, getText, put, BUCKET };

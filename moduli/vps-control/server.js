@@ -24,7 +24,10 @@ const { listServices, tailLogs, restart, stop, start } = require('./lib/pm2');
 const { audit, recentAudit } = require('./lib/audit');
 const { resources, backups } = require('./lib/system');
 const r2 = require('./lib/r2');
+const restore = require('./lib/restore');
 const DESCRIPTIONS = require('./descriptions');
+
+const RESTORE_ALLOW_PROD = process.env.RESTORE_ALLOW_PROD === 'true';
 
 const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
@@ -151,6 +154,44 @@ app.post('/api/backups/run', (req, res) => {
     res.json({ ok: true, started: true });
   } catch (e) {
     audit({ actor, action: 'backup_run', target: 'client-backup', ok: false, detail: e.message, ip: ipOf(req) });
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Ripristino da backup: analisi (read-only) e apply (transazionale) ──
+function restoreParams(req, res) {
+  const org = String((req.body && req.body.org) || '');
+  const date = String((req.body && req.body.date) || '');
+  const mode = String((req.body && req.body.mode) || 'merge');
+  const tables = Array.isArray(req.body && req.body.tables) ? req.body.tables : null;
+  if (!ORG_RE.test(org) || !DATE_RE.test(date)) { res.status(400).json({ ok: false, error: 'parametri non validi' }); return null; }
+  if (!['merge', 'mirror'].includes(mode)) { res.status(400).json({ ok: false, error: 'modalità non valida' }); return null; }
+  if (!r2.configured() || !supabase) { res.status(503).json({ ok: false, error: 'R2/DB non configurato' }); return null; }
+  return { org, date, mode, tables };
+}
+
+app.post('/api/backups/restore/analyze', async (req, res) => {
+  const p = restoreParams(req, res); if (!p) return;
+  try {
+    const result = await restore.analyze({ supabase, r2, ...p });
+    res.json({ ok: true, ...result });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/api/backups/restore/apply', async (req, res) => {
+  const p = restoreParams(req, res); if (!p) return;
+  const planHash = String((req.body && req.body.planHash) || '');
+  const actor = actorOf(req);
+  const ip = ipOf(req);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  try {
+    const result = await restore.apply({ supabase, r2, ...p, planHash, allowProd: RESTORE_ALLOW_PROD, stamp });
+    await audit({ actor, action: `restore_${p.mode}`, target: `${p.org}@${p.date}`, ok: true, detail: JSON.stringify(result.totals).slice(0, 300), ip });
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    if (e.code === 'prod_locked') { await audit({ actor, action: `restore_${p.mode}`, target: `${p.org}@${p.date}`, ok: false, detail: 'prod_locked', ip }); return res.status(403).json({ ok: false, error: e.message, code: e.code }); }
+    if (e.code === 'plan_stale') return res.status(409).json({ ok: false, error: e.message, code: e.code });
+    await audit({ actor, action: `restore_${p.mode}`, target: `${p.org}@${p.date}`, ok: false, detail: e.message, ip });
     res.status(500).json({ ok: false, error: e.message });
   }
 });
