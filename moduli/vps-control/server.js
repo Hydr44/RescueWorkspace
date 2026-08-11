@@ -18,10 +18,17 @@ require('dotenv').config({ path: process.env.ENV_FILE || '/root/.env' });
 
 const express = require('express');
 const crypto = require('crypto');
+const { execFile } = require('child_process');
+const { createClient } = require('@supabase/supabase-js');
 const { listServices, tailLogs, restart, stop, start } = require('./lib/pm2');
 const { audit, recentAudit } = require('./lib/audit');
 const { resources, backups } = require('./lib/system');
+const r2 = require('./lib/r2');
 const DESCRIPTIONS = require('./descriptions');
+
+const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
+  : null;
 
 const PORT = Number(process.env.VPS_CONTROL_PORT) || 3910;
 const HOST = process.env.VPS_CONTROL_HOST || '127.0.0.1';
@@ -79,6 +86,73 @@ app.get('/api/resources', async (_req, res) => {
 app.get('/api/backups', async (_req, res) => {
   try { res.json({ ok: true, backups: await backups() }); }
   catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── Backup per-cliente (R2): elenco, download firmato, esegui ora ──
+const ORG_RE = /^[a-f0-9-]{36}$/i;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const FILE_RE = /^[\w.-]+$/;
+
+app.get('/api/backups/clients', async (_req, res) => {
+  if (!r2.configured()) return res.json({ ok: true, clients: [], lastRun: null, totalBytes: 0, note: 'R2 non configurato' });
+  try {
+    const objs = await r2.listAll('backups/');
+    const byOrg = new Map();
+    for (const o of objs) {
+      const m = o.key.match(/^backups\/([^/]+)\/(\d{4}-\d{2}-\d{2})\/(.+)$/);
+      if (!m) continue;
+      const [, org, date, file] = m;
+      if (!byOrg.has(org)) byOrg.set(org, new Map());
+      const dates = byOrg.get(org);
+      if (!dates.has(date)) dates.set(date, { date, files: 0, bytes: 0, hasZip: false });
+      const d = dates.get(date);
+      d.files += 1; d.bytes += o.size; if (file === 'backup.zip') d.hasZip = true;
+    }
+    const orgIds = [...byOrg.keys()];
+    let nameMap = new Map();
+    if (supabase && orgIds.length) {
+      const { data: orgs } = await supabase.from('orgs').select('id, name').in('id', orgIds);
+      nameMap = new Map((orgs || []).map((o) => [o.id, o.name]));
+    }
+    const clients = orgIds.map((org) => {
+      const dates = [...byOrg.get(org).values()].sort((a, b) => b.date.localeCompare(a.date));
+      return { org_id: org, name: nameMap.get(org) || org, dates, last: dates[0] || null, totalBytes: dates.reduce((n, d) => n + d.bytes, 0) };
+    }).sort((a, b) => String(b.last && b.last.date).localeCompare(String(a.last && a.last.date)));
+    const lastRun = clients.reduce((mx, c) => (c.last && c.last.date > mx ? c.last.date : mx), '');
+    res.json({ ok: true, clients, lastRun: lastRun || null, totalBytes: clients.reduce((n, c) => n + c.totalBytes, 0) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.get('/api/backups/download', async (req, res) => {
+  if (!r2.configured()) return res.status(503).json({ ok: false, error: 'R2 non configurato' });
+  const org = String(req.query.org || '');
+  const date = String(req.query.date || '');
+  const file = String(req.query.file || 'backup.zip');
+  if (!ORG_RE.test(org) || !DATE_RE.test(date) || !FILE_RE.test(file)) {
+    return res.status(400).json({ ok: false, error: 'parametri non validi' });
+  }
+  try {
+    const url = await r2.presign(`backups/${org}/${date}/${file}`, 120);
+    res.json({ ok: true, url, expiresIn: 120 });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/api/backups/run', (req, res) => {
+  const actor = actorOf(req);
+  try {
+    const child = execFile('node', ['server.js'], {
+      cwd: '/opt/client-backup',
+      env: { ...process.env, RUN_ONCE: 'true' },
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+    audit({ actor, action: 'backup_run', target: 'client-backup', ok: true, detail: 'manuale', ip: ipOf(req) });
+    res.json({ ok: true, started: true });
+  } catch (e) {
+    audit({ actor, action: 'backup_run', target: 'client-backup', ok: false, detail: e.message, ip: ipOf(req) });
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 app.get('/api/audit', async (req, res) => {
