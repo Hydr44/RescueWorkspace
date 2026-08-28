@@ -61,6 +61,7 @@ function checkRateLimit(orgId) {
 
 // ── FASE 4b: budget/consumo IA per org (degrado morbido + conteggio €) ──
 // Prezzi indicativi € per 1M token (input/output), sovrascrivibili via env.
+const HARD_STOP_SU_QUOTA = process.env.AI_QUOTA_HARD_STOP !== "false";
 const AI_EUR_PER_MTOK = {
   reasoning: { in: Number(process.env.AI_EUR_IN_REASONING || 2.8), out: Number(process.env.AI_EUR_OUT_REASONING || 14) },
   fast: { in: Number(process.env.AI_EUR_IN_FAST || 0.9), out: Number(process.env.AI_EUR_OUT_FAST || 4.5) },
@@ -85,6 +86,16 @@ async function aiBudgetStatus(orgId) {
     return { overBudget: false, budget: null, used: 0 };
   }
 }
+// Distingue un problema NOSTRO (credito Anthropic finito, provider giù) da un
+// errore qualsiasi. Il messaggio grezzo del provider non deve MAI arrivare al
+// cliente: parla di saldi e account che non sono suoi e non può risolvere.
+function isProviderCreditError(err) {
+  const msg = String(err?.message || err || "");
+  const status = err?.status || err?.statusCode;
+  if (status === 402) return true;
+  return /credit balance|insufficient (credit|funds|quota)|billing|payment required|quota exceeded for organization/i.test(msg);
+}
+
 // Incrementa il consumo IA in € per l'org (best-effort).
 async function countAiEur(orgId, eur) {
   if (!orgId || !(eur > 0)) return;
@@ -282,8 +293,15 @@ app.post("/api/ai/chat", requireAuth, async (req, res) => {
   };
 
   try {
-    // FASE 4b: degrado morbido IA — a budget esaurito usa il modello economy (mai blocco).
+    // Budget IA dell'org esaurito.
+    // AI_QUOTA_HARD_STOP=false torna al comportamento precedente (degrado morbido
+    // sul modello economy, senza avvisare il cliente).
     const budgetStatus = await aiBudgetStatus(orgId);
+    if (budgetStatus.overBudget && HARD_STOP_SU_QUOTA) {
+      send("error", { code: "AI_QUOTA_EXCEEDED" });
+      res.end();
+      return;
+    }
     const degraded = budgetStatus.overBudget;
     const model = degraded ? MODEL_FAST : chooseModel(question, !!context);
     const modelTier = model === MODEL_FAST ? "fast" : "reasoning";
@@ -414,7 +432,8 @@ app.post("/api/ai/chat", requireAuth, async (req, res) => {
     res.end();
   } catch (err) {
     console.error("[ai-server] /chat error:", err);
-    send("error", { message: err.message || "Errore interno" });
+    // Al cliente va un codice, non il testo dell'errore: i dettagli restano nei log.
+    send("error", { code: isProviderCreditError(err) ? "AI_PROVIDER_UNAVAILABLE" : "AI_SERVICE_ERROR" });
     res.end();
   }
 });
