@@ -593,42 +593,69 @@ module.exports = function createDemoRouter(supabase) {
     try {
       const { extra_days = 7 } = req.body;
 
+      // Prendiamo la demo piu recente QUALUNQUE sia il suo stato.
+      // Prima si filtrava su status='active': ma una demo attiva non ha bisogno
+      // di essere riattivata, e quella scaduta — l'unico caso in cui serve
+      // davvero — rispondeva 404 e costringeva a rifare il lead da zero.
       const { data: demo, error: demoError } = await supabase
         .from('lead_demos')
         .select('*')
         .eq('lead_id', req.params.id)
-        .eq('status', 'active')
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (demoError || !demo) {
-        return res.status(404).json({ error: 'Nessuna demo attiva trovata' });
+        return res.status(404).json({ error: 'Nessuna demo trovata per questo lead' });
       }
 
-      const newExpiry = new Date(demo.expires_at);
+      // Se e gia scaduta si riparte da oggi, non dalla vecchia scadenza:
+      // altrimenti estendere di 7 giorni una demo scaduta da un mese la lascia
+      // comunque nel passato, e sembra che il pulsante non faccia niente.
+      const scadenzaPrecedente = demo.expires_at ? new Date(demo.expires_at) : null;
+      const eraScaduta = !scadenzaPrecedente || scadenzaPrecedente.getTime() < Date.now();
+      const base = eraScaduta ? new Date() : scadenzaPrecedente;
+      const newExpiry = new Date(base);
       newExpiry.setDate(newExpiry.getDate() + extra_days);
 
-      // Aggiorna lead_demos
       await supabase
         .from('lead_demos')
-        .update({ expires_at: newExpiry.toISOString() })
+        .update({ expires_at: newExpiry.toISOString(), status: 'active' })
         .eq('id', demo.id);
 
-      // Aggiorna org
+      // `expire_demo_accounts()` alla scadenza spegne desktop_access_enabled.
+      // Va riacceso, altrimenti le date tornano valide ma l'app resta chiusa.
       await supabase
         .from('orgs')
-        .update({ demo_expires_at: newExpiry.toISOString() })
+        .update({ demo_expires_at: newExpiry.toISOString(), desktop_access_enabled: true })
         .eq('id', demo.demo_org_id);
 
-      // Aggiorna lead
       await supabase
         .from('leads')
-        .update({ demo_expires_at: newExpiry.toISOString() })
+        .update({ demo_expires_at: newExpiry.toISOString(), status: 'demo_active' })
         .eq('id', req.params.id);
+
+      // Il token di accesso ha una sua scadenza (7 giorni) e quasi sempre e
+      // morto insieme alla demo. Riattivare senza un link nuovo lascerebbe
+      // comunque l'utente fuori, quindi lo rigeneriamo qui.
+      let loginUrl = null;
+      try {
+        const emesso = await issueDemoLoginToken(supabase, req.params.id);
+        loginUrl = emesso.url;
+      } catch (e) {
+        // La riattivazione e comunque valida: segnaliamo solo che il link va
+        // rigenerato a parte con "resend-recovery-link".
+        console.warn('[extend-demo] token non rigenerato:', e.message);
+      }
 
       res.json({
         success: true,
-        message: `Demo estesa di ${extra_days} giorni`,
-        new_expires_at: newExpiry.toISOString()
+        riattivata: eraScaduta,
+        message: eraScaduta
+          ? `Demo riattivata per ${extra_days} giorni`
+          : `Demo estesa di ${extra_days} giorni`,
+        new_expires_at: newExpiry.toISOString(),
+        login_url: loginUrl,
       });
 
     } catch (err) {
