@@ -1,0 +1,17 @@
+{
+  "name": "gps-retention",
+  "version": "1.0.0",
+  "description": "RescueManager - Conservazione delle posizioni GPS degli autisti: cancella i punti piu vecchi del termine dichiarato (privacy P1)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "RUN_ONCE=true node server.js",
+    "dry": "DRY_RUN=true node server.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@supabase/supabase-js": "2.99.1",
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3"
+  }
+}

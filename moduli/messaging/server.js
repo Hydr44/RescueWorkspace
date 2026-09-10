@@ -115,10 +115,16 @@ async function sendOtpEmail(to, code, ctx = {}) {
 }
 
 // Stati notificabili al cliente (scelta "solo chiave": niente 'assigned').
+// NB: lo stato reale del database è 'canceled' con UNA elle — così lo ammette
+// il vincolo su transports.status e così lo scrive l'app dell'autista. Qui c'era
+// solo 'cancelled' (due elle), che non può mai arrivare: il messaggio
+// "Annullato" veniva scartato come stato non notificabile e non è mai partito.
+// Teniamo entrambe le grafie per non rompere eventuali chiamanti esistenti.
 const STATO_LABEL = {
   new: 'Preso in carico',
   enroute: 'In viaggio',
   done: 'Completato',
+  canceled: 'Annullato',
   cancelled: 'Annullato',
 };
 const NOTIFIABLE = new Set(Object.keys(STATO_LABEL));
