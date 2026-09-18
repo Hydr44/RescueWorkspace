@@ -221,18 +221,21 @@ async function handleInviteeCreated(supabase, payload) {
     return;
   }
 
-  // Trova lead per email
-  const { data: lead } = await supabase
+  // Trova lead per email — se ci sono duplicati pesco quello più recente
+  // (può essere stato creato perché abbiamo inviato il link Calendly prima)
+  const { data: leadCandidates } = await supabase
     .from('leads')
-    .select('id, name, email, company')
+    .select('id, name, email, company, created_at')
     .ilike('email', inviteeEmail)
-    .maybeSingle();
+    .order('created_at', { ascending: false })
+    .limit(1);
 
+  const lead = leadCandidates?.[0];
   if (!lead) {
     console.warn('[calendly-webhook] nessun lead per email:', inviteeEmail);
-    // Salva comunque un log activity senza lead_id sarà skipped
     return;
   }
+  console.log('[calendly-webhook] matched lead:', lead.id, lead.email);
 
   // Trova appointment placeholder Calendly per questo lead
   const { data: existing } = await supabase
@@ -339,8 +342,10 @@ async function handleInviteeCanceled(supabase, payload) {
 
   if (!inviteeEmail) return;
 
-  const { data: lead } = await supabase
-    .from('leads').select('id, name').ilike('email', inviteeEmail).maybeSingle();
+  const { data: leadsCand } = await supabase
+    .from('leads').select('id, name').ilike('email', inviteeEmail)
+    .order('created_at', { ascending: false }).limit(1);
+  const lead = leadsCand?.[0];
   if (!lead) return;
 
   // Trova appointment per event_uri se possibile, altrimenti per lead+calendly
