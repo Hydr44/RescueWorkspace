@@ -15,8 +15,22 @@ function generateFatturaPA(invoice) {
       .replace(/'/g, '&apos;');
   };
   
+  // Normalizza codice paese: il DB clienti contiene valori misti
+  // ("Italia", "IT", "Italy", null). Senza questo un cliente "Italia"
+  // veniva trattato come ESTERO -> richiesta Provincia "EE" + CAP "00000".
+  const normalizeCountry = (raw) => {
+    if (raw == null) return 'IT';
+    const v = String(raw).trim().toUpperCase();
+    if (v === '') return 'IT';
+    if (['IT', 'ITA', 'I', 'ITALIA', 'ITALY', 'ITALIE', 'ITALIEN', '380'].includes(v)) return 'IT';
+    if (/^[A-Z]{2}$/.test(v)) return v;
+    if (v.length >= 3 && v.startsWith('IT')) return 'IT';
+    const map = { GERMANIA:'DE',GERMANY:'DE',FRANCIA:'FR',FRANCE:'FR',SPAGNA:'ES',SPAIN:'ES','REGNO UNITO':'GB','UNITED KINGDOM':'GB',SVIZZERA:'CH',SWITZERLAND:'CH',AUSTRIA:'AT','PAESI BASSI':'NL',OLANDA:'NL',BELGIO:'BE',PORTOGALLO:'PT','STATI UNITI':'US',USA:'US' };
+    return map[v] || v.slice(0, 2);
+  };
+
   const items = invoice.invoice_items || [];
-  
+
   // Validazione: almeno un elemento in items (ERRORE se vuoto)
   if (items.length === 0) {
     throw new Error('La fattura deve contenere almeno una riga di dettaglio (invoice_items non può essere vuoto)');
@@ -47,7 +61,7 @@ function generateFatturaPA(invoice) {
     return `
     <DettaglioLinee>
       <NumeroLinea>${i + 1}</NumeroLinea>
-      <Descrizione>${esc(item.descr)}</Descrizione>
+      <Descrizione>${esc(item.item_description || item.item_code || item.descr || 'Articolo')}</Descrizione>
       <Quantita>${(() => {
         // Quantità: deve essere > 0 (FatturaPA non accetta quantità zero o negativa)
         const qty = Number(item.qty || 0);
@@ -306,7 +320,7 @@ function generateFatturaPA(invoice) {
   const customerCap = customerAddress.zip || customerAddress.postal_code || customerAddress.cap;
   const customerComune = customerAddress.city || customerAddress.comune;
   const customerProvincia = customerAddress.province || customerAddress.provincia;
-  const customerCountry = customerAddress.country || 'IT';
+  const customerCountry = normalizeCountry(customerAddress.country);
   
   // Validazione indirizzo: diversa per IT vs estero
   if (!customerIndirizzo || customerIndirizzo === 'Via' || !customerComune || customerComune === 'Comune') {
@@ -454,7 +468,7 @@ function generateFatturaPA(invoice) {
       <DatiAnagrafici>
         ${invoice.customer_vat ? (() => {
           // Determina paese cliente
-          const customerCountry = customerAddress.country || 'IT';
+          const customerCountry = normalizeCountry(customerAddress.country);
           
           // Estrai prefisso paese se presente nella P.IVA (es. "DE123456789", "FR12345678901")
           const vatRaw = invoice.customer_vat.toUpperCase().replace(/\s+/g, '');
@@ -525,7 +539,7 @@ function generateFatturaPA(invoice) {
         <CAP>${esc(customerCap)}</CAP>
         <Comune>${esc(customerComune)}</Comune>
         <Provincia>${esc(customerProvincia)}</Provincia>
-        <Nazione>${esc(customerAddress.country || 'IT')}</Nazione>
+        <Nazione>${esc(normalizeCountry(customerAddress.country))}</Nazione>
       </Sede>
     </CessionarioCommittente>
   </FatturaElettronicaHeader>
@@ -618,9 +632,11 @@ function generateFatturaPA(invoice) {
       ${rows}${riepilogoRows}
     </DatiBeniServizi>
     <DatiPagamento>
-      <CondizioniPagamento>TP02</CondizioniPagamento>
+      <CondizioniPagamento>${esc(sdi.pagamento?.condizioni || 'TP02')}</CondizioniPagamento>
       <DettaglioPagamento>
+        ${sdi.pagamento?.beneficiario ? `<Beneficiario>${esc(sdi.pagamento.beneficiario)}</Beneficiario>` : ''}
         <ModalitaPagamento>${esc(sdi.pagamento?.modalita || 'MP05')}</ModalitaPagamento>
+        ${sdi.pagamento?.scadenza ? `<DataScadenzaPagamento>${esc(sdi.pagamento.scadenza)}</DataScadenzaPagamento>` : ''}
         <ImportoPagamento>${(() => {
           // ImportoPagamento: deve corrispondere a ImportoTotaleDocumento
           // Tolleranza: generalmente deve essere identico (no tolleranza esplicita nel manuale)
@@ -628,6 +644,9 @@ function generateFatturaPA(invoice) {
           const importoPagamento = importoTotale; // Usa stesso valore
           return importoPagamento.toFixed(2);
         })()}</ImportoPagamento>
+        ${sdi.pagamento?.banca ? `<IstitutoFinanziario>${esc(sdi.pagamento.banca)}</IstitutoFinanziario>` : ''}
+        ${sdi.pagamento?.iban ? `<IBAN>${esc(sdi.pagamento.iban)}</IBAN>` : ''}
+        ${sdi.pagamento?.bic ? `<BIC>${esc(sdi.pagamento.bic)}</BIC>` : ''}
       </DettaglioPagamento>
     </DatiPagamento>
   </FatturaElettronicaBody>

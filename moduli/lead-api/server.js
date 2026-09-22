@@ -29,7 +29,7 @@ const supabase = createClient(
 
 // ─── Middleware ───
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
 // ─── Auth Middleware (VPS API Key) ───
 const VPS_API_KEY = process.env.VPS_API_KEY || process.env.SDI_API_KEY;
@@ -42,8 +42,13 @@ function requireApiKey(req, res, next) {
   next();
 }
 
-// Protect all /api routes
+// Protect all /api routes (eccetto webhooks pubblici, montati su /webhooks)
 app.use('/api', requireApiKey);
+
+// ─── Public webhooks (no api-key, verifica firma upstream) ───
+const { createCalendlyWebhookRouter } = require('./routes/calendly');
+app.use('/webhooks', createCalendlyWebhookRouter(supabase));
+app.use('/webhooks', require('./routes/gocardless').createGoCardlessWebhookRouter(supabase));
 
 // ─── Health Check ───
 app.get('/health', (req, res) => {
@@ -61,10 +66,19 @@ const demoRoutes = require('./routes/demo');
 const quotesRoutes = require('./routes/quotes');
 const convertRoutes = require('./routes/convert');
 const cronRoutes = require('./routes/cron');
+const activateRoutes = require('./routes/activate');
+const emailRoutes = require('./routes/email');
+const appointmentsRoutes = require('./routes/appointments');
+const { createCalendlyAuthRouter } = require('./routes/calendly');
 
 app.use('/api/leads', demoRoutes(supabase));
 app.use('/api/leads', quotesRoutes(supabase));
 app.use('/api/leads', convertRoutes(supabase));
+app.use('/api/leads', activateRoutes(supabase));
+app.use('/api/leads', require('./routes/gocardless').createGoCardlessRouter(supabase));
+app.use('/api/leads', emailRoutes(supabase));
+app.use('/api/leads', appointmentsRoutes(supabase));
+app.use('/api/leads', createCalendlyAuthRouter(supabase));
 app.use('/api/cron', cronRoutes(supabase));
 
 // ─── Cron Jobs ───
@@ -92,6 +106,26 @@ cron.schedule('0 9 * * *', async () => {
     if (count > 0) console.log(`[CRON] Expired ${count} quotes`);
   } catch (err) {
     console.error('[CRON] Error expiring quotes:', err.message);
+  }
+});
+
+// Follow-up: ogni giorno alle 8:30 (prima dell'inizio lavoro)
+cron.schedule('30 8 * * 1-5', async () => {
+  console.log('[CRON] Generating follow-up tasks...');
+  try {
+    // Chiama direttamente la logica via fetch interno (riusa stessa key)
+    const r = await fetch(`http://localhost:${PORT}/api/cron/generate-followups`, {
+      method: 'POST',
+      headers: { 'x-api-key': VPS_API_KEY, 'Content-Type': 'application/json' },
+    });
+    const data = await r.json();
+    if (data.success) {
+      console.log(`[CRON-FU] Created: ${JSON.stringify(data.stats)}`);
+    } else {
+      console.error('[CRON-FU] Failed:', data.error);
+    }
+  } catch (err) {
+    console.error('[CRON-FU] Error:', err.message);
   }
 });
 

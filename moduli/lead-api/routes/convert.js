@@ -44,6 +44,19 @@ module.exports = function createConvertRouter(supabase) {
         return res.status(404).json({ error: 'Lead non trovato' });
       }
 
+      // F5/idempotenza: se il lead ha già un'org di produzione (conversione già
+      // avvenuta, es. retry del webhook Stripe), NON crearne una seconda.
+      const { data: existingOrgs } = await supabase
+        .from('orgs')
+        .select('id')
+        .eq('converted_from_lead_id', quote.lead_id)
+        .eq('is_demo', false)
+        .limit(1);
+      if (existingOrgs && existingOrgs.length > 0) {
+        console.log('[CONVERT] org già esistente per lead', quote.lead_id, '→ idempotente, skip creazione');
+        return res.json({ success: true, org_id: existingOrgs[0].id, already_converted: true });
+      }
+
       // 3. Aggiorna preventivo → paid
       await supabase
         .from('lead_quotes')
@@ -240,17 +253,20 @@ module.exports = function createConvertRouter(supabase) {
             periodEnd.setMonth(periodEnd.getMonth() + 1);
           }
 
-          await supabase.from('org_subscriptions').upsert({
+          // billing_type = TIPO di pagamento (stripe|manual|trial), NON la frequenza.
+          // org_subscriptions NON ha current_period_start.
+          const { error: subUpsertErr } = await supabase.from('org_subscriptions').upsert({
             org_id: targetOrgId,
             status: 'active',
             plan: quote.plan_type || 'starter',
-            billing_type: quote.billing_frequency || 'monthly',
-            current_period_start: new Date().toISOString(),
+            billing_type: quote.external_payment_method ? 'manual' : 'stripe',
             current_period_end: periodEnd.toISOString(),
             trial_end: null,
+            last_payment_date: (quote.paid_at || new Date().toISOString()).slice(0, 10),
             stripe_subscription_id: stripe_subscription_id || null,
             updated_at: new Date().toISOString()
           }, { onConflict: 'org_id' });
+          if (subUpsertErr) throw subUpsertErr;
           console.log('[CONVERT] org_subscriptions aggiornato per org_id:', targetOrgId);
         } catch (subErr) {
           console.error('[CONVERT] org_subscriptions upsert error:', subErr.message);

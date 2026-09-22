@@ -1,0 +1,20 @@
+{
+  "name": "usage-alerts",
+  "version": "1.0.0",
+  "description": "RescueManager - Avvisi 'superamento morbido' dei limiti d'uso per organizzazione (80%/100%) via email",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "RUN_ONCE=true node server.js",
+    "dry": "RUN_ONCE=true DRY_RUN=true node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.99.1",
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.16"
+  }
+}

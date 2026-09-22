@@ -44,7 +44,10 @@ router.get('/mud', async (req, res) => {
 
 /**
  * POST /api/rentri/mud
- * Genera nuovo MUD aggregando movimenti, registri e formulari
+ * Genera un MUD per OGNI sezione filiera attivata sull'org (AUT/ROT/FRA).
+ * Modello: 1 MUD per (org, anno, sezione). Le sezioni attive si leggono da
+ * org_settings.key='rentri_filiera'.value.sezioni_attivate (default ['AUT']).
+ * I movimenti vengono filtrati via registro_id → registri della sezione.
  */
 router.post('/mud', async (req, res) => {
   try {
@@ -55,115 +58,152 @@ router.post('/mud', async (req, res) => {
     const dInizio = data_inizio || (annoInt + '-01-01');
     const dFine = data_fine || (annoInt + '-12-31');
 
-    // Verifica se MUD per questo anno esiste già
-    const { data: existing } = await supabase
-      .from('rentri_mud')
-      .select('id')
+    // 0. Sezioni attivate per l'org (EAV org_settings)
+    const { data: settingsRow } = await supabase
+      .from('org_settings')
+      .select('value')
       .eq('org_id', org_id)
-      .eq('anno', annoInt)
+      .eq('key', 'rentri_filiera')
       .maybeSingle();
+    const sezAttivate = (() => {
+      const raw = Array.isArray(settingsRow?.value?.sezioni_attivate)
+        ? settingsRow.value.sezioni_attivate
+        : null;
+      const VALID = ['AUT', 'ROT', 'FRA'];
+      const set = new Set((raw || []).filter((s) => VALID.includes(s)));
+      set.add('AUT'); // AUT sempre attiva
+      return VALID.filter((s) => set.has(s));
+    })();
 
-    if (existing) {
-      return res.status(409).json({
-        error: 'MUD per questo anno già esistente. Eliminalo prima di rigenerare.',
-        mud_id: existing.id
-      });
-    }
-
-    // 1. Conta registri attivi per l'anno
-    const { data: registri } = await supabase
-      .from('rentri_registri')
-      .select('id, anno, tipo, numero_registro')
-      .eq('org_id', org_id)
-      .eq('anno', annoInt);
-
-    // 2. Conta movimenti nel periodo
-    const { data: movimenti } = await supabase
-      .from('rentri_movimenti')
-      .select('id, tipo_operazione, codice_eer, descrizione, quantita, unita_misura')
-      .eq('org_id', org_id)
-      .gte('data_operazione', dInizio)
-      .lte('data_operazione', dFine);
-
-    // 3. Conta formulari nel periodo
+    // Formulari: comuni a tutte le sezioni (non hanno sezione propria)
     const { data: formulari } = await supabase
       .from('rentri_formulari')
       .select('id')
       .eq('org_id', org_id)
       .gte('data_creazione', dInizio)
       .lte('data_creazione', dFine);
-
-    const totaleRegistri = (registri || []).length;
-    const totaleMovimenti = (movimenti || []).length;
     const totaleFormulari = (formulari || []).length;
 
-    // 4. Calcola totale quantità (normalizza tutto in kg)
-    let totaleQuantita = 0;
-    (movimenti || []).forEach(function(m) {
-      let q = parseFloat(m.quantita) || 0;
-      if (m.unita_misura === 't') q *= 1000;
-      if (m.unita_misura === 'l') q *= 1;
-      totaleQuantita += q;
-    });
+    const generated = [];
+    const skipped = [];
 
-    // 5. Riepilogo per codice EER
-    const eerMap = {};
-    (movimenti || []).forEach(function(m) {
-      const codice = m.codice_eer || 'SCONOSCIUTO';
-      if (!eerMap[codice]) {
-        eerMap[codice] = { codice: codice, descrizione: m.descrizione || '', carico: 0, scarico: 0 };
+    for (const sezione of sezAttivate) {
+      // Skip se MUD per (org, anno, sezione) già esistente
+      const { data: existing } = await supabase
+        .from('rentri_mud')
+        .select('id')
+        .eq('org_id', org_id)
+        .eq('anno', annoInt)
+        .eq('sezione', sezione)
+        .maybeSingle();
+      if (existing) {
+        skipped.push({ sezione: sezione, mud_id: existing.id });
+        continue;
       }
-      let q = parseFloat(m.quantita) || 0;
-      if (m.unita_misura === 't') q *= 1000;
-      if (m.tipo_operazione === 'carico') {
-        eerMap[codice].carico += q;
-      } else {
-        eerMap[codice].scarico += q;
+
+      // 1. Registri della sezione per quell'anno
+      const { data: registriSez } = await supabase
+        .from('rentri_registri')
+        .select('id, anno, tipo, numero_registro')
+        .eq('org_id', org_id)
+        .eq('anno', annoInt)
+        .eq('sezione', sezione);
+      const registriIds = (registriSez || []).map((r) => r.id);
+
+      // 2. Movimenti dei registri della sezione, nel periodo
+      let movimentiSez = [];
+      if (registriIds.length > 0) {
+        const { data: mov } = await supabase
+          .from('rentri_movimenti')
+          .select('id, tipo_operazione, codice_eer, descrizione, quantita, unita_misura')
+          .eq('org_id', org_id)
+          .in('registro_id', registriIds)
+          .gte('data_operazione', dInizio)
+          .lte('data_operazione', dFine);
+        movimentiSez = mov || [];
       }
-    });
-    const riepilogoEer = Object.values(eerMap).sort(function(a, b) {
-      return a.codice.localeCompare(b.codice);
-    });
 
-    // 6. Inserisci MUD
-    const { data: mud, error: insertErr } = await supabase
-      .from('rentri_mud')
-      .insert({
-        org_id: org_id,
-        anno: annoInt,
-        data_inizio: dInizio,
-        data_fine: dFine,
-        stato: 'bozza',
-        totale_registri: totaleRegistri,
-        totale_movimenti: totaleMovimenti,
-        totale_formulari: totaleFormulari,
-        totale_quantita: totaleQuantita,
-        riepilogo_eer: riepilogoEer,
-      })
-      .select()
-      .single();
+      const totaleRegistri = (registriSez || []).length;
+      const totaleMovimenti = movimentiSez.length;
 
-    if (insertErr) {
-      console.error('[RENTRI-MUD] Errore inserimento:', insertErr);
-      return res.status(500).json({ error: 'Errore creazione MUD', details: insertErr.message });
+      // 3. Totale quantità (normalizza in kg). Nota: 'l' non viene convertito
+      // a kg (densità variabile per liquidi — fuori scope).
+      let totaleQuantita = 0;
+      movimentiSez.forEach(function(m) {
+        let q = Number.parseFloat(m.quantita) || 0;
+        if (m.unita_misura === 't') q *= 1000;
+        totaleQuantita += q;
+      });
+
+      // 4. Riepilogo per codice EER
+      const eerMap = {};
+      movimentiSez.forEach(function(m) {
+        const codice = m.codice_eer || 'SCONOSCIUTO';
+        if (!eerMap[codice]) {
+          eerMap[codice] = { codice: codice, descrizione: m.descrizione || '', carico: 0, scarico: 0 };
+        }
+        let q = Number.parseFloat(m.quantita) || 0;
+        if (m.unita_misura === 't') q *= 1000;
+        if (m.tipo_operazione === 'carico') eerMap[codice].carico += q;
+        else eerMap[codice].scarico += q;
+      });
+      const riepilogoEer = Object.values(eerMap).sort(function(a, b) {
+        return a.codice.localeCompare(b.codice);
+      });
+
+      // 5. Insert MUD per la sezione
+      const { data: mud, error: insertErr } = await supabase
+        .from('rentri_mud')
+        .insert({
+          org_id: org_id,
+          anno: annoInt,
+          sezione: sezione,
+          data_inizio: dInizio,
+          data_fine: dFine,
+          stato: 'bozza',
+          totale_registri: totaleRegistri,
+          totale_movimenti: totaleMovimenti,
+          totale_formulari: totaleFormulari,
+          totale_quantita: totaleQuantita,
+          riepilogo_eer: riepilogoEer,
+        })
+        .select()
+        .single();
+      if (insertErr) {
+        console.error('[RENTRI-MUD] Errore insert sezione', sezione, insertErr);
+        return res.status(500).json({ error: 'Errore creazione MUD sezione ' + sezione, details: insertErr.message });
+      }
+      generated.push({
+        sezione: sezione,
+        mud: mud,
+        registri: totaleRegistri,
+        movimenti: totaleMovimenti,
+        quantita: totaleQuantita,
+        codici_eer: riepilogoEer.length,
+      });
+      console.log('[RENTRI-MUD] generato', {
+        id: mud.id, anno: annoInt, sezione: sezione,
+        registri: totaleRegistri, movimenti: totaleMovimenti, kg: totaleQuantita.toFixed(2)
+      });
     }
 
-    console.log('[RENTRI-MUD] MUD generato:', {
-      id: mud.id, anno: annoInt,
-      movimenti: totaleMovimenti, registri: totaleRegistri,
-      formulari: totaleFormulari, kg: totaleQuantita.toFixed(2)
-    });
+    const totRegistri = generated.reduce((s, g) => s + g.registri, 0);
+    const totMovimenti = generated.reduce((s, g) => s + g.movimenti, 0);
+    const totQuantita = generated.reduce((s, g) => s + g.quantita, 0);
 
     res.json({
       success: true,
-      mud: mud,
+      mud: generated.length === 1 ? generated[0].mud : null,
+      muds: generated.map((g) => g.mud),
+      skip: skipped,
       aggregazione: {
-        movimenti: totaleMovimenti,
-        registri: totaleRegistri,
+        sezioni_attivate: sezAttivate,
+        sezioni_generate: generated.map((g) => g.sezione),
+        registri: totRegistri,
+        movimenti: totMovimenti,
         formulari: totaleFormulari,
-        totale_quantita: totaleQuantita,
-        codici_eer: riepilogoEer.length,
-      }
+        totale_quantita: totQuantita,
+      },
     });
   } catch (error) {
     console.error('[RENTRI-MUD] Errore generazione:', error);
@@ -194,13 +234,16 @@ router.post('/mud/:id', async (req, res) => {
       .eq('id', mud.org_id)
       .single();
 
+    const sez = mud.sezione || 'AUT';
+    const piva = org?.piva || 'ORG';
+
     if (action === 'generate-xml') {
       const xml = generateMudXML(mud, org);
       const xmlBase64 = Buffer.from(xml, 'utf-8').toString('base64');
       return res.json({
         success: true,
         xml: xmlBase64,
-        filename: 'MUD_' + mud.anno + '_' + (org && org.piva ? org.piva : 'ORG') + '.xml'
+        filename: 'MUD_' + mud.anno + '_' + sez + '_' + piva + '.xml'
       });
     }
 
@@ -210,7 +253,7 @@ router.post('/mud/:id', async (req, res) => {
       return res.json({
         success: true,
         html: htmlBase64,
-        filename: 'MUD_' + mud.anno + '_' + (org && org.piva ? org.piva : 'ORG') + '.html'
+        filename: 'MUD_' + mud.anno + '_' + sez + '_' + piva + '.html'
       });
     }
 
@@ -326,6 +369,7 @@ function generateMudXML(mud, org) {
     '<MUD xmlns="http://www.mudcomuni.it/schema/mud">\n' +
     '  <Intestazione>\n' +
     '    <Anno>' + mud.anno + '</Anno>\n' +
+    '    <SezioneFiliera>' + escXml(mud.sezione || 'AUT') + '</SezioneFiliera>\n' +
     '    <CodiceFiscale>' + escXml(orgCF) + '</CodiceFiscale>\n' +
     '    <RagioneSociale>' + escXml(orgName) + '</RagioneSociale>\n' +
     '    <PartitaIVA>' + escXml(orgPiva) + '</PartitaIVA>\n' +
@@ -386,7 +430,9 @@ function generateMudHTML(mud, org) {
     '.footer{margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center}' +
     '@media print{body{padding:10px}.kpi div{border:1px solid #ccc}}' +
     '</style></head><body>' +
-    '<h1>MUD &mdash; Modello Unico Dichiarazione ' + mud.anno + '</h1>' +
+    '<h1>MUD &mdash; Modello Unico Dichiarazione ' + mud.anno +
+    ' <span style="font-size:14px;color:#3b82f6;background:#dbeafe;padding:2px 8px;border-radius:4px;margin-left:8px">' +
+    escHtml(mud.sezione || 'AUT') + '</span></h1>' +
     '<div class="info">' +
     '<div><label>Ragione Sociale</label><span>' + escHtml(orgName || '&mdash;') + '</span></div>' +
     '<div><label>P.IVA</label><span>' + escHtml(orgPiva || '&mdash;') + '</span></div>' +

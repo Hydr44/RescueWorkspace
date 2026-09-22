@@ -6,7 +6,36 @@
  */
 
 const express = require('express');
+const crypto = require('node:crypto');
 const { sendEmail, buildDemoWelcomeEmail } = require('../lib/email');
+
+const SITE_URL = (process.env.SITE_URL || 'https://rescuemanager.eu').replace(/\/+$/, '');
+const DEMO_LOGIN_TOKEN_TTL_DAYS = 7;
+
+/** Genera un token URL-safe (UUID base64url) per login demo. */
+function generateDemoLoginToken() {
+  return crypto.randomBytes(24).toString('base64url');
+}
+
+/** URL pubblico che l'utente apre dall'email demo (lo redirect-a lead-api → magic Supabase fresco). */
+function buildDemoLoginUrl(token) {
+  return `${SITE_URL}/demo-login?t=${encodeURIComponent(token)}`;
+}
+
+/** Aggiorna leads.demo_login_token + demo_login_expires_at e ritorna l'URL pronto per l'email. */
+async function issueDemoLoginToken(supabase, leadId, ttlDays = DEMO_LOGIN_TOKEN_TTL_DAYS) {
+  const token = generateDemoLoginToken();
+  const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
+  const { error } = await supabase
+    .from('leads')
+    .update({
+      demo_login_token: token,
+      demo_login_expires_at: expiresAt.toISOString(),
+    })
+    .eq('id', leadId);
+  if (error) throw new Error(`leads.demo_login_token update failed: ${error.message}`);
+  return { token, expiresAt, url: buildDemoLoginUrl(token) };
+}
 
 module.exports = function createDemoRouter(supabase) {
   const router = express.Router();
@@ -276,10 +305,19 @@ module.exports = function createDemoRouter(supabase) {
           country: 'IT',
         },
       };
-      await supabase.from('org_settings').upsert({
+      // HARD RESET: delete + insert (NON upsert).
+      // L'UPSERT su org_settings con onConflict mergiava JSONB mantenendo
+      // campi residui di una vecchia demo riusata sullo stesso org.id → PII
+      // leak (vedi incidente Emmanuel/AziendaTest2 2026-05-29). Garantiamo
+      // sempre clean slate cancellando esplicitamente prima di inserire.
+      await supabase.from('org_settings')
+        .delete()
+        .eq('org_id', org.id)
+        .eq('key', 'company');
+      await supabase.from('org_settings').insert({
         org_id: org.id, key: 'company', value: companyValue,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'org_id,key' });
+      });
 
       // Propaga anche su org_settings.key='sdi' per coerenza con ClientControlsPanel.
       if (sdiCode) {
@@ -327,19 +365,18 @@ module.exports = function createDemoRouter(supabase) {
           password_hash: demoPasswordHash
         }, { onConflict: 'org_id,email' });
 
-      // 10. Genera link impostazione password
+      // 10. Genera link impostazione password.
+      // NON usiamo direttamente il magic-link Supabase (scade in 1h, non
+      // configurabile). Invece emettiamo un nostro token custom con scadenza
+      // controllata (default 7 giorni = durata demo). Il token viene scambiato
+      // con un magic-link fresco quando l'utente clicca il link in email
+      // (endpoint /redeem-demo-token + pagina /demo-login del website).
       let setupPasswordUrl = null;
       try {
-        const { data: linkData } = await supabase.auth.admin.generateLink({
-          type: 'recovery',
-          email: lead.email,
-          options: {
-            redirectTo: `${process.env.SITE_URL || 'https://rescuemanager.eu'}/set-password`
-          }
-        });
-        setupPasswordUrl = linkData?.properties?.action_link || null;
+        const { url } = await issueDemoLoginToken(supabase, leadId);
+        setupPasswordUrl = url;
       } catch (linkErr) {
-        console.error('[DEMO] generateLink error:', linkErr.message);
+        console.error('[DEMO] issueDemoLoginToken error:', linkErr.message);
       }
 
       // 11. Invia email benvenuto demo
@@ -556,42 +593,69 @@ module.exports = function createDemoRouter(supabase) {
     try {
       const { extra_days = 7 } = req.body;
 
+      // Prendiamo la demo piu recente QUALUNQUE sia il suo stato.
+      // Prima si filtrava su status='active': ma una demo attiva non ha bisogno
+      // di essere riattivata, e quella scaduta — l'unico caso in cui serve
+      // davvero — rispondeva 404 e costringeva a rifare il lead da zero.
       const { data: demo, error: demoError } = await supabase
         .from('lead_demos')
         .select('*')
         .eq('lead_id', req.params.id)
-        .eq('status', 'active')
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (demoError || !demo) {
-        return res.status(404).json({ error: 'Nessuna demo attiva trovata' });
+        return res.status(404).json({ error: 'Nessuna demo trovata per questo lead' });
       }
 
-      const newExpiry = new Date(demo.expires_at);
+      // Se e gia scaduta si riparte da oggi, non dalla vecchia scadenza:
+      // altrimenti estendere di 7 giorni una demo scaduta da un mese la lascia
+      // comunque nel passato, e sembra che il pulsante non faccia niente.
+      const scadenzaPrecedente = demo.expires_at ? new Date(demo.expires_at) : null;
+      const eraScaduta = !scadenzaPrecedente || scadenzaPrecedente.getTime() < Date.now();
+      const base = eraScaduta ? new Date() : scadenzaPrecedente;
+      const newExpiry = new Date(base);
       newExpiry.setDate(newExpiry.getDate() + extra_days);
 
-      // Aggiorna lead_demos
       await supabase
         .from('lead_demos')
-        .update({ expires_at: newExpiry.toISOString() })
+        .update({ expires_at: newExpiry.toISOString(), status: 'active' })
         .eq('id', demo.id);
 
-      // Aggiorna org
+      // `expire_demo_accounts()` alla scadenza spegne desktop_access_enabled.
+      // Va riacceso, altrimenti le date tornano valide ma l'app resta chiusa.
       await supabase
         .from('orgs')
-        .update({ demo_expires_at: newExpiry.toISOString() })
+        .update({ demo_expires_at: newExpiry.toISOString(), desktop_access_enabled: true })
         .eq('id', demo.demo_org_id);
 
-      // Aggiorna lead
       await supabase
         .from('leads')
-        .update({ demo_expires_at: newExpiry.toISOString() })
+        .update({ demo_expires_at: newExpiry.toISOString(), status: 'demo_active' })
         .eq('id', req.params.id);
+
+      // Il token di accesso ha una sua scadenza (7 giorni) e quasi sempre e
+      // morto insieme alla demo. Riattivare senza un link nuovo lascerebbe
+      // comunque l'utente fuori, quindi lo rigeneriamo qui.
+      let loginUrl = null;
+      try {
+        const emesso = await issueDemoLoginToken(supabase, req.params.id);
+        loginUrl = emesso.url;
+      } catch (e) {
+        // La riattivazione e comunque valida: segnaliamo solo che il link va
+        // rigenerato a parte con "resend-recovery-link".
+        console.warn('[extend-demo] token non rigenerato:', e.message);
+      }
 
       res.json({
         success: true,
-        message: `Demo estesa di ${extra_days} giorni`,
-        new_expires_at: newExpiry.toISOString()
+        riattivata: eraScaduta,
+        message: eraScaduta
+          ? `Demo riattivata per ${extra_days} giorni`
+          : `Demo estesa di ${extra_days} giorni`,
+        new_expires_at: newExpiry.toISOString(),
+        login_url: loginUrl,
       });
 
     } catch (err) {
@@ -617,20 +681,17 @@ module.exports = function createDemoRouter(supabase) {
         return res.status(404).json({ error: 'Lead non trovato o senza email' });
       }
 
-      // Genera nuovo link recovery
-      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-        type: 'recovery',
-        email: lead.email,
-        options: {
-          redirectTo: `${process.env.SITE_URL || 'https://rescuemanager.eu'}/set-password`
-        }
-      });
-
-      if (linkError) {
-        return res.status(500).json({ error: 'Errore generazione link', details: linkError.message });
+      // Rigenera demo_login_token custom (NON magic-link Supabase).
+      // Il magic Supabase scade in 1h fissa: se l'utente clicca dopo,
+      // trova "link scaduto". Il nostro token dura demo_login_token_ttl_days
+      // (default 7gg) ed è scambiato con magic fresco solo al click.
+      let setupPasswordUrl;
+      try {
+        const { url } = await issueDemoLoginToken(supabase, req.params.id);
+        setupPasswordUrl = url;
+      } catch (linkErr) {
+        return res.status(500).json({ error: 'Errore generazione link', details: linkErr.message });
       }
-
-      const setupPasswordUrl = linkData?.properties?.action_link;
 
       // Invia email
       const { sendEmail, buildDemoWelcomeEmail } = require('../lib/email');
@@ -656,6 +717,76 @@ module.exports = function createDemoRouter(supabase) {
     } catch (err) {
       console.error('[DEMO] Resend recovery link error:', err);
       res.status(500).json({ error: 'Errore interno', details: err.message });
+    }
+  });
+
+  /**
+   * POST /api/leads/redeem-demo-token
+   * Scambia un demo_login_token custom con un magic-link Supabase fresco.
+   *
+   * Body: { token: string }
+   * Response: { success, action_link } o { error }
+   *
+   * Single-use: dopo redeem, il token viene nullato (anche in caso di errore
+   * Supabase, per evitare abuse). La scadenza Supabase del magic_link (1h)
+   * decorre da QUESTA chiamata (= dal click utente), non dall'invio email.
+   *
+   * Chiamato da: website/src/app/demo-login/page.tsx (Next.js Server Component)
+   * → server-to-server, no CORS, niente esposizione token in clear sul browser.
+   */
+  router.post('/redeem-demo-token', async (req, res) => {
+    try {
+      const { token } = req.body || {};
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: 'Token mancante' });
+      }
+
+      // 1. Trova il lead col token + verifica non scaduto
+      const { data: lead, error: leadErr } = await supabase
+        .from('leads')
+        .select('id, email, demo_login_expires_at')
+        .eq('demo_login_token', token)
+        .maybeSingle();
+
+      if (leadErr) {
+        return res.status(500).json({ error: 'Errore DB', details: leadErr.message });
+      }
+      if (!lead) {
+        return res.status(404).json({ error: 'Token non valido o gia\' usato' });
+      }
+      const now = Date.now();
+      const exp = lead.demo_login_expires_at ? new Date(lead.demo_login_expires_at).getTime() : 0;
+      if (!exp || exp <= now) {
+        // Nullify expired token per pulizia
+        await supabase.from('leads')
+          .update({ demo_login_token: null, demo_login_expires_at: null })
+          .eq('id', lead.id);
+        return res.status(410).json({ error: 'Token scaduto. Chiedi un nuovo link all\'amministratore.' });
+      }
+
+      // 2. Token RIUTILIZZABILE entro la scadenza (NON più single-use).
+      //    I client di posta e i security scanner (Gmail, Outlook Safe Links,
+      //    antivirus aziendali) pre-aprono i link in GET; la pagina /demo-login
+      //    chiama questo redeem a OGNI apertura → con token single-use lo scanner
+      //    lo bruciava PRIMA del click umano ("Link già usato" al primo click
+      //    reale, anche senza averlo mai aperto). La barriera di sicurezza vera
+      //    resta il magic-link Supabase generato qui sotto (single-use, scade 1h).
+      //    Il token nostro scade comunque dopo 7gg (ramo "scaduto" qui sopra).
+
+      // 3. Genera magic-link Supabase fresco (scade 1h da ORA, non da invio email)
+      const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email: lead.email,
+        options: { redirectTo: `${SITE_URL}/set-password` },
+      });
+      if (linkErr || !linkData?.properties?.action_link) {
+        return res.status(500).json({ error: 'Errore generazione magic-link', details: linkErr?.message });
+      }
+
+      return res.json({ success: true, action_link: linkData.properties.action_link });
+    } catch (err) {
+      console.error('[DEMO] redeem-demo-token error:', err);
+      return res.status(500).json({ error: 'Errore interno', details: err.message });
     }
   });
 
