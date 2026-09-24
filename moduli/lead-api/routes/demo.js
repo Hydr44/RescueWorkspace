@@ -393,7 +393,7 @@ module.exports = function createDemoRouter(supabase) {
 
         await sendEmail({
           to: lead.email,
-          subject: 'Benvenuto su RescueManager - Il tuo account demo è pronto!',
+          subject: 'Il tuo account demo RescueManager è pronto',
           html,
           text
         });
@@ -707,7 +707,7 @@ module.exports = function createDemoRouter(supabase) {
 
       await sendEmail({
         to: lead.email,
-        subject: 'RescueManager - Imposta la tua password',
+        subject: 'Scegli la password del tuo account RescueManager',
         html,
         text
       });

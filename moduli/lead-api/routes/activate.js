@@ -449,7 +449,7 @@ module.exports = function createActivateRouter(supabase) {
           let subject, html, text;
 
           if (custom_email_body) {
-            subject = custom_email_subject || 'Account RescueManager attivato';
+            subject = custom_email_subject || 'Il tuo account RescueManager è attivo';
             html = custom_email_body
               .replace(/\{\{lead_name\}\}/g, lead.name || '')
               .replace(/\{\{setup_password_url\}\}/g, setupPasswordUrl || '')
@@ -483,7 +483,7 @@ module.exports = function createActivateRouter(supabase) {
               setupPasswordUrl,
               hasDemo: !!lead.demo_org_id
             });
-            subject = custom_email_subject || 'Account RescueManager Attivato!';
+            subject = custom_email_subject || 'Il tuo account RescueManager è attivo';
             html = built.html;
             text = built.text;
           }

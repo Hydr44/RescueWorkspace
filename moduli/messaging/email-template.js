@@ -1,12 +1,31 @@
-// Template email brandizzato RescueManager — port CommonJS dell'helper canonico
-// del sito (website/src/lib/email-template.ts), allineato anche a
-// moduli/lead-api/lib/email.js e moduli/regulatory-monitor/lib/email.js.
-// Header scuro con logo, card bianca, box codice, righe info, footer barra blu.
-// Layout 100% table (email-safe: Gmail/Outlook/Apple Mail).
+// Template email RescueManager — port CommonJS del modello unico
+// (desktop-design/email/email-template.js), condiviso con il sito, gli altri
+// moduli e i template Supabase.
+// Regole: testata e piè di pagina nei blu della barra laterale, corpo chiaro
+// perché le email si leggono su Gmail e Outlook; un solo blu #005DFA per
+// pulsanti e link, niente angoli arrotondati, niente maiuscolo spaziato,
+// niente trattini o pallini tra le informazioni, una riga una informazione.
+// Solo tabelle e stili in linea: è quello che i client di posta capiscono.
 
-const EMAIL_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif";
-const BRAND_DARK = '#0f172a';
-const BRAND_BLUE = '#2563eb';
+const EMAIL_FONT = "Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif";
+const BRAND = '#005dfa';
+const INK = '#161616';
+const INK_2 = '#525252';
+const INK_3 = '#8d8d8d';
+const LINE = '#e0e0e0';
+const PAPER = '#ffffff';
+const CANVAS = '#f4f4f4';
+const LOGO_URL = 'https://rescuemanager.eu/assets/logos/logo-principale-bianco.png';
+// Testata e piè di pagina scuri: HEAD_BG è il blu della barra laterale
+// dell'app, FOOT_BG il suo tono di testa e piede.
+const HEAD_BG = '#0b3fb5';
+const HEAD_TEXT = '#dbe6ff';
+const FOOT_BG = '#062a7a';
+const FOOT_TEXT = '#a9c2ff';
+
+// Nomi storici tenuti per compatibilità con chi importava le costanti vecchie.
+const BRAND_DARK = HEAD_BG;
+const BRAND_BLUE = BRAND;
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -14,90 +33,134 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function emailHeader(subtitle) {
-  return `
-<tr>
-  <td style="background:${BRAND_DARK};padding:28px 40px;">
-    <table cellpadding="0" cellspacing="0" width="100%"><tr>
-      <td>
-        <img src="https://rescuemanager.eu/assets/logos/logo-principale-a-colori.svg" alt="RescueManager" style="height:32px;width:auto;display:block;margin-bottom:${subtitle ? '8px' : '0'};" />
-        ${subtitle ? `<p style="margin:0;font-family:${EMAIL_FONT};font-size:13px;color:rgba(255,255,255,0.55);letter-spacing:0.05em;text-transform:uppercase;">${esc(subtitle)}</p>` : ''}
-      </td>
-      <td align="right"><span style="font-family:${EMAIL_FONT};font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.1em;">rescuemanager.eu</span></td>
-    </tr></table>
-  </td>
-</tr>`;
+const p = (t, size = 15, color = INK, extra = '') => `<p style="margin:0 0 14px;font-family:${EMAIL_FONT};font-size:${size}px;line-height:1.6;color:${color};${extra}">${t}</p>`;
+
+// Testata: logo bianco sul blu. Quando l'email parte per conto di un cliente di
+// RescueManager, a destra si legge 'per conto di <azienda>'.
+function emailHeader(sender) {
+  return `<tr><td style="padding:22px 40px;background:${HEAD_BG};"><table cellpadding="0" cellspacing="0" width="100%"><tr>
+<td><img src="${LOGO_URL}" alt="RescueManager" height="26" style="height:26px;width:auto;display:block;border:0;" /></td>
+${sender ? `<td align="right" style="font-family:${EMAIL_FONT};font-size:13px;color:${HEAD_TEXT};">per conto di ${sender}</td>` : ''}
+</tr></table></td></tr>`;
 }
 
-function emailFooter() {
-  return `
-<tr>
-  <td style="background:${BRAND_DARK};padding:20px 40px;border-top:3px solid ${BRAND_BLUE};">
-    <p style="margin:0;font-family:${EMAIL_FONT};font-size:11px;color:rgba(255,255,255,0.4);text-align:center;">
-      &copy; ${new Date().getFullYear()} RescueManager &mdash; Software Gestionale<br>
-      <a href="https://rescuemanager.eu" style="color:${BRAND_BLUE};text-decoration:none;">rescuemanager.eu</a>
-      &nbsp;&middot;&nbsp;
-      <a href="mailto:info@rescuemanager.eu" style="color:rgba(255,255,255,0.4);text-decoration:none;">info@rescuemanager.eu</a>
-    </p>
-  </td>
-</tr>`;
+// Titolo e riga di contesto: il titolo dice cosa è successo, la riga sotto a
+// chi o quando.
+function emailTitle(title, sub) {
+  return `<h1 style="margin:0 0 ${sub ? '4' : '20'}px;font-family:${EMAIL_FONT};font-size:22px;line-height:1.25;font-weight:600;letter-spacing:-0.01em;color:${INK};">${title}</h1>${sub ? `<p style="margin:0 0 20px;font-family:${EMAIL_FONT};font-size:14px;color:${INK_2};">${sub}</p>` : ''}`;
 }
 
-function emailCodeBox(code) {
-  return `
-<table cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc;border-left:4px solid ${BRAND_BLUE};margin:8px 0 24px;"><tr>
-  <td style="padding:20px 24px;text-align:center;">
-    <p style="margin:0 0 6px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;">Codice di verifica</p>
-    <p style="margin:0;font-family:monospace;font-size:32px;font-weight:700;letter-spacing:0.3em;color:${BRAND_DARK};">${esc(code)}</p>
-  </td>
-</tr></table>`;
+// Pulsante: uno solo per email, pieno, squadrato, testo normale con l'iniziale
+// maiuscola.
+function emailCtaButton(href, label) {
+  return `<table cellpadding="0" cellspacing="0" style="margin:8px 0 24px;"><tr><td style="background:${BRAND};"><a href="${href}" style="display:block;padding:13px 28px;font-family:${EMAIL_FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">${label}</a></td></tr></table>
+<p style="margin:0 0 24px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:${INK_3};">Se il pulsante non funziona, apri questo indirizzo: <a href="${href}" style="color:${BRAND};text-decoration:none;">${href}</a></p>`;
 }
 
-function emailInfoRow(label, value) {
-  return `
-<tr>
-  <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;width:140px;">${esc(label)}</td>
-  <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-family:${EMAIL_FONT};font-size:13px;color:#0f172a;font-weight:600;">${esc(value)}</td>
-</tr>`;
+// Codice: grande, monospazio, in un riquadro con la barretta a sinistra.
+function emailCodeBox(code, note = 'Vale per 10 minuti') {
+  return `<table cellpadding="0" cellspacing="0" width="100%" style="margin:8px 0 24px;background:${CANVAS};border-left:3px solid ${BRAND};"><tr><td style="padding:18px 24px;">
+<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:13px;color:${INK_2};">Codice</p>
+<p style="margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:30px;font-weight:600;letter-spacing:0.18em;color:${INK};">${code}</p>
+<p style="margin:6px 0 0;font-family:${EMAIL_FONT};font-size:12px;color:${INK_3};">${note}</p>
+</td></tr></table>`;
 }
 
-function emailWrapper(content) {
-  return `<!DOCTYPE html>
-<html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>RescueManager</title></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:${EMAIL_FONT};">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 16px;"><tr><td align="center">
-  <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e8f0;">${content}</table>
-  <p style="margin:16px 0 0;font-family:${EMAIL_FONT};font-size:11px;color:#94a3b8;text-align:center;">Hai ricevuto questa email da RescueManager.</p>
-</td></tr></table>
-</body></html>`;
+// Righe etichetta e valore: come le schede dell'app, etichetta a sinistra, un
+// dato per riga.
+function emailInfoRows(rows) {
+  return `<table cellpadding="0" cellspacing="0" width="100%" style="margin:8px 0 24px;border-top:1px solid ${LINE};">${rows.map(([l, v]) => `<tr>
+<td style="padding:9px 0;border-bottom:1px solid ${LINE};font-family:${EMAIL_FONT};font-size:13px;color:${INK_2};width:150px;vertical-align:top;">${l}</td>
+<td style="padding:9px 0;border-bottom:1px solid ${LINE};font-family:${EMAIL_FONT};font-size:13px;color:${INK};vertical-align:top;">${v}</td></tr>`).join('')}</table>`;
+}
+
+// Totale in evidenza (fatture, preventivi): etichetta sopra, cifra sotto in
+// grande.
+function emailAmount(label, value) {
+  return `<table cellpadding="0" cellspacing="0" style="margin:0 0 24px;"><tr><td style="padding:12px 16px;background:${CANVAS};">
+<p style="margin:0;font-family:${EMAIL_FONT};font-size:12px;color:${INK_2};">${label}</p>
+<p style="margin:2px 0 0;font-family:${EMAIL_FONT};font-size:26px;font-weight:600;letter-spacing:-0.01em;color:${INK};">${value}</p>
+</td></tr></table>`;
+}
+
+// Avviso: una riga con la barretta, senza colori di allarme salvo il rosso per
+// le scadenze passate.
+function emailNotice(text, level = 'info') {
+  const col = level === 'danger' ? '#da1e28' : BRAND;
+  return `<table cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;"><tr><td style="padding:10px 14px;background:${CANVAS};border-left:3px solid ${col};font-family:${EMAIL_FONT};font-size:13px;line-height:1.5;color:${INK};">${text}</td></tr></table>`;
+}
+
+// Piè di pagina: chi manda, perché la ricevi, come rispondere. Niente slogan.
+// Quando l'email parte per conto di un cliente RescueManager lo dice a chiare lettere,
+// subito prima del motivo per cui la ricevi.
+function emailFooter(reason = 'Ricevi questa email perché hai un account RescueManager.', sender = '') {
+  return `<tr><td style="padding:20px 40px 24px;background:${FOOT_BG};">
+<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:#ffffff;">RescueManager S.r.l., Gela</p>
+${sender ? `<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:#ffffff;">Questa email è inviata da RescueManager per conto di ${sender}${/[.?]$/.test(sender) ? '' : '.'}</p>` : ''}
+<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:${FOOT_TEXT};">${reason}</p>
+<p style="margin:0;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:${FOOT_TEXT};">Per aiuto scrivi a <a href="mailto:info@rescuemanager.eu" style="color:#ffffff;text-decoration:none;">info@rescuemanager.eu</a></p>
+</td></tr>`;
+}
+
+function emailWrapper(content, preheader = '') {
+  return `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><title>RescueManager</title></head>
+<body style="margin:0;padding:0;background:${CANVAS};font-family:${EMAIL_FONT};">
+${preheader ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:${CANVAS};">${preheader}</div>` : ''}
+<table width="100%" cellpadding="0" cellspacing="0" style="background:${CANVAS};padding:32px 16px;"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:${PAPER};border:1px solid ${LINE};">${content}</table>
+</td></tr></table></body></html>`;
 }
 
 /**
- * Costruisce l'HTML brandizzato da un body testuale (una riga = un paragrafo).
- * opts: { subtitle, code, infoRows:[{label,value}], footerNote }.
- * I paragrafi supportano <strong> (già HTML): passa testo già "escapato" dove serve.
+ * Costruisce l'email intera. body: una riga, un paragrafo.
+ * Opzioni: sender, title, sub, code, codeNote, rows, amount, notice, cta,
+ * note, reason, preheader.
+ * Le vecchie opzioni subtitle/infoRows/footerNote continuano a funzionare.
  */
-function brandedHtml(bodyText, opts = {}) {
-  const paragraphs = String(bodyText || '').split('\n').map((line) => {
-    if (line.trim() === '') return '';
-    return `<p style="margin:0 0 14px;font-family:${EMAIL_FONT};font-size:15px;color:#475569;line-height:1.65;">${line}</p>`;
-  }).join('\n');
+function brandedHtml(body, o = {}) {
+  // Compatibilità con i chiamanti che usavano ancora le opzioni vecchie.
+  const rows = o.rows
+    || (Array.isArray(o.infoRows) && o.infoRows.length
+      ? o.infoRows.map((r) => (Array.isArray(r) ? r : [r.label, r.value]))
+      : null);
+  const note = o.note || o.footerNote || null;
+  const title = o.title || o.subtitle || null;
 
-  const infoTable = opts.infoRows && opts.infoRows.length
-    ? `<table cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc;border-left:4px solid ${BRAND_BLUE};margin:8px 0 24px;"><tr><td style="padding:16px 24px;"><table cellpadding="0" cellspacing="0" width="100%">${opts.infoRows.map((r) => emailInfoRow(r.label, r.value)).join('')}</table></td></tr></table>`
-    : '';
-
-  const content = `
-${emailHeader(opts.subtitle)}
-<tr><td style="padding:36px 40px;">
-${paragraphs}
-${opts.code ? emailCodeBox(opts.code) : ''}
-${infoTable}
-${opts.footerNote ? `<p style="margin:20px 0 0;font-family:${EMAIL_FONT};font-size:12px;color:#94a3b8;line-height:1.6;">${opts.footerNote}</p>` : ''}
-</td></tr>
-${emailFooter()}`;
-
-  return emailWrapper(content);
+  const ps = String(body || '').split('\n').map((l) => (l.trim() ? p(l) : '')).join('');
+  const content = `${emailHeader(o.sender)}<tr><td style="padding:32px 40px 8px;">
+${title ? emailTitle(title, o.sub) : ''}${ps}
+${o.notice ? emailNotice(o.notice.text, o.notice.level) : ''}
+${o.amount ? emailAmount(o.amount.label, o.amount.value) : ''}
+${o.code ? emailCodeBox(o.code, o.codeNote) : ''}
+${rows && rows.length ? emailInfoRows(rows) : ''}
+${o.cta ? emailCtaButton(o.cta.href, o.cta.label) : ''}
+${note ? p(note, 13, INK_2) : ''}
+</td></tr>${emailFooter(o.reason, o.sender)}`;
+  return emailWrapper(content, o.preheader || title || '');
 }
 
-module.exports = { brandedHtml, esc, BRAND_DARK, BRAND_BLUE };
+module.exports = {
+  brandedHtml,
+  esc,
+  emailHeader,
+  emailTitle,
+  emailCtaButton,
+  emailCodeBox,
+  emailInfoRows,
+  emailAmount,
+  emailNotice,
+  emailFooter,
+  emailWrapper,
+  EMAIL_FONT,
+  BRAND,
+  INK,
+  INK_2,
+  INK_3,
+  LINE,
+  PAPER,
+  CANVAS,
+  HEAD_BG,
+  FOOT_BG,
+  BRAND_DARK,
+  BRAND_BLUE,
+};

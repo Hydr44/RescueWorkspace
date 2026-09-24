@@ -314,7 +314,7 @@ module.exports = function createConvertRouter(supabase) {
           console.log('[CONVERT] Sending activation email to:', lead.email);
           await sendEmail({
             to: lead.email,
-            subject: 'Account RescueManager Attivato!',
+            subject: 'Il tuo account RescueManager è attivo',
             html,
             text
           });

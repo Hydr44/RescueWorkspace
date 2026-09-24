@@ -112,13 +112,13 @@ function createCalendlyAuthRouter(supabase) {
         customMessage: custom_message,
       });
 
-      await sendEmail({ to: lead.email, subject: 'Prenota la demo RescueManager', html: built.html, text: built.text });
+      await sendEmail({ to: lead.email, subject: 'Scegli quando fare la demo di RescueManager', html: built.html, text: built.text });
 
       // Log email_campaigns
       await supabase.from('email_campaigns').insert({
         lead_id: leadId,
         to_email: lead.email,
-        subject: 'Prenota la demo RescueManager',
+        subject: 'Scegli quando fare la demo di RescueManager',
         body_html: built.html,
         body_text: built.text,
         status: 'sent',
@@ -311,7 +311,7 @@ async function handleInviteeCreated(supabase, payload) {
       });
       await sendEmail({
         to: lead.email,
-        subject: `Appuntamento confermato — ${new Date(startTime).toLocaleDateString('it-IT', { day:'2-digit', month:'long' })}`,
+        subject: `Appuntamento confermato per ${new Date(startTime).toLocaleDateString('it-IT', { day:'2-digit', month:'long' })}`,
         html: built.html,
         text: built.text,
       });

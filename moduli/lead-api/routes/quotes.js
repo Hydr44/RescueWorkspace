@@ -384,7 +384,7 @@ module.exports = function createQuotesRouter(supabase) {
       // Invia email
       await sendEmail({
         to: lead.email,
-        subject: `Preventivo RescueManager - ${quote.quote_number}`,
+        subject: `Preventivo ${quote.quote_number} da RescueManager`,
         html,
         text
       });
@@ -452,14 +452,14 @@ module.exports = function createQuotesRouter(supabase) {
 
       await sendEmail({
         to: lead.email,
-        subject: `Approvato — Procedi al pagamento del preventivo ${quote.quote_number}`,
+        subject: `Preventivo ${quote.quote_number} approvato, manca il pagamento`,
         html, text,
       });
 
       // Log email_campaigns
       await supabase.from('email_campaigns').insert({
         lead_id: lead.id, to_email: lead.email,
-        subject: `Approvato — Procedi al pagamento del preventivo ${quote.quote_number}`,
+        subject: `Preventivo ${quote.quote_number} approvato, manca il pagamento`,
         body_html: html, body_text: text,
         status: 'sent', sent_at: new Date().toISOString(),
         sent_by: staff_id || null,

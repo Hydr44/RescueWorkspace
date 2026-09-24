@@ -67,46 +67,70 @@ function fromDisplayName(orgName) {
   const clean = String(orgName || '').replace(/["<>\r\n,;]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 64);
   return clean || 'RescueManager';
 }
+// Indirizzo di risposta valido (l'email dell'azienda per cui scriviamo), se c'è.
+function validEmail(e) {
+  return typeof e === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.trim()) ? e.trim() : null;
+}
 
 /**
  * Invia l'OTP di firma via email (concessionaria/officina), brandizzato
  * RescueManager e contestualizzato: chi chiede la firma (azienda di soccorso),
  * per quale veicolo/trasporto e a cosa serve il codice.
- * ctx = { signerType, signerName, orgName, transportNumber, vehicle, plate }.
+ * ctx = { signerType, signerName, orgName, orgEmail, transportNumber, vehicle, plate }.
  */
 async function sendOtpEmail(to, code, ctx = {}) {
   if (!RESEND_API_KEY) throw new Error('resend_not_configured');
   const { signerType, signerName, orgName, transportNumber, vehicle, plate } = ctx;
-  const azienda = orgName ? `<strong>${esc(orgName)}</strong>` : "L'azienda di soccorso";
+  const azienda = orgName ? esc(orgName) : "L'azienda di soccorso";
   const saluto = signerName ? esc(signerName) : signerLabel(signerType);
 
+  // Corpo: una informazione per riga, nessun gergo tecnico.
   const body = [
     `Gentile ${saluto},`,
-    `${azienda} ti chiede di firmare elettronicamente la <strong>consegna del veicolo</strong>.`,
-    `Per confermare la firma, comunica all'operatore il codice di verifica qui sotto.`,
+    `${azienda} ti chiede di firmare la consegna del veicolo.`,
+    `Comunica all'operatore il codice qui sotto: serve solo a confermare la tua firma.`,
   ].join('\n');
 
-  const infoRows = [];
-  if (orgName) infoRows.push({ label: 'Azienda', value: orgName });
-  if (transportNumber) infoRows.push({ label: 'Pratica', value: transportNumber });
-  if (vehicle) infoRows.push({ label: 'Veicolo', value: vehicle });
-  if (plate) infoRows.push({ label: 'Targa', value: plate });
+  // Riga di contesto sotto il titolo: chi chiede la firma e per quale pratica.
+  const sub = [orgName ? esc(orgName) : null, transportNumber ? `pratica ${esc(transportNumber)}` : null]
+    .filter(Boolean).join(', ');
+
+  const rows = [];
+  if (orgName) rows.push(['Azienda', esc(orgName)]);
+  if (transportNumber) rows.push(['Pratica', esc(transportNumber)]);
+  if (vehicle) rows.push(['Veicolo', esc(vehicle)]);
+  if (plate) rows.push(['Targa', esc(plate)]);
 
   const html = brandedHtml(body, {
-    subtitle: 'Firma consegna veicolo',
+    sender: orgName ? esc(fromDisplayName(orgName)) : null,
+    title: 'Codice per la firma di consegna',
+    sub: sub || null,
+    preheader: 'Codice per la firma di consegna',
     code,
-    infoRows,
-    footerNote: "Il codice è valido 10 minuti e conferma esclusivamente la tua firma sulla consegna del veicolo. Se non hai richiesto tu questa firma, ignora questa email.",
+    codeNote: 'Vale per 10 minuti, per una sola firma',
+    rows,
+    notice: { text: 'Il codice conferma solo la firma sulla consegna del veicolo. Non autorizza pagamenti.' },
+    note: 'Se non hai chiesto tu questa firma, ignora questa email.',
+    reason: orgName
+      ? `Ricevi questa email perché ${esc(orgName)} ti ha chiesto di firmare la consegna di un veicolo.`
+      : 'Ricevi questa email perché ti è stata chiesta la firma sulla consegna di un veicolo.',
   });
 
   const addr = (OTP_EMAIL_FROM.match(/<([^>]+)>/) || [null, OTP_EMAIL_FROM])[1].trim();
-  const from = orgName ? `"${fromDisplayName(orgName)}" <${addr}>` : OTP_EMAIL_FROM;
-  const subject = orgName ? `Firma consegna veicolo — ${fromDisplayName(orgName)}` : 'Firma consegna veicolo — codice di verifica';
+  // Il dominio resta il nostro, cambia solo il nome mostrato: chi riceve deve
+  // capire subito che scriviamo per conto dell'azienda di soccorso.
+  const from = orgName ? `"${fromDisplayName(orgName)} via RescueManager" <${addr}>` : OTP_EMAIL_FROM;
+  // Se rispondono, la risposta va all'azienda, non a noi.
+  const replyTo = orgName ? validEmail(ctx.orgEmail) : null;
+  // Oggetto: il fatto prima, poi da chi.
+  const subject = orgName
+    ? `Codice per la firma di consegna da ${fromDisplayName(orgName)}`
+    : 'Codice per la firma di consegna';
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [to], subject, html }),
+    body: JSON.stringify({ from, to: [to], subject, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
@@ -341,6 +365,7 @@ app.post('/api/messaging/otp/send', requireCaller, async (req, res) => {
         signerType,
         signerName: signer_name || null,
         orgName: company.company_name || company.name || null,
+        orgEmail: company.email || null,
         transportNumber: numeroTrasporto(t),
         vehicle: sd.marca_modello || null,
         plate: sd.targa || null,

@@ -258,7 +258,7 @@ module.exports = function createAppointmentsRouter(supabase) {
         });
         attachments = [{ filename: 'appuntamento.ics', content: ics, contentType: 'text/calendar' }];
 
-        subject = `Appuntamento confermato — ${fmtITDate(appt.scheduled_at)} ore ${fmtITTime(appt.scheduled_at)}`;
+        subject = `Appuntamento confermato per ${fmtITDate(appt.scheduled_at)} alle ${fmtITTime(appt.scheduled_at)}`;
         const built = buildAppointmentConfirmationEmail({
           name: lead.name,
           title: appt.title,
@@ -274,7 +274,7 @@ module.exports = function createAppointmentsRouter(supabase) {
         text = built.text;
       } else {
         // Booking link — usa template brandato
-        subject = `Pianifichiamo ${TYPE_LABEL[appt.appointment_type] || 'un incontro'} — ${appt.title}`;
+        subject = `Scegli quando fare ${TYPE_LABEL[appt.appointment_type] || 'un incontro'}, ${appt.title}`;
         const built = buildBookingLinkEmail({
           name: lead.name,
           companyName: lead.company,

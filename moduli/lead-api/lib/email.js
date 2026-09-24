@@ -1,6 +1,11 @@
 /**
  * Email Service - Lead API
  * Usa nodemailer con SMTP configurato in .env
+ *
+ * L'HTML segue il modello unico RescueManager (desktop-design/email/email-template.js):
+ * testata e piè di pagina nei blu della barra laterale, corpo chiaro, un solo
+ * blu #005DFA, un solo pulsante per email, una informazione per riga.
+ * Solo tabelle e stili in linea: è quello che Gmail e Outlook capiscono.
  */
 
 const nodemailer = require('nodemailer');
@@ -24,14 +29,30 @@ function getTransporter() {
   return transporter;
 }
 
+// Nome mostrato sicuro per l'header From (niente virgolette, virgole, a capo).
+function fromDisplayName(name) {
+  return String(name || '').replace(/["<>\r\n,;]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 64);
+}
+function validEmail(e) {
+  return typeof e === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.trim()) ? e.trim() : null;
+}
+
 /**
- * Invia email
+ * Invia email.
+ * senderName: nome dell'azienda quando l'email parte per conto di un cliente
+ *   RescueManager. Il dominio resta il nostro, cambia solo il nome mostrato.
+ * replyTo: indirizzo a cui devono arrivare le risposte (di norma l'email
+ *   dell'azienda per cui scriviamo). Entrambi sono facoltativi.
  */
-async function sendEmail({ to, subject, html, text, attachments }) {
+async function sendEmail({ to, subject, html, text, attachments, senderName, replyTo }) {
   const transport = getTransporter();
+  const addr = process.env.SMTP_FROM || 'info@rescuemanager.eu';
+  const perConto = fromDisplayName(senderName);
+  const rispondiA = validEmail(replyTo);
 
   const result = await transport.sendMail({
-    from: `"RescueManager" <${process.env.SMTP_FROM || 'info@rescuemanager.eu'}>`,
+    from: perConto ? `"${perConto} via RescueManager" <${addr}>` : `"RescueManager" <${addr}>`,
+    ...(rispondiA ? { replyTo: rispondiA } : {}),
     to,
     subject,
     html,
@@ -43,168 +64,221 @@ async function sendEmail({ to, subject, html, text, attachments }) {
   return result;
 }
 
-// ─── Shared Email Helpers ────────────────────────────────────────────────────
+// ─── Modello email condiviso ─────────────────────────────────────────────────
 
-const EMAIL_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif";
-const EMAIL_BRAND_DARK = '#0f172a';
-const EMAIL_BRAND_BLUE = '#2563eb';
+const EMAIL_FONT = "Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif";
+const BRAND = '#005dfa';
+const INK = '#161616';
+const INK_2 = '#525252';
+const INK_3 = '#8d8d8d';
+const LINE = '#e0e0e0';
+const PAPER = '#ffffff';
+const CANVAS = '#f4f4f4';
+const LOGO_URL = 'https://rescuemanager.eu/assets/logos/logo-principale-bianco.png';
+// Testata e piè di pagina scuri: HEAD_BG è il blu della barra laterale
+// dell'app, FOOT_BG il suo tono di testa e piede.
+const HEAD_BG = '#0b3fb5';
+const HEAD_TEXT = '#dbe6ff';
+const FOOT_BG = '#062a7a';
+const FOOT_TEXT = '#a9c2ff';
 
-function emailHeader(subtitle) {
-  return `
-<tr>
-  <td style="background:${EMAIL_BRAND_DARK};padding:28px 40px;">
-    <table cellpadding="0" cellspacing="0" width="100%">
-      <tr>
-        <td>
-          <img src="https://rescuemanager.eu/assets/logos/logo-principale-a-colori.svg" alt="RescueManager" style="height:32px;width:auto;display:block;margin-bottom:${subtitle ? '8px' : '0'};" />
-          ${subtitle ? `<p style="margin:0;font-family:${EMAIL_FONT};font-size:13px;color:rgba(255,255,255,0.55);letter-spacing:0.05em;text-transform:uppercase;">${subtitle}</p>` : ''}
-        </td>
-        <td align="right">
-          <span style="font-family:${EMAIL_FONT};font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.1em;">rescuemanager.eu</span>
-        </td>
-      </tr>
-    </table>
-  </td>
-</tr>`;
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function emailFooter() {
-  return `
-<tr>
-  <td style="background:${EMAIL_BRAND_DARK};padding:24px 40px;border-top:3px solid ${EMAIL_BRAND_BLUE};">
-    <p style="margin:0 0 8px;font-family:${EMAIL_FONT};font-size:12px;color:rgba(255,255,255,0.7);text-align:center;font-weight:600;">
-      RescueManager S.r.l.
-    </p>
-    <p style="margin:0 0 8px;font-family:${EMAIL_FONT};font-size:11px;color:rgba(255,255,255,0.5);text-align:center;line-height:1.6;">
-      Via dello Smeraldo 18, 93012 Gela (CL) &middot; Italia<br>
-      P.IVA 02176370852 &middot; Capitale sociale &euro; 100,00<br>
-      <a href="mailto:info@rescuemanager.eu" style="color:${EMAIL_BRAND_BLUE};text-decoration:none;">info@rescuemanager.eu</a>
-      &nbsp;&middot;&nbsp;
-      PEC <a href="mailto:rescuemanager@legalmail.it" style="color:${EMAIL_BRAND_BLUE};text-decoration:none;">rescuemanager@legalmail.it</a>
-    </p>
-    <p style="margin:0;font-family:${EMAIL_FONT};font-size:10px;color:rgba(255,255,255,0.35);text-align:center;">
-      &copy; ${new Date().getFullYear()} RescueManager S.r.l. &middot;
-      <a href="https://rescuemanager.eu" style="color:rgba(255,255,255,0.5);text-decoration:none;">rescuemanager.eu</a>
-    </p>
-  </td>
-</tr>`;
+const p = (t, size = 15, color = INK, extra = '') => `<p style="margin:0 0 14px;font-family:${EMAIL_FONT};font-size:${size}px;line-height:1.6;color:${color};${extra}">${t}</p>`;
+
+// Testata: logo bianco sul blu. Quando l'email parte per conto di un cliente di
+// RescueManager, a destra si legge 'per conto di <azienda>'. Le email di questo
+// modulo le manda RescueManager stessa, quindi qui 'sender' resta vuoto.
+function emailHeader(sender) {
+  return `<tr><td style="padding:22px 40px;background:${HEAD_BG};"><table cellpadding="0" cellspacing="0" width="100%"><tr>
+<td><img src="${LOGO_URL}" alt="RescueManager" height="26" style="height:26px;width:auto;display:block;border:0;" /></td>
+${sender ? `<td align="right" style="font-family:${EMAIL_FONT};font-size:13px;color:${HEAD_TEXT};">per conto di ${sender}</td>` : ''}
+</tr></table></td></tr>`;
 }
 
-function emailWrapper(content) {
-  return `<!DOCTYPE html>
-<html lang="it">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>RescueManager</title>
-</head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:${EMAIL_FONT};">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 16px;">
-  <tr><td align="center">
-    <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e8f0;">
-      ${content}
-    </table>
-    <p style="margin:16px 0 0;font-family:${EMAIL_FONT};font-size:11px;color:#94a3b8;text-align:center;">
-      Hai ricevuto questa email perché il tuo indirizzo è associato a un account RescueManager.
-    </p>
-  </td></tr>
-</table>
-</body>
-</html>`;
+// Titolo e riga di contesto: il titolo dice cosa è successo, la riga sotto a
+// chi o quando.
+function emailTitle(title, sub) {
+  return `<h1 style="margin:0 0 ${sub ? '4' : '20'}px;font-family:${EMAIL_FONT};font-size:22px;line-height:1.25;font-weight:600;letter-spacing:-0.01em;color:${INK};">${title}</h1>${sub ? `<p style="margin:0 0 20px;font-family:${EMAIL_FONT};font-size:14px;color:${INK_2};">${sub}</p>` : ''}`;
 }
 
+// Pulsante: uno solo per email, pieno, squadrato, testo normale.
 function emailCtaButton(href, label) {
-  return `
-<table cellpadding="0" cellspacing="0" style="margin:28px 0;">
-  <tr>
-    <td style="background:${EMAIL_BRAND_BLUE};">
-      <a href="${href}" style="display:block;padding:14px 32px;font-family:${EMAIL_FONT};font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;text-transform:uppercase;letter-spacing:0.05em;">${label} &rarr;</a>
-    </td>
-  </tr>
-</table>`;
+  return `<table cellpadding="0" cellspacing="0" style="margin:8px 0 24px;"><tr><td style="background:${BRAND};"><a href="${href}" style="display:block;padding:13px 28px;font-family:${EMAIL_FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">${label}</a></td></tr></table>
+<p style="margin:0 0 24px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:${INK_3};">Se il pulsante non funziona, apri questo indirizzo: <a href="${href}" style="color:${BRAND};text-decoration:none;">${href}</a></p>`;
 }
 
-function emailInfoRow(label, value) {
-  return `
-<tr>
-  <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;width:130px;">${label}</td>
-  <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-family:${EMAIL_FONT};font-size:13px;color:#0f172a;font-weight:600;">${value}</td>
-</tr>`;
+// Codice: grande, monospazio, in un riquadro con la barretta a sinistra.
+function emailCodeBox(code, note = 'Vale per 10 minuti') {
+  return `<table cellpadding="0" cellspacing="0" width="100%" style="margin:8px 0 24px;background:${CANVAS};border-left:3px solid ${BRAND};"><tr><td style="padding:18px 24px;">
+<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:13px;color:${INK_2};">Codice</p>
+<p style="margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:30px;font-weight:600;letter-spacing:0.18em;color:${INK};">${code}</p>
+<p style="margin:6px 0 0;font-family:${EMAIL_FONT};font-size:12px;color:${INK_3};">${note}</p>
+</td></tr></table>`;
 }
 
-// ─── Email Benvenuto Demo ─────────────────────────────────────────────────────
+// Righe etichetta e valore: come le schede dell'app, un dato per riga.
+function emailInfoRows(rows) {
+  return `<table cellpadding="0" cellspacing="0" width="100%" style="margin:8px 0 24px;border-top:1px solid ${LINE};">${rows.map(([l, v]) => `<tr>
+<td style="padding:9px 0;border-bottom:1px solid ${LINE};font-family:${EMAIL_FONT};font-size:13px;color:${INK_2};width:150px;vertical-align:top;">${l}</td>
+<td style="padding:9px 0;border-bottom:1px solid ${LINE};font-family:${EMAIL_FONT};font-size:13px;color:${INK};vertical-align:top;">${v}</td></tr>`).join('')}</table>`;
+}
+
+// Totale in evidenza (preventivi, pagamenti): etichetta sopra, cifra sotto.
+function emailAmount(label, value) {
+  return `<table cellpadding="0" cellspacing="0" style="margin:0 0 24px;"><tr><td style="padding:12px 16px;background:${CANVAS};">
+<p style="margin:0;font-family:${EMAIL_FONT};font-size:12px;color:${INK_2};">${label}</p>
+<p style="margin:2px 0 0;font-family:${EMAIL_FONT};font-size:26px;font-weight:600;letter-spacing:-0.01em;color:${INK};">${value}</p>
+</td></tr></table>`;
+}
+
+// Avviso: una riga con la barretta. Rosso solo per le scadenze passate.
+function emailNotice(text, level = 'info') {
+  const col = level === 'danger' ? '#da1e28' : BRAND;
+  return `<table cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;"><tr><td style="padding:10px 14px;background:${CANVAS};border-left:3px solid ${col};font-family:${EMAIL_FONT};font-size:13px;line-height:1.5;color:${INK};">${text}</td></tr></table>`;
+}
+
+// Piè di pagina: chi manda, perché la ricevi, come rispondere. Niente slogan.
+// Quando l'email parte per conto di un cliente RescueManager lo dice a chiare lettere,
+// subito prima del motivo per cui la ricevi.
+function emailFooter(reason = 'Ricevi questa email perché hai un account RescueManager.', sender = '') {
+  return `<tr><td style="padding:20px 40px 24px;background:${FOOT_BG};">
+<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:#ffffff;">RescueManager S.r.l., Gela</p>
+${sender ? `<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:#ffffff;">Questa email è inviata da RescueManager per conto di ${sender}${/[.?]$/.test(sender) ? '' : '.'}</p>` : ''}
+<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:${FOOT_TEXT};">${reason}</p>
+<p style="margin:0;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:${FOOT_TEXT};">Per aiuto scrivi a <a href="mailto:info@rescuemanager.eu" style="color:#ffffff;text-decoration:none;">info@rescuemanager.eu</a></p>
+</td></tr>`;
+}
+
+function emailWrapper(content, preheader = '') {
+  return `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><title>RescueManager</title></head>
+<body style="margin:0;padding:0;background:${CANVAS};font-family:${EMAIL_FONT};">
+${preheader ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:${CANVAS};">${preheader}</div>` : ''}
+<table width="100%" cellpadding="0" cellspacing="0" style="background:${CANVAS};padding:32px 16px;"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:${PAPER};border:1px solid ${LINE};">${content}</table>
+</td></tr></table></body></html>`;
+}
+
+/**
+ * Costruisce l'email intera. body: una riga, un paragrafo.
+ * Opzioni: sender, title, sub, code, codeNote, rows, amount, notice, cta,
+ * note, reason, preheader.
+ */
+function brandedHtml(body, o = {}) {
+  const ps = String(body || '').split('\n').map((l) => (l.trim() ? p(l) : '')).join('');
+  const rows = Array.isArray(o.rows) ? o.rows.filter(Boolean) : null;
+  const content = `${emailHeader(o.sender)}<tr><td style="padding:32px 40px 8px;">
+${o.title ? emailTitle(o.title, o.sub) : ''}${ps}
+${o.notice ? emailNotice(o.notice.text, o.notice.level) : ''}
+${o.amount ? emailAmount(o.amount.label, o.amount.value) : ''}
+${o.code ? emailCodeBox(o.code, o.codeNote) : ''}
+${rows && rows.length ? emailInfoRows(rows) : ''}
+${o.cta ? emailCtaButton(o.cta.href, o.cta.label) : ''}
+${o.note ? p(o.note, 13, INK_2) : ''}
+</td></tr>${emailFooter(o.reason, o.sender)}`;
+  return emailWrapper(content, o.preheader || o.title || '');
+}
+
+// ─── Etichette condivise ─────────────────────────────────────────────────────
+
+const PLAN_LABELS = {
+  starter: 'Starter', professional: 'Professional', business: 'Business',
+  full: 'Full', flotta: 'Flotta', enterprise: 'Enterprise', custom: 'Personalizzato',
+};
+
+// Nomi che il cliente riconosce, senza sigle inutili.
+const MODULE_LABELS = {
+  trasporti: 'Soccorso e trasporti',
+  tracking: 'Posizione dei mezzi',
+  calendario: 'Calendario',
+  clienti: 'Clienti',
+  mezzi: 'Mezzi',
+  piazzale: 'Custodia veicoli',
+  autisti: 'Autisti',
+  ricambi: 'Ricambi',
+  preventivi: 'Preventivi',
+  report: 'Report',
+  rvfu: 'Demolizione veicoli',
+  rentri: 'Registri rifiuti RENTRI',
+  fatturazione: 'Fatturazione elettronica',
+};
+
+const LOGIN_URL = 'https://rescuemanager.eu/login';
+
+// Importi come li scrive un italiano: 1.788,00 euro (niente simbolo, si legge meglio).
+function fmtEur(n) {
+  const v = new Intl.NumberFormat('it-IT', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always',
+  }).format(Number(n) || 0);
+  return `${v} euro`;
+}
+function fmtDataLunga(iso) {
+  return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+// ─── Email account demo ──────────────────────────────────────────────────────
 
 /**
  * Email Benvenuto Demo
  */
 function buildDemoWelcomeEmail({ name, email, tempPassword, setupPasswordUrl, expiresAt, modules, companyName }) {
-  const expiryStr = expiresAt 
-    ? new Date(expiresAt).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
-    : 'Non specificata';
+  const expiryStr = expiresAt ? fmtDataLunga(expiresAt) : null;
+  const modulesList = (modules || []).map((m) => MODULE_LABELS[m] || m);
 
-  const moduleLabels = {
-    trasporti: 'Trasporti', tracking: 'Tracking GPS', calendario: 'Calendario',
-    clienti: 'Clienti & CRM', mezzi: 'Mezzi', piazzale: 'Piazzale',
-    autisti: 'Autisti', ricambi: 'Ricambi', preventivi: 'Preventivi',
-    report: 'Report', rvfu: 'Demolizioni RVFU', rentri: 'RENTRI',
-    fatturazione: 'Fatturazione Elettronica'
-  };
-  const modulesList = (modules || []).map(m => moduleLabels[m] || m);
+  const rows = [['Indirizzo per entrare', esc(email)]];
+  if (!setupPasswordUrl && tempPassword) {
+    rows.push(['Password temporanea', `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;">${esc(tempPassword)}</span>`]);
+  }
+  if (expiryStr) rows.push(['La demo vale fino al', expiryStr]);
+  if (modulesList.length) rows.push(['Cosa puoi provare', esc(modulesList.join(', '))]);
 
-  const body = `
-${emailHeader('Il tuo account demo è pronto')}
-<tr>
-  <td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 6px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:${EMAIL_BRAND_BLUE};text-transform:uppercase;letter-spacing:0.1em;">Account Demo</p>
-    <h1 style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:26px;font-weight:900;color:${EMAIL_BRAND_DARK};line-height:1.2;">
-      Benvenuto${name ? ', ' + name.split(' ')[0] : ''}<span style="color:${EMAIL_BRAND_BLUE};">.</span>
-    </h1>
-    <p style="margin:0 0 28px;font-family:${EMAIL_FONT};font-size:15px;color:#475569;line-height:1.65;">
-      Il tuo account demo RescueManager${companyName ? ` per <strong style="color:${EMAIL_BRAND_DARK};">${companyName}</strong>` : ''} è stato attivato con successo.
-      Hai <strong>accesso completo</strong> per testare tutte le funzionalità incluse.
-    </p>
+  const body = [
+    `${companyName ? `L'account demo per ${esc(companyName)} è pronto.` : 'Il tuo account demo è pronto.'}`,
+    setupPasswordUrl
+      ? 'Scegli una password e potrai entrare dal sito e dall\'app desktop.'
+      : 'Entra con l\'indirizzo e la password qui sotto: trovi tutto già pronto, con dati di esempio.',
+  ].join('\n');
 
-    <!-- Credenziali Box -->
-    <table cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc;border-left:4px solid ${EMAIL_BRAND_BLUE};margin-bottom:28px;">
-      <tr><td style="padding:20px 24px;">
-        <p style="margin:0 0 14px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:${EMAIL_BRAND_BLUE};text-transform:uppercase;letter-spacing:0.1em;">Credenziali di accesso</p>
-        <table cellpadding="0" cellspacing="0" width="100%">
-          ${emailInfoRow('Email', email)}
-          ${!setupPasswordUrl && tempPassword ? emailInfoRow('Password temporanea', `<code style="font-family:monospace;background:#e2e8f0;padding:2px 6px;">${tempPassword}</code>`) : ''}
-          ${emailInfoRow('Scadenza demo', expiryStr)}
-        </table>
-        ${setupPasswordUrl ? `
-        <p style="margin:16px 0 0;font-family:${EMAIL_FONT};font-size:12px;color:#64748b;">
-          Devi impostare una password prima di accedere. Il link è valido per 24 ore.
-        </p>` : ''}
-      </td></tr>
-    </table>
-
-    ${setupPasswordUrl ? emailCtaButton(setupPasswordUrl, 'Imposta la tua Password') : emailCtaButton('https://rescuemanager.eu/login', 'Accedi alla Demo')}
-
-    <!-- Moduli inclusi -->
-    ${modulesList.length > 0 ? `
-    <p style="margin:0 0 10px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;">Moduli inclusi nella demo</p>
-    <p style="margin:0 0 28px;font-family:${EMAIL_FONT};font-size:13px;color:#475569;line-height:1.7;">${modulesList.join(' &middot; ')}</p>` : ''}
-
-    <p style="margin:0;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;line-height:1.6;">
-      Per qualsiasi domanda rispondi a questa email o scrivi a
-      <a href="mailto:info@rescuemanager.eu" style="color:${EMAIL_BRAND_BLUE};text-decoration:none;">info@rescuemanager.eu</a>.
-    </p>
-  </td>
-</tr>
-${emailFooter()}`;
+  const html = brandedHtml(body, {
+    title: 'Il tuo account demo è pronto',
+    sub: [companyName ? esc(companyName) : null, expiryStr ? `demo fino al ${expiryStr}` : null].filter(Boolean).join(', ') || null,
+    preheader: 'Il tuo account demo è pronto',
+    rows,
+    cta: setupPasswordUrl
+      ? { href: setupPasswordUrl, label: 'Scegli la password' }
+      : { href: LOGIN_URL, label: 'Entra nella demo' },
+    note: setupPasswordUrl
+      ? 'Il collegamento vale per 24 ore. Se scade, chiedici di rimandartelo.'
+      : 'Alla prima occasione cambia la password dalle impostazioni.',
+    reason: 'Ricevi questa email perché hai chiesto una demo di RescueManager.',
+  });
 
   const credText = setupPasswordUrl
-    ? `Imposta la tua password: ${setupPasswordUrl}`
+    ? `Scegli la password: ${setupPasswordUrl}`
     : `Password temporanea: ${tempPassword}`;
 
-  const text = `Benvenuto su RescueManager!\n\nGentile ${name},\n\nIl tuo account demo è pronto.\n\nCredenziali:\nEmail: ${email}\n${credText}\n\nScadenza: ${expiryStr}\nModuli: ${modulesList.join(', ')}\n\nAccedi: https://rescuemanager.eu/login\n\nRescueManager - rescuemanager.eu`;
+  const text = [
+    'Il tuo account demo è pronto.',
+    '',
+    `Indirizzo per entrare: ${email}`,
+    credText,
+    expiryStr ? `La demo vale fino al ${expiryStr}` : null,
+    modulesList.length ? `Cosa puoi provare: ${modulesList.join(', ')}` : null,
+    '',
+    `Entra da ${LOGIN_URL}`,
+    '',
+    'RescueManager S.r.l., Gela',
+    'Per aiuto scrivi a info@rescuemanager.eu',
+  ].filter((l) => l !== null).join('\n');
 
-  return { html: emailWrapper(body), text };
+  return { html, text };
 }
 
-// ─── Email Preventivo ─────────────────────────────────────────────────────────
+// ─── Email preventivo ────────────────────────────────────────────────────────
 
 /**
  * Email Preventivo
@@ -212,20 +286,17 @@ ${emailFooter()}`;
  * contrattuale, voci una tantum (setup + pacchetti), regime IVA esplicito.
  */
 function buildQuoteEmail({ leadName, quoteNumber, planType, monthlyTotal, yearlyTotal, contractDuration, expiryDate, publicUrl, pdfUrl, specialModules, baseModules, setupFee, discountPercent, packages, oneTimeTotal, pricesIncludeVat }) {
-  const fmt = (n) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n) || 0);
-  const expiryStr = new Date(expiryDate).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
-
-  const planLabels = { starter: 'Starter', professional: 'Professional', business: 'Business', full: 'Full', flotta: 'Flotta', enterprise: 'Enterprise', custom: 'Personalizzato' };
-  const moduleLabels = { rvfu: 'Demolizioni RVFU', rentri: 'RENTRI', fatturazione: 'Fatturazione Elettronica' };
-  const specialList = (specialModules || []).map(m => moduleLabels[m] || m).join(', ');
+  const expiryStr = fmtDataLunga(expiryDate);
+  const planLabel = PLAN_LABELS[planType] || planType;
+  const specialList = (specialModules || []).map((m) => MODULE_LABELS[m] || m).join(', ');
 
   const pkgs = Array.isArray(packages) ? packages : [];
-  const lineTotal = (p) => p.billing === 'note' ? 0 : (Number(p.price) || 0) * Math.max(1, Number(p.quantity) || 1);
-  const monthlyPkgs = pkgs.filter(p => p.billing === 'monthly');
-  const oneTimePkgs = pkgs.filter(p => p.billing === 'one_time');
-  const notePkgs = pkgs.filter(p => p.billing === 'note');
+  const lineTotal = (pk) => pk.billing === 'note' ? 0 : (Number(pk.price) || 0) * Math.max(1, Number(pk.quantity) || 1);
+  const monthlyPkgs = pkgs.filter((pk) => pk.billing === 'monthly');
+  const oneTimePkgs = pkgs.filter((pk) => pk.billing === 'one_time');
+  const notePkgs = pkgs.filter((pk) => pk.billing === 'note');
   const setup = Number(setupFee) || 0;
-  const oneTime = Number(oneTimeTotal) || (setup + oneTimePkgs.reduce((s, p) => s + lineTotal(p), 0));
+  const oneTime = Number(oneTimeTotal) || (setup + oneTimePkgs.reduce((s, pk) => s + lineTotal(pk), 0));
 
   const isYearly = contractDuration === 'yearly';
   const isBiennial = contractDuration === 'biennial';
@@ -233,173 +304,113 @@ function buildQuoteEmail({ leadName, quoteNumber, planType, monthlyTotal, yearly
   const yearly = Number(yearlyTotal) || Math.round(monthly * 12 * 0.9 * 100) / 100;
   const biennial = Math.round(monthly * 24 * 0.85 * 100) / 100;
   const recurring = isYearly ? yearly : isBiennial ? biennial : monthly;
-  const periodLabel = isYearly ? '/anno' : isBiennial ? '/biennio' : '/mese';
-  const canoneLabel = isYearly ? 'Canone annuale' : isBiennial ? 'Canone biennale' : 'Canone mensile';
-  const vatLabel = pricesIncludeVat === false ? 'IVA esclusa (IVA 22% in fattura)' : 'IVA inclusa';
+  const canoneLabel = isYearly ? 'Totale all\'anno' : isBiennial ? 'Totale per due anni' : 'Totale al mese';
+  const ivaInclusa = pricesIncludeVat !== false;
+  const vatLabel = ivaInclusa ? 'IVA inclusa' : 'IVA esclusa';
 
-  const body = `
-${emailHeader(`Preventivo ${quoteNumber}`)}
-<tr>
-  <td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 6px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:${EMAIL_BRAND_BLUE};text-transform:uppercase;letter-spacing:0.1em;">Preventivo Personalizzato</p>
-    <h1 style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:26px;font-weight:900;color:${EMAIL_BRAND_DARK};line-height:1.2;">
-      Ciao, ${leadName ? leadName.split(' ')[0] : 'caro cliente'}<span style="color:${EMAIL_BRAND_BLUE};">.</span>
-    </h1>
-    <p style="margin:0 0 28px;font-family:${EMAIL_FONT};font-size:15px;color:#475569;line-height:1.65;">
-      Ecco il preventivo per il piano <strong style="color:${EMAIL_BRAND_DARK};">${planLabels[planType] || planType}</strong> di RescueManager.
-      Il preventivo è valido fino al <strong>${expiryStr}</strong>.
-    </p>
+  const rows = [['Piano', esc(planLabel)]];
+  if (specialList) rows.push(['Compreso', esc(specialList)]);
+  monthlyPkgs.forEach((pk) => rows.push([esc(pk.name), `${fmtEur(lineTotal(pk))} al mese`]));
+  if (discountPercent > 0) rows.push(['Sconto sul canone', `${discountPercent} per cento`]);
+  if (setup > 0) rows.push(['Attivazione, una volta sola', fmtEur(setup)]);
+  oneTimePkgs.forEach((pk) => rows.push([esc(pk.name), `${fmtEur(lineTotal(pk))}, una volta sola`]));
+  notePkgs.forEach((pk) => rows.push([esc(pk.name), esc(pk.description || 'da concordare')]));
+  if (isYearly || isBiennial) rows.push(['Equivale al mese a', fmtEur(recurring / (isYearly ? 12 : 24))]);
+  if (oneTime > 0) rows.push(['Al primo pagamento', fmtEur(recurring + oneTime)]);
+  rows.push(['Prezzi', ivaInclusa ? 'IVA inclusa' : 'IVA esclusa, in fattura si aggiunge il 22 per cento']);
+  rows.push(['Valido fino al', expiryStr]);
 
-    <!-- Riepilogo economico -->
-    <table cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc;border-left:4px solid ${EMAIL_BRAND_BLUE};margin-bottom:28px;">
-      <tr><td style="padding:20px 24px;">
-        <p style="margin:0 0 14px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:${EMAIL_BRAND_BLUE};text-transform:uppercase;letter-spacing:0.1em;">Riepilogo economico</p>
-        <table cellpadding="0" cellspacing="0" width="100%">
-          ${emailInfoRow('Piano', planLabels[planType] || planType)}
-          ${specialList ? emailInfoRow('Moduli speciali', specialList) : ''}
-          ${monthlyPkgs.map(p => emailInfoRow(p.name, `${fmt(lineTotal(p))}/mese`)).join('')}
-          ${discountPercent > 0 ? emailInfoRow('Sconto sul canone', `-${discountPercent}%`) : ''}
-          ${setup > 0 ? emailInfoRow('Setup iniziale (una tantum)', fmt(setup)) : ''}
-          ${oneTimePkgs.map(p => emailInfoRow(`${p.name} (una tantum)`, fmt(lineTotal(p)))).join('')}
-          ${notePkgs.map(p => emailInfoRow(p.name, p.description || 'vedi preventivo')).join('')}
-        </table>
-        <table cellpadding="0" cellspacing="0" width="100%" style="margin-top:14px;padding-top:14px;border-top:2px solid #e2e8f0;">
-          <tr>
-            <td style="font-family:${EMAIL_FONT};font-size:16px;font-weight:900;color:${EMAIL_BRAND_DARK};">${canoneLabel}</td>
-            <td align="right" style="font-family:${EMAIL_FONT};font-size:22px;font-weight:900;color:${EMAIL_BRAND_BLUE};">${fmt(recurring)}<span style="font-size:13px;font-weight:400;color:#64748b;">${periodLabel}</span></td>
-          </tr>
-          ${(isYearly || isBiennial) ? `<tr>
-            <td style="font-family:${EMAIL_FONT};font-size:12px;color:#94a3b8;padding-top:4px;">Equivalente mensile</td>
-            <td align="right" style="font-family:${EMAIL_FONT};font-size:12px;color:#94a3b8;padding-top:4px;">${fmt(recurring / (isYearly ? 12 : 24))}/mese</td>
-          </tr>` : ''}
-          ${oneTime > 0 ? `<tr>
-            <td style="font-family:${EMAIL_FONT};font-size:13px;font-weight:700;color:${EMAIL_BRAND_DARK};padding-top:10px;">Una tantum al primo pagamento</td>
-            <td align="right" style="font-family:${EMAIL_FONT};font-size:15px;font-weight:700;color:${EMAIL_BRAND_DARK};padding-top:10px;">${fmt(oneTime)}</td>
-          </tr>
-          <tr>
-            <td style="font-family:${EMAIL_FONT};font-size:12px;color:#64748b;padding-top:4px;">Totale al primo pagamento</td>
-            <td align="right" style="font-family:${EMAIL_FONT};font-size:12px;color:#64748b;padding-top:4px;">${fmt(recurring + oneTime)}</td>
-          </tr>` : ''}
-          <tr>
-            <td colspan="2" style="font-family:${EMAIL_FONT};font-size:11px;color:#94a3b8;padding-top:8px;">Prezzi ${vatLabel}.</td>
-          </tr>
-        </table>
-      </td></tr>
-    </table>
+  const body = [
+    `Ecco il preventivo per RescueManager con il piano ${esc(planLabel)}.`,
+    'Se va bene, accettalo dal pulsante e ti mandiamo il contratto.',
+  ].join('\n');
 
-    ${emailCtaButton(publicUrl, 'Visualizza e Accetta il Preventivo')}
+  const html = brandedHtml(body, {
+    title: `Preventivo ${esc(quoteNumber)}`,
+    sub: [leadName ? esc(leadName) : null, `valido fino al ${expiryStr}`].filter(Boolean).join(', '),
+    preheader: `Preventivo ${quoteNumber}`,
+    amount: { label: `${canoneLabel}, ${vatLabel}`, value: fmtEur(recurring) },
+    rows,
+    cta: { href: publicUrl, label: 'Apri e accetta il preventivo' },
+    note: pdfUrl
+      ? `Trovi lo stesso preventivo in PDF a questo indirizzo: ${esc(pdfUrl)}. Per cambiare qualcosa rispondi a questa email.`
+      : 'Per cambiare qualcosa rispondi a questa email.',
+    reason: 'Ricevi questa email perché hai chiesto un preventivo a RescueManager.',
+  });
 
-    ${pdfUrl ? `<p style="margin:-16px 0 28px;font-family:${EMAIL_FONT};font-size:13px;text-align:center;">
-      <a href="${pdfUrl}" style="color:${EMAIL_BRAND_BLUE};text-decoration:none;font-size:13px;">Scarica il PDF del preventivo</a>
-    </p>` : ''}
+  const text = [
+    `Preventivo ${quoteNumber}`,
+    '',
+    `Piano: ${planLabel}`,
+    `${canoneLabel}: ${fmtEur(recurring)}, ${vatLabel}`,
+    oneTime > 0 ? `Al primo pagamento: ${fmtEur(recurring + oneTime)}` : null,
+    `Valido fino al ${expiryStr}`,
+    '',
+    `Apri e accetta il preventivo: ${publicUrl}`,
+    pdfUrl ? `Preventivo in PDF: ${pdfUrl}` : null,
+    '',
+    'RescueManager S.r.l., Gela',
+    'Per aiuto scrivi a info@rescuemanager.eu',
+  ].filter((l) => l !== null).join('\n');
 
-    <p style="margin:0;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;line-height:1.6;">
-      Per accettare il preventivo clicca il pulsante sopra. Per qualsiasi domanda rispondi a questa email o scrivi a
-      <a href="mailto:info@rescuemanager.eu" style="color:${EMAIL_BRAND_BLUE};text-decoration:none;">info@rescuemanager.eu</a>.
-    </p>
-  </td>
-</tr>
-${emailFooter()}`;
-
-  const text = `Preventivo ${quoteNumber}\n\nGentile ${leadName},\n\nPiano: ${planLabels[planType] || planType}\n${canoneLabel}: ${fmt(recurring)}${periodLabel}${oneTime > 0 ? `\nUna tantum al primo pagamento: ${fmt(oneTime)}` : ''}\nPrezzi ${vatLabel}.\nValidità: ${expiryStr}\n\nVisualizza: ${publicUrl}\n\nRescueManager - rescuemanager.eu`;
-
-  return { html: emailWrapper(body), text };
+  return { html, text };
 }
 
-// ─── Email Account Attivato ───────────────────────────────────────────────────
+// ─── Email account attivato ──────────────────────────────────────────────────
 
 /**
  * Email Account Attivato
  */
 function buildAccountActivatedEmail({ name, planType, modules, monthlyTotal, setupPasswordUrl, hasDemo }) {
-  const fmt = (n) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n || 0);
-  const planLabels = { starter: 'Starter', professional: 'Professional', business: 'Business', full: 'Full', flotta: 'Flotta', enterprise: 'Enterprise', custom: 'Personalizzato' };
-  const firstName = name ? name.split(' ')[0] : 'caro utente';
+  const planLabel = PLAN_LABELS[planType] || planType;
+  const modulesList = (modules || []).map((m) => MODULE_LABELS[m] || m);
 
-  const body = `
-${emailHeader('Account Attivato')}
-<tr>
-  <td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 6px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:0.1em;">Attivazione completata</p>
-    <h1 style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:26px;font-weight:900;color:${EMAIL_BRAND_DARK};line-height:1.2;">
-      Benvenuto, ${firstName}<span style="color:${EMAIL_BRAND_BLUE};">!</span>
-    </h1>
-    <p style="margin:0 0 28px;font-family:${EMAIL_FONT};font-size:15px;color:#475569;line-height:1.65;">
-      Il tuo account RescueManager è stato <strong style="color:#16a34a;">attivato con successo</strong>.
-      ${hasDemo ? 'Il tuo account demo è stato convertito in account di produzione.' : 'Il tuo account è pronto per essere configurato.'}
-    </p>
+  const rows = [['Piano', esc(planLabel)], ['Canone', `${fmtEur(monthlyTotal)} al mese`]];
+  if (modulesList.length) rows.push(['Cosa è compreso', esc(modulesList.join(', '))]);
+  if (setupPasswordUrl) rows.push(['Primo passo', hasDemo ? 'Scegli una nuova password' : 'Scegli la password']);
+  rows.push(['Poi', 'Completa i dati dell\'azienda: partita IVA, indirizzo, PEC e codice destinatario']);
+  rows.push(['Infine', 'Inizia a lavorare con RescueManager']);
 
-    <!-- Piano attivato -->
-    <table cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc;border-left:4px solid #16a34a;margin-bottom:28px;">
-      <tr><td style="padding:20px 24px;">
-        <p style="margin:0 0 10px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:0.1em;">Il tuo piano attivo</p>
-        <p style="margin:0;font-family:${EMAIL_FONT};font-size:22px;font-weight:900;color:${EMAIL_BRAND_DARK};">
-          ${planLabels[planType] || planType}
-          <span style="font-size:16px;font-weight:600;color:#16a34a;"> &mdash; ${fmt(monthlyTotal)}/mese</span>
-        </p>
-      </td></tr>
-    </table>
+  const body = [
+    'Il tuo account RescueManager è attivo.',
+    hasDemo
+      ? 'I dati della demo sono stati rimossi: da adesso lavori sui tuoi dati veri.'
+      : 'Puoi configurarlo e iniziare a usarlo subito.',
+  ].join('\n');
 
-    <!-- Prossimi passi -->
-    <table cellpadding="0" cellspacing="0" width="100%" style="background:#f1f5f9;border-radius:8px;margin-bottom:28px;">
-      <tr><td style="padding:24px;">
-        <p style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:13px;font-weight:700;color:${EMAIL_BRAND_DARK};text-transform:uppercase;letter-spacing:0.05em;">Prossimi passi</p>
-        <table cellpadding="0" cellspacing="0" width="100%">
-          ${!hasDemo ? `
-          <tr>
-            <td style="padding:0 0 12px;vertical-align:top;width:24px;">
-              <div style="width:20px;height:20px;border-radius:50%;background:${EMAIL_BRAND_BLUE};color:#fff;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;text-align:center;line-height:20px;">1</div>
-            </td>
-            <td style="padding:0 0 12px 12px;">
-              <p style="margin:0;font-family:${EMAIL_FONT};font-size:14px;font-weight:600;color:${EMAIL_BRAND_DARK};">Imposta la tua password</p>
-              <p style="margin:4px 0 0;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;line-height:1.5;">Clicca sul link qui sotto per impostare la tua password personale</p>
-            </td>
-          </tr>
-          ` : ''}
-          <tr>
-            <td style="padding:0 0 12px;vertical-align:top;width:24px;">
-              <div style="width:20px;height:20px;border-radius:50%;background:${EMAIL_BRAND_BLUE};color:#fff;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;text-align:center;line-height:20px;">${hasDemo ? '1' : '2'}</div>
-            </td>
-            <td style="padding:0 0 12px 12px;">
-              <p style="margin:0;font-family:${EMAIL_FONT};font-size:14px;font-weight:600;color:${EMAIL_BRAND_DARK};">Completa i dati aziendali</p>
-              <p style="margin:4px 0 0;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;line-height:1.5;">Verifica e completa P.IVA, indirizzo, PEC e codice destinatario SDI</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0;vertical-align:top;width:24px;">
-              <div style="width:20px;height:20px;border-radius:50%;background:${EMAIL_BRAND_BLUE};color:#fff;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;text-align:center;line-height:20px;">${hasDemo ? '2' : '3'}</div>
-            </td>
-            <td style="padding:0 0 0 12px;">
-              <p style="margin:0;font-family:${EMAIL_FONT};font-size:14px;font-weight:600;color:${EMAIL_BRAND_DARK};">Inizia ad usare RescueManager</p>
-              <p style="margin:4px 0 0;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;line-height:1.5;">Accedi alla piattaforma e inizia a gestire la tua attività</p>
-            </td>
-          </tr>
-        </table>
-      </td></tr>
-    </table>
+  const html = brandedHtml(body, {
+    title: 'Il tuo account è attivo',
+    sub: [name ? esc(name) : null, `${esc(planLabel)}, ${fmtEur(monthlyTotal)} al mese`].filter(Boolean).join(', '),
+    preheader: 'Il tuo account è attivo',
+    rows,
+    cta: setupPasswordUrl
+      ? { href: setupPasswordUrl, label: hasDemo ? 'Scegli la nuova password' : 'Scegli la password' }
+      : { href: LOGIN_URL, label: 'Entra in RescueManager' },
+    note: setupPasswordUrl
+      ? `Quando avrai la password, entri da ${LOGIN_URL}`
+      : 'Se hai bisogno di una mano per i primi passi, rispondi a questa email.',
+    reason: 'Ricevi questa email perché hai attivato un account RescueManager.',
+  });
 
-    ${setupPasswordUrl ? emailCtaButton(setupPasswordUrl, hasDemo ? 'Imposta nuova password' : 'Imposta la tua password') : ''}
-    ${setupPasswordUrl ? `<div style="margin:20px 0;"></div>` : ''}
-    ${emailCtaButton('https://rescuemanager.eu/login', 'Accedi a RescueManager')}
+  const text = [
+    'Il tuo account RescueManager è attivo.',
+    '',
+    `Piano: ${planLabel}`,
+    `Canone: ${fmtEur(monthlyTotal)} al mese`,
+    '',
+    setupPasswordUrl ? `Scegli la password: ${setupPasswordUrl}` : null,
+    'Poi completa i dati dell\'azienda: partita IVA, indirizzo, PEC e codice destinatario.',
+    '',
+    `Entra da ${LOGIN_URL}`,
+    '',
+    'RescueManager S.r.l., Gela',
+    'Per aiuto scrivi a info@rescuemanager.eu',
+  ].filter((l) => l !== null).join('\n');
 
-    <p style="margin:24px 0 0;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;line-height:1.6;">
-      ${hasDemo ? 'I dati demo sono stati rimossi. ' : ''}Grazie per aver scelto RescueManager! Per assistenza scrivi a
-      <a href="mailto:info@rescuemanager.eu" style="color:${EMAIL_BRAND_BLUE};text-decoration:none;">info@rescuemanager.eu</a>.
-    </p>
-  </td>
-</tr>
-${emailFooter()}`;
-
-  const textSteps = hasDemo 
-    ? '1. Imposta nuova password (opzionale)\n2. Completa i dati aziendali\n3. Inizia ad usare RescueManager'
-    : '1. Imposta la tua password\n2. Completa i dati aziendali\n3. Inizia ad usare RescueManager';
-
-  const text = `Account RescueManager Attivato!\n\nGentile ${name},\n\nIl tuo account è stato attivato.\nPiano: ${planLabels[planType] || planType} - ${fmt(monthlyTotal)}/mese\n\nProssimi passi:\n${textSteps}\n\n${setupPasswordUrl ? `Imposta password: ${setupPasswordUrl}\n\n` : ''}Accedi: https://rescuemanager.eu/login\n\nRescueManager`;
-
-  return { html: emailWrapper(body), text };
+  return { html, text };
 }
 
-// ─── Email Appuntamenti ───────────────────────────────────────────────────────
+// ─── Email appuntamenti ──────────────────────────────────────────────────────
 
 function fmtITDate(iso) {
   return new Date(iso).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -419,42 +430,61 @@ const APPT_TYPE_LABEL = {
   custom: 'un incontro',
 };
 
+// Come si svolge l'incontro, detto in italiano corrente.
+function modeLabel(meetingMode) {
+  if (meetingMode === 'video') return 'In videochiamata';
+  if (meetingMode === 'phone') return 'Al telefono';
+  return 'Di persona';
+}
+
+// Riga "dove": collegamento, numero o indirizzo, uno solo, quello che c'è.
+function dovePair(meetingUrl, meetingPhone, meetingAddress) {
+  if (meetingUrl) return ['Collegamento', `<a href="${meetingUrl}" style="color:${BRAND};text-decoration:none;">${esc(meetingUrl)}</a>`];
+  if (meetingPhone) return ['Numero da chiamare', esc(meetingPhone)];
+  if (meetingAddress) return ['Indirizzo', esc(meetingAddress)];
+  return null;
+}
+
 /**
  * Invio booking link Calendly o pagina interna /appointment/[uuid]
  */
 function buildBookingLinkEmail({ name, companyName, appointmentType, duration, bookingUrl, customMessage }) {
   const typeLabel = APPT_TYPE_LABEL[appointmentType] || 'un incontro';
-  const body = `
-${emailHeader('Pianifichiamo l\'incontro')}
-<tr>
-  <td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 6px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:${EMAIL_BRAND_BLUE};text-transform:uppercase;letter-spacing:0.1em;">Prenota uno slot</p>
-    <h1 style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:26px;font-weight:900;color:${EMAIL_BRAND_DARK};line-height:1.2;">
-      Ciao${name ? ' ' + name.split(' ')[0] : ''}<span style="color:${EMAIL_BRAND_BLUE};">.</span>
-    </h1>
-    <p style="margin:0 0 24px;font-family:${EMAIL_FONT};font-size:15px;color:#475569;line-height:1.65;">
-      Vorremmo organizzare <strong>${typeLabel}</strong> di <strong>${duration} minuti</strong>${companyName ? ` con <strong style="color:${EMAIL_BRAND_DARK};">${companyName}</strong>` : ''}.
-      Scegli tu il momento che ti fa più comodo dal calendario qui sotto.
-    </p>
 
-    ${customMessage ? `
-    <table cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc;border-left:4px solid ${EMAIL_BRAND_BLUE};margin-bottom:24px;">
-      <tr><td style="padding:16px 20px;">
-        <p style="margin:0;font-family:${EMAIL_FONT};font-size:14px;color:#334155;line-height:1.6;">${customMessage}</p>
-      </td></tr>
-    </table>` : ''}
+  const rows = [['Di cosa si tratta', esc(typeLabel)], ['Quanto dura', `${duration} minuti`]];
+  if (companyName) rows.push(['Azienda', esc(companyName)]);
+  rows.push(['Come lo fissiamo', 'Scegli tu data e ora dal calendario']);
 
-    ${emailCtaButton(bookingUrl, 'Scegli data e ora')}
+  const body = [
+    `Vorremmo organizzare ${esc(typeLabel)}${companyName ? ` con ${esc(companyName)}` : ''}.`,
+    'Scegli tu il momento che ti fa più comodo: il calendario mostra solo gli orari liberi.',
+  ].join('\n');
 
-    <p style="margin:24px 0 0;font-family:${EMAIL_FONT};font-size:13px;color:#94a3b8;line-height:1.6;">
-      Se preferisci possiamo concordare un altro orario via email o telefono. Rispondi pure a questa email per qualsiasi richiesta.
-    </p>
-  </td>
-</tr>
-${emailFooter()}`;
+  const html = brandedHtml(body, {
+    title: 'Scegli quando vederci',
+    sub: [name ? esc(name) : null, `${duration} minuti`].filter(Boolean).join(', '),
+    preheader: 'Scegli quando vederci',
+    notice: customMessage ? { text: esc(customMessage) } : null,
+    rows,
+    cta: { href: bookingUrl, label: 'Scegli data e ora' },
+    note: 'Se nessun orario ti va bene, rispondi a questa email e ne troviamo un altro.',
+    reason: 'Ricevi questa email perché hai chiesto informazioni su RescueManager.',
+  });
 
-  const text = `Ciao ${name || ''}, prenota ${typeLabel} di ${duration} min: ${bookingUrl}${customMessage ? '\n\n' + customMessage : ''}`;
-  return { html: emailWrapper(body), text };
+  const text = [
+    'Scegli quando vederci.',
+    '',
+    `Di cosa si tratta: ${typeLabel}`,
+    `Quanto dura: ${duration} minuti`,
+    customMessage || null,
+    '',
+    `Scegli data e ora: ${bookingUrl}`,
+    '',
+    'RescueManager S.r.l., Gela',
+    'Per aiuto scrivi a info@rescuemanager.eu',
+  ].filter((l) => l !== null).join('\n');
+
+  return { html, text };
 }
 
 /**
@@ -463,65 +493,41 @@ ${emailFooter()}`;
 function buildAppointmentConfirmationEmail({ name, title, scheduledAt, durationMinutes, meetingMode, meetingUrl, meetingPhone, meetingAddress, publicUrl }) {
   const dateStr = fmtITDate(scheduledAt);
   const timeStr = fmtITTime(scheduledAt);
-  const modeLabel = meetingMode === 'video' ? 'Videochiamata' : meetingMode === 'phone' ? 'Telefono' : 'In presenza';
 
-  const meetingBlock = meetingUrl ? `
-    <tr>
-      <td style="padding:8px 0;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;width:130px;">Link</td>
-      <td style="padding:8px 0;font-family:${EMAIL_FONT};font-size:13px;"><a href="${meetingUrl}" style="color:${EMAIL_BRAND_BLUE};text-decoration:none;font-weight:600;">${meetingUrl}</a></td>
-    </tr>` : meetingPhone ? `
-    <tr>
-      <td style="padding:8px 0;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;width:130px;">Telefono</td>
-      <td style="padding:8px 0;font-family:${EMAIL_FONT};font-size:13px;color:#0f172a;font-weight:600;">${meetingPhone}</td>
-    </tr>` : meetingAddress ? `
-    <tr>
-      <td style="padding:8px 0;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;width:130px;">Indirizzo</td>
-      <td style="padding:8px 0;font-family:${EMAIL_FONT};font-size:13px;color:#0f172a;font-weight:600;">${meetingAddress}</td>
-    </tr>` : '';
+  const rows = [['Argomento', esc(title)], ['Come', modeLabel(meetingMode)]];
+  const dove = dovePair(meetingUrl, meetingPhone, meetingAddress);
+  if (dove) rows.push(dove);
+  rows.push(['Per spostarlo', 'Rispondi a questa email']);
 
-  const body = `
-${emailHeader('Appuntamento confermato')}
-<tr>
-  <td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 6px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:0.1em;">Confermato</p>
-    <h1 style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:26px;font-weight:900;color:${EMAIL_BRAND_DARK};line-height:1.2;">
-      A presto${name ? ', ' + name.split(' ')[0] : ''}<span style="color:${EMAIL_BRAND_BLUE};">.</span>
-    </h1>
-    <p style="margin:0 0 24px;font-family:${EMAIL_FONT};font-size:15px;color:#475569;line-height:1.65;">
-      Il tuo appuntamento <strong style="color:${EMAIL_BRAND_DARK};">${title}</strong> è confermato.
-    </p>
+  const body = [
+    `L'appuntamento ${esc(title)} è confermato.`,
+    'In allegato trovi il file da aprire per aggiungerlo al calendario.',
+  ].join('\n');
 
-    <table cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:24px;">
-      <tr><td style="padding:24px;">
-        <p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:${EMAIL_BRAND_BLUE};text-transform:uppercase;letter-spacing:0.1em;">Data</p>
-        <p style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:18px;font-weight:700;color:${EMAIL_BRAND_DARK};text-transform:capitalize;">${dateStr}</p>
-        <p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:${EMAIL_BRAND_BLUE};text-transform:uppercase;letter-spacing:0.1em;">Ora</p>
-        <p style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:18px;font-weight:700;color:${EMAIL_BRAND_DARK};">${timeStr} &middot; ${durationMinutes} min</p>
+  const html = brandedHtml(body, {
+    title: `Appuntamento confermato per ${dateStr}`,
+    sub: `Alle ${timeStr}, dura ${durationMinutes} minuti`,
+    preheader: `Appuntamento confermato per ${dateStr}`,
+    rows,
+    cta: publicUrl ? { href: publicUrl, label: 'Apri la pagina dell\'appuntamento' } : null,
+    note: publicUrl ? null : 'Se hai un imprevisto rispondi a questa email e lo spostiamo.',
+    reason: 'Ricevi questa email perché hai fissato un appuntamento con RescueManager.',
+  });
 
-        <table cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #e2e8f0;padding-top:12px;margin-top:8px;">
-          <tr>
-            <td style="padding:8px 0;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;width:130px;">Modalità</td>
-            <td style="padding:8px 0;font-family:${EMAIL_FONT};font-size:13px;color:#0f172a;font-weight:600;">${modeLabel}</td>
-          </tr>
-          ${meetingBlock}
-        </table>
-      </td></tr>
-    </table>
+  const text = [
+    `Appuntamento confermato per ${dateStr}`,
+    `Alle ${timeStr}, dura ${durationMinutes} minuti`,
+    '',
+    `Argomento: ${title}`,
+    `Come: ${modeLabel(meetingMode)}`,
+    meetingUrl ? `Collegamento: ${meetingUrl}` : meetingPhone ? `Numero da chiamare: ${meetingPhone}` : meetingAddress ? `Indirizzo: ${meetingAddress}` : null,
+    publicUrl ? `Pagina dell'appuntamento: ${publicUrl}` : null,
+    '',
+    'RescueManager S.r.l., Gela',
+    'Per aiuto scrivi a info@rescuemanager.eu',
+  ].filter((l) => l !== null).join('\n');
 
-    <p style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;line-height:1.6;">
-      Trovi il file <strong>.ics</strong> in allegato per aggiungere l'appuntamento al tuo calendario (Google, Outlook, Apple).
-    </p>
-
-    ${publicUrl ? `
-    <p style="margin:24px 0 0;font-family:${EMAIL_FONT};font-size:12px;color:#94a3b8;text-align:center;">
-      Hai bisogno di riprogrammare? <a href="${publicUrl}" style="color:${EMAIL_BRAND_BLUE};">Apri pagina appuntamento</a>
-    </p>` : ''}
-  </td>
-</tr>
-${emailFooter()}`;
-
-  const text = `Appuntamento confermato: ${title}\n${dateStr} alle ${timeStr} · ${durationMinutes} min\n${modeLabel}${meetingUrl ? ' · ' + meetingUrl : meetingPhone ? ' · ' + meetingPhone : meetingAddress ? ' · ' + meetingAddress : ''}\n\n${publicUrl ? 'Dettagli: ' + publicUrl : ''}`;
-  return { html: emailWrapper(body), text };
+  return { html, text };
 }
 
 /**
@@ -530,44 +536,40 @@ ${emailFooter()}`;
 function buildAppointmentReminderEmail({ name, title, scheduledAt, durationMinutes, meetingMode, meetingUrl, meetingPhone, meetingAddress, when = '24h' }) {
   const dateStr = fmtITDate(scheduledAt);
   const timeStr = fmtITTime(scheduledAt);
-  const whenLabel = when === '24h' ? 'Domani' : when === '1h' ? 'Tra un\'ora' : 'A breve';
-  const modeLabel = meetingMode === 'video' ? 'Videochiamata' : meetingMode === 'phone' ? 'Telefono' : 'In presenza';
+  const quando = when === '24h' ? 'domani' : when === '1h' ? 'tra un\'ora' : 'a breve';
 
-  const meetingLink = meetingUrl ? `<p style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:14px;"><a href="${meetingUrl}" style="color:${EMAIL_BRAND_BLUE};font-weight:700;text-decoration:none;">Apri link meeting &rarr;</a></p>` : '';
+  const rows = [['Argomento', esc(title)], ['Quando', `${dateStr}, alle ${timeStr}`], ['Quanto dura', `${durationMinutes} minuti`], ['Come', modeLabel(meetingMode)]];
+  const dove = dovePair(meetingUrl, meetingPhone, meetingAddress);
+  if (dove) rows.push(dove);
 
-  const body = `
-${emailHeader('Promemoria appuntamento')}
-<tr>
-  <td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 6px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.1em;">${whenLabel}</p>
-    <h1 style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:26px;font-weight:900;color:${EMAIL_BRAND_DARK};line-height:1.2;">
-      Promemoria appuntamento<span style="color:${EMAIL_BRAND_BLUE};">.</span>
-    </h1>
-    <p style="margin:0 0 24px;font-family:${EMAIL_FONT};font-size:15px;color:#475569;line-height:1.65;">
-      Buongiorno${name ? ' ' + name.split(' ')[0] : ''}, ti ricordiamo l'appuntamento <strong>${title}</strong>:
-    </p>
+  const body = [
+    `Ti ricordiamo l'appuntamento ${esc(title)}.`,
+  ].join('\n');
 
-    <table cellpadding="0" cellspacing="0" width="100%" style="background:#fffbeb;border-left:4px solid #f59e0b;margin-bottom:24px;">
-      <tr><td style="padding:20px 24px;">
-        <p style="margin:0 0 6px;font-family:${EMAIL_FONT};font-size:13px;color:#92400e;text-transform:capitalize;">${dateStr}</p>
-        <p style="margin:0 0 8px;font-family:${EMAIL_FONT};font-size:24px;font-weight:900;color:${EMAIL_BRAND_DARK};">${timeStr}</p>
-        <p style="margin:0;font-family:${EMAIL_FONT};font-size:13px;color:#64748b;">${durationMinutes} min &middot; ${modeLabel}</p>
-      </td></tr>
-    </table>
+  const html = brandedHtml(body, {
+    title: 'Promemoria appuntamento',
+    sub: `${dateStr}, alle ${timeStr}`,
+    preheader: `Appuntamento ${quando} alle ${timeStr}`,
+    notice: { text: `L'appuntamento è ${quando} alle ${timeStr}.` },
+    rows,
+    cta: meetingUrl ? { href: meetingUrl, label: 'Apri la videochiamata' } : null,
+    note: 'Hai un imprevisto? Rispondi a questa email e lo spostiamo.',
+    reason: 'Ricevi questa email perché hai fissato un appuntamento con RescueManager.',
+  });
 
-    ${meetingLink}
-    ${meetingPhone ? `<p style="margin:0 0 8px;font-family:${EMAIL_FONT};font-size:13px;color:#475569;">Chiamaci al: <strong>${meetingPhone}</strong></p>` : ''}
-    ${meetingAddress ? `<p style="margin:0 0 8px;font-family:${EMAIL_FONT};font-size:13px;color:#475569;">${meetingAddress}</p>` : ''}
+  const text = [
+    'Promemoria appuntamento.',
+    '',
+    `Argomento: ${title}`,
+    `Quando: ${dateStr}, alle ${timeStr}`,
+    `Come: ${modeLabel(meetingMode)}`,
+    meetingUrl ? `Collegamento: ${meetingUrl}` : meetingPhone ? `Numero da chiamare: ${meetingPhone}` : meetingAddress ? `Indirizzo: ${meetingAddress}` : null,
+    '',
+    'RescueManager S.r.l., Gela',
+    'Per aiuto scrivi a info@rescuemanager.eu',
+  ].filter((l) => l !== null).join('\n');
 
-    <p style="margin:24px 0 0;font-family:${EMAIL_FONT};font-size:12px;color:#94a3b8;line-height:1.6;">
-      Hai un imprevisto? Rispondi a questa email per riprogrammare.
-    </p>
-  </td>
-</tr>
-${emailFooter()}`;
-
-  const text = `Promemoria: ${title} - ${dateStr} alle ${timeStr}${meetingUrl ? '\nLink: ' + meetingUrl : ''}`;
-  return { html: emailWrapper(body), text };
+  return { html, text };
 }
 
 /**
@@ -577,32 +579,36 @@ function buildAppointmentBookedNotifyStaffEmail({ leadName, leadCompany, leadEma
   const dateStr = fmtITDate(scheduledAt);
   const timeStr = fmtITTime(scheduledAt);
 
-  const body = `
-${emailHeader('Slot scelto dal lead')}
-<tr>
-  <td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 6px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:0.1em;">Nuova prenotazione</p>
-    <h1 style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:24px;font-weight:900;color:${EMAIL_BRAND_DARK};line-height:1.2;">
-      ${leadName} ha confermato lo slot<span style="color:${EMAIL_BRAND_BLUE};">.</span>
-    </h1>
+  const rows = [['Cliente', esc(leadName)]];
+  if (leadCompany) rows.push(['Azienda', esc(leadCompany)]);
+  rows.push(['Indirizzo email', esc(leadEmail)]);
+  rows.push(['Appuntamento', esc(title)]);
+  rows.push(['Quando', `${dateStr}, alle ${timeStr}`]);
 
-    <table cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc;margin-bottom:24px;">
-      <tr><td style="padding:20px 24px;">
-        ${emailInfoRow('Cliente', leadName + (leadCompany ? ` · ${leadCompany}` : ''))}
-        ${emailInfoRow('Email', leadEmail)}
-        ${emailInfoRow('Appuntamento', title)}
-        ${emailInfoRow('Quando', `${dateStr}, ${timeStr}`)}
-      </td></tr>
-    </table>
+  const html = brandedHtml(`${esc(leadName)} ha scelto data e ora per l'appuntamento.`, {
+    title: 'Appuntamento prenotato dal cliente',
+    sub: `${dateStr}, alle ${timeStr}`,
+    preheader: 'Appuntamento prenotato dal cliente',
+    rows,
+    cta: adminUrl ? { href: adminUrl, label: 'Apri la scheda del cliente' } : null,
+    reason: 'Ricevi questa email perché segui i contatti commerciali di RescueManager.',
+  });
 
-    ${adminUrl ? emailCtaButton(adminUrl, 'Apri nel pannello admin') : ''}
-  </td>
-</tr>
-${emailFooter()}`;
+  const text = [
+    'Appuntamento prenotato dal cliente.',
+    '',
+    `Cliente: ${leadName}`,
+    leadCompany ? `Azienda: ${leadCompany}` : null,
+    `Indirizzo email: ${leadEmail}`,
+    `Appuntamento: ${title}`,
+    `Quando: ${dateStr}, alle ${timeStr}`,
+    adminUrl ? `Scheda del cliente: ${adminUrl}` : null,
+  ].filter((l) => l !== null).join('\n');
 
-  const text = `${leadName} ha scelto lo slot: ${title} - ${dateStr} ${timeStr}\n${leadEmail}${adminUrl ? '\n' + adminUrl : ''}`;
-  return { html: emailWrapper(body), text };
+  return { html, text };
 }
+
+// ─── Email link pagamento ────────────────────────────────────────────────────
 
 /**
  * Email link pagamento — inviata al cliente DOPO che ha accettato un preventivo
@@ -613,56 +619,52 @@ function buildPaymentLinkEmail({ leadName, quoteNumber, planType, monthlyTotal, 
   const isYearly = contractDuration === 'yearly';
   const isBiennial = contractDuration === 'biennial';
   const amount = isYearly ? yearlyTotal : isBiennial ? (monthlyTotal * 24 * 0.85) : monthlyTotal;
-  const periodLabel = isYearly ? 'annuale' : isBiennial ? 'biennale' : 'mensile';
-  const periodPrefix = isYearly ? 'anno' : isBiennial ? '2 anni' : 'mese';
-  const expiryStr = expiryDate ? new Date(expiryDate).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) : null;
-  const formattedAmount = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(amount || 0);
+  const periodLabel = isYearly ? 'all\'anno' : isBiennial ? 'per due anni' : 'al mese';
+  const expiryStr = expiryDate ? fmtDataLunga(expiryDate) : null;
+  const formattedAmount = fmtEur(amount);
 
-  const body = `
-${emailHeader('Approvazione confermata')}
-<tr>
-  <td style="padding:36px 40px 28px;">
-    <p style="margin:0 0 6px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:0.1em;">Approvato</p>
-    <h1 style="margin:0 0 16px;font-family:${EMAIL_FONT};font-size:26px;font-weight:900;color:${EMAIL_BRAND_DARK};line-height:1.2;">
-      Procedi al pagamento${leadName ? ', ' + leadName.split(' ')[0] : ''}<span style="color:${EMAIL_BRAND_BLUE};">.</span>
-    </h1>
-    <p style="margin:0 0 24px;font-family:${EMAIL_FONT};font-size:15px;color:#475569;line-height:1.65;">
-      Abbiamo confermato la tua accettazione del preventivo <strong style="color:${EMAIL_BRAND_DARK};">${quoteNumber}</strong>.
-      Per attivare l'abbonamento ${planLabel ? 'piano <strong>' + planLabel + '</strong>' : ''} completa il pagamento sicuro tramite il link qui sotto.
-    </p>
+  const rows = [['Preventivo', esc(quoteNumber)]];
+  if (planLabel) rows.push(['Piano', esc(planLabel)]);
+  rows.push(['Pagamento', isYearly ? 'Una volta all\'anno' : isBiennial ? 'Una volta ogni due anni' : 'Ogni mese']);
+  if (expiryStr) rows.push(['Valido fino al', expiryStr]);
+  rows.push(['Come si paga', 'Con carta, su Stripe']);
 
-    <table cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:24px;">
-      <tr><td style="padding:24px;">
-        <p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;color:${EMAIL_BRAND_BLUE};text-transform:uppercase;letter-spacing:0.1em;">Importo ${periodLabel}</p>
-        <p style="margin:0 0 14px;font-family:${EMAIL_FONT};font-size:32px;font-weight:900;color:${EMAIL_BRAND_DARK};line-height:1;">${formattedAmount}<span style="font-size:14px;font-weight:600;color:#64748b;"> / ${periodPrefix}</span></p>
-        <table cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #e2e8f0;padding-top:12px;margin-top:8px;">
-          ${emailInfoRow('Preventivo', quoteNumber)}
-          ${planLabel ? emailInfoRow('Piano', planLabel) : ''}
-          ${emailInfoRow('Periodo', periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1))}
-          ${expiryStr ? emailInfoRow('Valido fino al', expiryStr) : ''}
-        </table>
-      </td></tr>
-    </table>
+  const body = [
+    `Abbiamo registrato la tua accettazione del preventivo ${esc(quoteNumber)}.`,
+    'Per attivare l\'abbonamento manca solo il pagamento.',
+  ].join('\n');
 
-    ${emailCtaButton(checkoutUrl, 'Procedi al pagamento sicuro')}
+  const html = brandedHtml(body, {
+    title: `Preventivo ${esc(quoteNumber)} approvato`,
+    sub: [leadName ? esc(leadName) : null, 'manca il pagamento'].filter(Boolean).join(', '),
+    preheader: `Preventivo ${quoteNumber} approvato`,
+    amount: { label: `Importo ${periodLabel}`, value: formattedAmount },
+    rows,
+    cta: { href: checkoutUrl, label: 'Vai al pagamento' },
+    note: 'Appena il pagamento risulta registrato attiviamo l\'account e ti scriviamo.',
+    reason: 'Ricevi questa email perché hai accettato un preventivo di RescueManager.',
+  });
 
-    <p style="margin:24px 0 8px;font-family:${EMAIL_FONT};font-size:13px;color:#475569;line-height:1.6;">
-      Il pagamento avviene su <strong>Stripe</strong>, piattaforma certificata PCI-DSS Level 1.
-      Una volta completato riceverai conferma immediata e il tuo account verrà attivato dal nostro team.
-    </p>
-    <p style="margin:0;font-family:${EMAIL_FONT};font-size:12px;color:#94a3b8;line-height:1.6;">
-      Hai domande? Rispondi a questa email o scrivici a <a href="mailto:info@rescuemanager.eu" style="color:${EMAIL_BRAND_BLUE};text-decoration:none;">info@rescuemanager.eu</a>.
-    </p>
-  </td>
-</tr>
-${emailFooter()}`;
+  const text = [
+    `Preventivo ${quoteNumber} approvato.`,
+    '',
+    `Importo ${periodLabel}: ${formattedAmount}`,
+    planLabel ? `Piano: ${planLabel}` : null,
+    expiryStr ? `Valido fino al ${expiryStr}` : null,
+    '',
+    `Vai al pagamento: ${checkoutUrl}`,
+    '',
+    'RescueManager S.r.l., Gela',
+    'Per aiuto scrivi a info@rescuemanager.eu',
+  ].filter((l) => l !== null).join('\n');
 
-  const text = `Preventivo ${quoteNumber} approvato.\nImporto: ${formattedAmount} / ${periodPrefix}\nProcedi al pagamento: ${checkoutUrl}`;
-  return { html: emailWrapper(body), text };
+  return { html, text };
 }
 
 module.exports = {
   sendEmail,
+  brandedHtml,
+  esc,
   buildDemoWelcomeEmail,
   buildQuoteEmail,
   buildAccountActivatedEmail,
