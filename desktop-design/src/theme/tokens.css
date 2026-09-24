@@ -1,0 +1,49 @@
+/* Token del design system RescueManager (tokens.json, tema unico scuro blu). Generato: non modificare a mano, cambia tokens.json nel design system. */
+:root {
+  --brand: #005dfa; /* Il blu del marchio */
+  --brand-hover: #0552cf; /* Pulsante principale al passaggio del mouse */
+  --brand-active: #0648b0; /* Pulsante principale premuto */
+  --brand-on: #ffffff; /* Testo e icone sopra brand (7,5:1 su #005dfa) */
+  --brand-text: #54a2ff; /* Link e testo in evidenza sul canvas e sui layer (5,1:1 sul canvas) */
+  --brand-teal: #29b7ae; /* Il verde-acqua del marchio */
+  --marketing-navy: #0f172a; /* Il fondo delle brochure e delle pagine pubbliche del sito */
+  --sidebar: #0b3fb5; /* Fondo della barra laterale (lista delle voci) */
+  --sidebar-ends: #062a7a; /* Testa e piede della barra laterale: logo in alto, utente in basso */
+  --sidebar-selected: #1f63d6; /* Voce selezionata nella barra laterale */
+  --sidebar-hover: #1a4bc4; /* Voce al passaggio del mouse */
+  --sidebar-text: #dbe6ff; /* Voci della barra laterale (9,2:1 su sidebar) */
+  --sidebar-text-selected: #ffffff; /* Voce selezionata e nome utente */
+  --sidebar-muted: #a9c2ff; /* Titoli dei gruppi nella barra laterale (5,9:1 su sidebar) */
+  --sidebar-icon: #c7d7ff; /* Icone delle voci non selezionate */
+  --canvas: #0a1119; /* Sfondo della pagina dietro ai pannelli */
+  --layer: #141c27; /* Pannelli, barre in alto, celle delle schede, tabelle */
+  --layer-2: #1a2536; /* Un gradino sopra layer: righe selezionate leggere, righe di conferma, tasti da tastiera */
+  --layer-3: #243044; /* Sfondi degli avatar con iniziali e dei segmenti non attivi */
+  --field: #141c27; /* Fondo dei campi di testo e dei menu a tendina */
+  --border: #243044; /* Linee sottili: bordi di pannelli, celle, tabelle, separatori */
+  --border-strong: #3b4d6b; /* Bordi dei campi al passaggio del mouse e dei pulsanti secondari */
+  --text: #e2e8f0; /* Testo principale (13,4:1 su canvas, 12,1:1 su layer) */
+  --text-secondary: #94a3b8; /* Etichette, righe secondarie, conferme (6,4:1 su layer) */
+  --text-placeholder: #475569; /* Solo segnaposto nei campi vuoti; non porta informazione */
+  --selected: #152036; /* Riga selezionata in tabella (con la riga di 3 px in brand sul bordo sinistro) */
+  --danger: #e5484d; /* Ritardi, errori, azioni distruttive */
+  --danger-bg: #2a1418; /* Fondo della riga di errore sotto un campo */
+  --focus: #005dfa; /* Anello di focus: 2 px pieno, mai sfumato */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --row-height: 48px;
+  --row-height-compact: 40px;
+  --label-column: 140px;
+  --sidebar-width: 232px;
+  --panel-width: 300px;
+  --topbar-height: 48px;
+  --radius-0: 0px;
+  --hairline: 1px;
+  --accent-bar: 3px;
+  --shadow-overlay: 0 16px 40px rgba(0,0,0,0.6);
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
+}
