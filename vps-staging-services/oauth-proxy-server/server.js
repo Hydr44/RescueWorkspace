@@ -184,7 +184,16 @@ const server = http.createServer((req, res) => {
         return;
       }
       
-      if (!redirectUri.startsWith('desktop://') && !redirectUri.startsWith('http://localhost:') && !redirectUri.startsWith('http://127.0.0.1:')) {
+      // `rescuemanager://` e' il ritorno dell'app del telefono: lo schema e'
+      // dichiarato in RescueMobile/app.config.js. Serve perche' il telefono non
+      // puo' ricevere il codice su un server locale come fa Electron
+      // (`http://localhost:3001/auth/callback`): sul telefono e' il sistema
+      // operativo a riconsegnare all'app un indirizzo col suo schema.
+      //
+      // Un ritorno a schema personalizzato e' protetto dal PKCE, che il client
+      // del telefono usa gia' (`flowType: 'pkce'`): il codice intercettato da
+      // solo non vale niente senza il verificatore.
+      if (!redirectUri.startsWith('desktop://') && !redirectUri.startsWith('rescuemanager://') && !redirectUri.startsWith('http://localhost:') && !redirectUri.startsWith('http://127.0.0.1:')) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid redirect_uri' }));
         return;
