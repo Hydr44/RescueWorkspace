@@ -178,22 +178,38 @@ const server = http.createServer((req, res) => {
         return;
       }
       
-      if (appId !== 'desktop_app') {
+      // OGNI APP E' LEGATA AL SUO SCHEMA DI RITORNO.
+      //
+      // Prima erano due controlli separati: `appId` doveva essere esattamente
+      // `desktop_app`, e la lista dei ritorni ammessi era PIATTA — un solo
+      // elenco per tutti. Aggiungendoci `rescuemanager://` per far entrare il
+      // telefono, anche il desktop avrebbe potuto usarlo: un allargamento che
+      // non serve a nessuno.
+      //
+      // Adesso ogni app dichiara chi e' e puo' tornare SOLO dove le spetta: il
+      // telefono non puo' farsi consegnare un codice su un indirizzo del
+      // desktop, e viceversa.
+      //
+      // `rescuemanager://` e' lo schema dell'app telefono
+      // (RescueMobile/app.config.js). Il telefono non puo' ricevere il codice
+      // su un server locale come fa Electron (`http://localhost:3001/...`):
+      // sul telefono e' il sistema operativo a riconsegnarlo all'app. Un
+      // ritorno a schema personalizzato e' protetto dal PKCE, che il client
+      // del telefono usa gia' (`flowType: 'pkce'`): un codice intercettato da
+      // solo non vale niente senza il verificatore.
+      const RITORNI_AMMESSI = {
+        desktop_app: ['desktop://', 'http://localhost:', 'http://127.0.0.1:'],
+        mobile_app: ['rescuemanager://'],
+      };
+
+      const ammessi = RITORNI_AMMESSI[appId];
+      if (!ammessi) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid app_id' }));
         return;
       }
-      
-      // `rescuemanager://` e' il ritorno dell'app del telefono: lo schema e'
-      // dichiarato in RescueMobile/app.config.js. Serve perche' il telefono non
-      // puo' ricevere il codice su un server locale come fa Electron
-      // (`http://localhost:3001/auth/callback`): sul telefono e' il sistema
-      // operativo a riconsegnare all'app un indirizzo col suo schema.
-      //
-      // Un ritorno a schema personalizzato e' protetto dal PKCE, che il client
-      // del telefono usa gia' (`flowType: 'pkce'`): il codice intercettato da
-      // solo non vale niente senza il verificatore.
-      if (!redirectUri.startsWith('desktop://') && !redirectUri.startsWith('rescuemanager://') && !redirectUri.startsWith('http://localhost:') && !redirectUri.startsWith('http://127.0.0.1:')) {
+
+      if (!ammessi.some((p) => redirectUri.startsWith(p))) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid redirect_uri' }));
         return;
