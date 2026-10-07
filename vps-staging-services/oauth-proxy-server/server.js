@@ -228,16 +228,29 @@ const server = http.createServer((req, res) => {
         redirect_uri: redirectUri,
         state: state,
         state_code: stateCode,
-        expires_at: Date.now() + 10 * 60 * 1000
+        // 5 minuti, non 10: e' quanto dicono il disegno (08-errore-scaduto) e
+        // l'app. Un collegamento ancora vivo qui mentre l'app ha gia' detto
+        // «scaduto» confonde: la pagina si aprirebbe quando l'app ha gia'
+        // rinunciato. Stessa cifra nella rotta del sito
+        // (website/src/app/api/auth/oauth/desktop/route.ts).
+        expires_at: Date.now() + 5 * 60 * 1000
       };
       
       const encodedParams = Buffer.from(JSON.stringify(oauthParams)).toString('base64');
       
       // --- Redis Session Opzionale ---
-      redis.safeSet(`oauth:state:${stateCode}`, JSON.stringify(oauthParams), { ex: 600 }).catch(re => console.warn("[Redis] Errore cache state", re.message));
+      // La copia vive quanto il collegamento: 300 secondi, gli stessi 5 minuti
+      // di `expires_at` qui sopra. Oggi nessuno la rilegge, ma se restasse a
+      // 10 minuti sarebbe un collegamento "vivo" lato server quando la pagina
+      // lo ha gia' dichiarato scaduto.
+      redis.safeSet(`oauth:state:${stateCode}`, JSON.stringify(oauthParams), { ex: 300 }).catch(re => console.warn("[Redis] Errore cache state", re.message));
       // --- Fine Redis ---
 
-      const loginUrl = `${VERCEL_URL}/auth/oauth/desktop?params=${encodedParams}`;
+      // Dal 07/10/2026 la pagina di accesso e' `/accesso` (website/src/app/accesso):
+      // una sola per sito, computer e telefono, che riconosce da sola da dove
+      // arriva. `/auth/oauth/desktop` resta sul sito ma non e' piu' la
+      // destinazione. `params` viaggia intatto, nella stessa query di prima.
+      const loginUrl = `${VERCEL_URL}/accesso?params=${encodedParams}`;
       
       // 302, non 200+HTML: il browser salta diritto e la pagina non si disegna.
       // Il corpo resta come rete per il caso in cui il salto non avvenga.
