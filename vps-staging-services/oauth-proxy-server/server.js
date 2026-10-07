@@ -52,83 +52,90 @@ function applyCorsHeaders(req, res) {
 }
 
 // Funzione per generare HTML redirect
+/**
+ * La pagina di passaggio fra l'app e l'accesso.
+ *
+ * NON DOVREBBE VEDERLA NESSUNO. La risposta e' un 302 vero, quindi il browser
+ * salta diritto alla pagina d'accesso senza disegnare niente: era proprio quello
+ * il difetto segnalato il 07/10/2026, una schermata che compare un istante fra il
+ * tocco su «Accedi» e il modulo. La destinazione e' un normale indirizzo https su
+ * Vercel — non uno schema dell'app — quindi il reindirizzamento del server basta
+ * e il giro di JavaScript che c'era prima non serviva.
+ *
+ * Questo corpo resta come rete: i browser lo ignorano quando seguono il 302, e si
+ * vede solo se qualcosa impedisce il salto. In quel caso deve essere RescueManager,
+ * non una schermata qualunque.
+ *
+ * COSA C'ERA PRIMA, per non rifarlo: sfondo
+ * `linear-gradient(135deg,#667eea,#764ba2)` — il viola sfumato gia' bocciato —
+ * angoli a 10, vetro sfocato, e il titolo «Reindirizzamento OAuth...». Fuori dalla
+ * grammatica del prodotto, che vuole spigoli vivi, un solo blu e nessun gradiente;
+ * e «OAuth» e' una parola che a un autista non dice niente.
+ */
 function generateHtmlRedirect(redirectUrl) {
-  const escapedUrl = redirectUrl
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, "\\'")
-    .replace(/"/g, '&quot;')
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '\\r');
-  
+  const perHtml = String(redirectUrl)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
   return `<!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="refresh" content="0;url=${escapedUrl}">
-  <title>Reindirizzamento OAuth...</title>
+  <title>RescueManager</title>
   <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      margin: 0;
+      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      padding: 24px;
+      background: #0A1119;
+      color: #E2E8F0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
     }
-    .container {
+    .riquadro {
+      width: 100%;
+      max-width: 360px;
+      background: #141C27;
+      border: 1px solid #243044;
+      padding: 28px 24px;
+    }
+    .marchio {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      margin: 0 0 20px;
+    }
+    .marchio span { color: #005DFA; }
+    h1 { font-size: 19px; line-height: 1.3; font-weight: 600; margin: 0 0 6px; }
+    p { margin: 0; color: #94A3B8; font-size: 14px; }
+    .tasto {
+      display: block;
+      margin-top: 20px;
+      padding: 14px 16px;
+      background: #005DFA;
+      color: #fff;
       text-align: center;
-      padding: 40px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      backdrop-filter: blur(10px);
-    }
-    .spinner {
-      border: 3px solid rgba(255,255,255,0.3);
-      border-radius: 50%;
-      border-top: 3px solid white;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    a {
-      color: white;
-      text-decoration: underline;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
     }
   </style>
-  <script>
-    (function() {
-      console.log('[OAuth Redirect] Page loaded');
-      console.log('[OAuth Redirect] Target URL:', ${JSON.stringify(redirectUrl)});
-      try {
-        window.location.href = ${JSON.stringify(redirectUrl)};
-        console.log('[OAuth Redirect] window.location.href set');
-      } catch (e) {
-        console.error('[OAuth Redirect] Error setting href:', e);
-      }
-      setTimeout(function() {
-        try {
-          window.location.replace(${JSON.stringify(redirectUrl)});
-          console.log('[OAuth Redirect] window.location.replace called');
-        } catch (e) {
-          console.error('[OAuth Redirect] Error with replace:', e);
-        }
-      }, 50);
-    })();
-  </script>
 </head>
 <body>
-  <div class="container">
-    <h2>Reindirizzamento in corso...</h2>
-    <div class="spinner"></div>
-    <p>Se non vieni reindirizzato automaticamente, <a href="${escapedUrl}">clicca qui</a>.</p>
+  <div class="riquadro">
+    <p class="marchio">RESCUE<span>MANAGER</span></p>
+    <h1>Ti porto alla pagina di accesso</h1>
+    <p>Se non succede da solo, continua da qui.</p>
+    <a class="tasto" href="${perHtml}">Continua</a>
   </div>
 </body>
 </html>`;
@@ -232,12 +239,14 @@ const server = http.createServer((req, res) => {
 
       const loginUrl = `${VERCEL_URL}/auth/oauth/desktop?params=${encodedParams}`;
       
-      const html = generateHtmlRedirect(loginUrl);
-      res.writeHead(200, {
+      // 302, non 200+HTML: il browser salta diritto e la pagina non si disegna.
+      // Il corpo resta come rete per il caso in cui il salto non avvenga.
+      res.writeHead(302, {
+        'Location': loginUrl,
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate'
       });
-      res.end(html);
+      res.end(generateHtmlRedirect(loginUrl));
       
     } catch (error) {
       console.error('Error processing OAuth request:', error);
