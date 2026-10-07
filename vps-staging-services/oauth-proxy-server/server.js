@@ -200,10 +200,17 @@ const server = http.createServer((req, res) => {
       // `rescuemanager://` e' lo schema dell'app telefono
       // (RescueMobile/app.config.js). Il telefono non puo' ricevere il codice
       // su un server locale come fa Electron (`http://localhost:3001/...`):
-      // sul telefono e' il sistema operativo a riconsegnarlo all'app. Un
-      // ritorno a schema personalizzato e' protetto dal PKCE, che il client
-      // del telefono usa gia' (`flowType: 'pkce'`): un codice intercettato da
-      // solo non vale niente senza il verificatore.
+      // sul telefono e' il sistema operativo a riconsegnarlo all'app.
+      //
+      // ATTENZIONE (corretto l'08/10/2026): questo giro NON ha il PKCE. Il
+      // `flowType: 'pkce'` del client Supabase riguarda solo i flussi di
+      // Supabase (signInWithOAuth, magic link), non questo scambio custom, che
+      // chiede solo `{ code, app_id }` e `app_id` e' una costante pubblica. Su
+      // iOS il ritorno passa dentro ASWebAuthenticationSession e un'altra app
+      // non lo riceve; su Android qualunque app che dichiari `rescuemanager://`
+      // potrebbe ricevere il redirect e scambiare il codice per prima. La
+      // protezione vera e' un `code_verifier` generato dall'app e verificato
+      // allo scambio (o il ritorno via App Links https): e' in lista, non c'e'.
       const RITORNI_AMMESSI = {
         desktop_app: ['desktop://', 'http://localhost:', 'http://127.0.0.1:'],
         mobile_app: ['rescuemanager://'],
