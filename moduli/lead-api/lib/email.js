@@ -2,10 +2,11 @@
  * Email Service - Lead API
  * Usa nodemailer con SMTP configurato in .env
  *
- * L'HTML segue il modello unico RescueManager (desktop-design/email/email-template.js):
- * testata e piè di pagina nei blu della barra laterale, corpo chiaro, un solo
- * blu #005DFA, un solo pulsante per email, una informazione per riga.
- * Solo tabelle e stili in linea: è quello che Gmail e Outlook capiscono.
+ * L'HTML viene dal modello unico RescueManager, tema scuro (./email-template.js):
+ * fondo #0A1119, scheda #141C27, testata nel blu della barra laterale con il
+ * logo bianco, righe etichetta e valore a tutta larghezza, un solo pulsante
+ * #005DFA, angoli vivi. Chi scrive HTML proprio usa i colori esportati dal
+ * modello (TEXT, INK, INK_2, INK_3, LINE, LINK), mai quelli del fondo chiaro.
  */
 
 const nodemailer = require('nodemailer');
@@ -66,121 +67,25 @@ async function sendEmail({ to, subject, html, text, attachments, senderName, rep
 
 // ─── Modello email condiviso ─────────────────────────────────────────────────
 
-const EMAIL_FONT = "Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif";
-const BRAND = '#005dfa';
-const INK = '#161616';
-const INK_2 = '#525252';
-const INK_3 = '#8d8d8d';
-const LINE = '#e0e0e0';
-const PAPER = '#ffffff';
-const CANVAS = '#f4f4f4';
-const LOGO_URL = 'https://rescuemanager.eu/assets/logos/logo-principale-bianco.png';
-// Testata e piè di pagina scuri: HEAD_BG è il blu della barra laterale
-// dell'app, FOOT_BG il suo tono di testa e piede.
-const HEAD_BG = '#0b3fb5';
-const HEAD_TEXT = '#dbe6ff';
-const FOOT_BG = '#062a7a';
-const FOOT_TEXT = '#a9c2ff';
+// Il modello è unico (desktop-design/email/tema-scuro/codice/email-template.ts).
+// ./email-template.js è la stessa build CommonJS di moduli/messaging/email-template.js,
+// copiata qui perché lead-api e messaging girano in cartelle separate sul VPS
+// (/opt/lead-api e /opt/messaging-server): un require relativo tra i due moduli
+// in produzione non troverebbe il file. Se cambi il modello, ricopia il file in
+// tutti e due i posti (devono restare identici, `cmp` li confronta).
+const T = require('./email-template');
 
-function esc(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-const p = (t, size = 15, color = INK, extra = '') => `<p style="margin:0 0 14px;font-family:${EMAIL_FONT};font-size:${size}px;line-height:1.6;color:${color};${extra}">${t}</p>`;
-
-// Testata: logo bianco sul blu. Quando l'email parte per conto di un cliente di
-// RescueManager, a destra si legge 'per conto di <azienda>'. Le email di questo
-// modulo le manda RescueManager stessa, quindi qui 'sender' resta vuoto.
-function emailHeader(sender) {
-  return `<tr><td style="padding:22px 40px;background:${HEAD_BG};"><table cellpadding="0" cellspacing="0" width="100%"><tr>
-<td><img src="${LOGO_URL}" alt="RescueManager" height="26" style="height:26px;width:auto;display:block;border:0;" /></td>
-${sender ? `<td align="right" style="font-family:${EMAIL_FONT};font-size:13px;color:${HEAD_TEXT};">per conto di ${sender}</td>` : ''}
-</tr></table></td></tr>`;
-}
-
-// Titolo e riga di contesto: il titolo dice cosa è successo, la riga sotto a
-// chi o quando.
-function emailTitle(title, sub) {
-  return `<h1 style="margin:0 0 ${sub ? '4' : '20'}px;font-family:${EMAIL_FONT};font-size:22px;line-height:1.25;font-weight:600;letter-spacing:-0.01em;color:${INK};">${title}</h1>${sub ? `<p style="margin:0 0 20px;font-family:${EMAIL_FONT};font-size:14px;color:${INK_2};">${sub}</p>` : ''}`;
-}
-
-// Pulsante: uno solo per email, pieno, squadrato, testo normale.
-function emailCtaButton(href, label) {
-  return `<table cellpadding="0" cellspacing="0" style="margin:8px 0 24px;"><tr><td style="background:${BRAND};"><a href="${href}" style="display:block;padding:13px 28px;font-family:${EMAIL_FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">${label}</a></td></tr></table>
-<p style="margin:0 0 24px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:${INK_3};">Se il pulsante non funziona, apri questo indirizzo: <a href="${href}" style="color:${BRAND};text-decoration:none;">${href}</a></p>`;
-}
-
-// Codice: grande, monospazio, in un riquadro con la barretta a sinistra.
-function emailCodeBox(code, note = 'Vale per 10 minuti') {
-  return `<table cellpadding="0" cellspacing="0" width="100%" style="margin:8px 0 24px;background:${CANVAS};border-left:3px solid ${BRAND};"><tr><td style="padding:18px 24px;">
-<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:13px;color:${INK_2};">Codice</p>
-<p style="margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:30px;font-weight:600;letter-spacing:0.18em;color:${INK};">${code}</p>
-<p style="margin:6px 0 0;font-family:${EMAIL_FONT};font-size:12px;color:${INK_3};">${note}</p>
-</td></tr></table>`;
-}
-
-// Righe etichetta e valore: come le schede dell'app, un dato per riga.
-function emailInfoRows(rows) {
-  return `<table cellpadding="0" cellspacing="0" width="100%" style="margin:8px 0 24px;border-top:1px solid ${LINE};">${rows.map(([l, v]) => `<tr>
-<td style="padding:9px 0;border-bottom:1px solid ${LINE};font-family:${EMAIL_FONT};font-size:13px;color:${INK_2};width:150px;vertical-align:top;">${l}</td>
-<td style="padding:9px 0;border-bottom:1px solid ${LINE};font-family:${EMAIL_FONT};font-size:13px;color:${INK};vertical-align:top;">${v}</td></tr>`).join('')}</table>`;
-}
-
-// Totale in evidenza (preventivi, pagamenti): etichetta sopra, cifra sotto.
-function emailAmount(label, value) {
-  return `<table cellpadding="0" cellspacing="0" style="margin:0 0 24px;"><tr><td style="padding:12px 16px;background:${CANVAS};">
-<p style="margin:0;font-family:${EMAIL_FONT};font-size:12px;color:${INK_2};">${label}</p>
-<p style="margin:2px 0 0;font-family:${EMAIL_FONT};font-size:26px;font-weight:600;letter-spacing:-0.01em;color:${INK};">${value}</p>
-</td></tr></table>`;
-}
-
-// Avviso: una riga con la barretta. Rosso solo per le scadenze passate.
-function emailNotice(text, level = 'info') {
-  const col = level === 'danger' ? '#da1e28' : BRAND;
-  return `<table cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;"><tr><td style="padding:10px 14px;background:${CANVAS};border-left:3px solid ${col};font-family:${EMAIL_FONT};font-size:13px;line-height:1.5;color:${INK};">${text}</td></tr></table>`;
-}
-
-// Piè di pagina: chi manda, perché la ricevi, come rispondere. Niente slogan.
-// Quando l'email parte per conto di un cliente RescueManager lo dice a chiare lettere,
-// subito prima del motivo per cui la ricevi.
-function emailFooter(reason = 'Ricevi questa email perché hai un account RescueManager.', sender = '') {
-  return `<tr><td style="padding:20px 40px 24px;background:${FOOT_BG};">
-<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:#ffffff;">RescueManager S.r.l., Gela</p>
-${sender ? `<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:#ffffff;">Questa email è inviata da RescueManager per conto di ${sender}${/[.?]$/.test(sender) ? '' : '.'}</p>` : ''}
-<p style="margin:0 0 4px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:${FOOT_TEXT};">${reason}</p>
-<p style="margin:0;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:${FOOT_TEXT};">Per aiuto scrivi a <a href="mailto:info@rescuemanager.eu" style="color:#ffffff;text-decoration:none;">info@rescuemanager.eu</a></p>
-</td></tr>`;
-}
-
-function emailWrapper(content, preheader = '') {
-  return `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><title>RescueManager</title></head>
-<body style="margin:0;padding:0;background:${CANVAS};font-family:${EMAIL_FONT};">
-${preheader ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:${CANVAS};">${preheader}</div>` : ''}
-<table width="100%" cellpadding="0" cellspacing="0" style="background:${CANVAS};padding:32px 16px;"><tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:${PAPER};border:1px solid ${LINE};">${content}</table>
-</td></tr></table></body></html>`;
-}
+const { esc, LINK, MONO_FONT } = T;
 
 /**
  * Costruisce l'email intera. body: una riga, un paragrafo.
  * Opzioni: sender, title, sub, code, codeNote, rows, amount, notice, cta,
- * note, reason, preheader.
+ * note, reason, preheader (più table ed extraHtml del modello unico).
+ * Le righe vuote in 'rows' vengono scartate come faceva la copia di prima.
  */
 function brandedHtml(body, o = {}) {
-  const ps = String(body || '').split('\n').map((l) => (l.trim() ? p(l) : '')).join('');
-  const rows = Array.isArray(o.rows) ? o.rows.filter(Boolean) : null;
-  const content = `${emailHeader(o.sender)}<tr><td style="padding:32px 40px 8px;">
-${o.title ? emailTitle(o.title, o.sub) : ''}${ps}
-${o.notice ? emailNotice(o.notice.text, o.notice.level) : ''}
-${o.amount ? emailAmount(o.amount.label, o.amount.value) : ''}
-${o.code ? emailCodeBox(o.code, o.codeNote) : ''}
-${rows && rows.length ? emailInfoRows(rows) : ''}
-${o.cta ? emailCtaButton(o.cta.href, o.cta.label) : ''}
-${o.note ? p(o.note, 13, INK_2) : ''}
-</td></tr>${emailFooter(o.reason, o.sender)}`;
-  return emailWrapper(content, o.preheader || o.title || '');
+  const rows = Array.isArray(o.rows) ? o.rows.filter(Boolean) : o.rows;
+  return T.brandedHtml(body, { ...o, rows });
 }
 
 // ─── Etichette condivise ─────────────────────────────────────────────────────
@@ -231,7 +136,7 @@ function buildDemoWelcomeEmail({ name, email, tempPassword, setupPasswordUrl, ex
 
   const rows = [['Indirizzo per entrare', esc(email)]];
   if (!setupPasswordUrl && tempPassword) {
-    rows.push(['Password temporanea', `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;">${esc(tempPassword)}</span>`]);
+    rows.push(['Password temporanea', `<span style="font-family:${MONO_FONT};">${esc(tempPassword)}</span>`]);
   }
   if (expiryStr) rows.push(['La demo vale fino al', expiryStr]);
   if (modulesList.length) rows.push(['Cosa puoi provare', esc(modulesList.join(', '))]);
@@ -439,7 +344,7 @@ function modeLabel(meetingMode) {
 
 // Riga "dove": collegamento, numero o indirizzo, uno solo, quello che c'è.
 function dovePair(meetingUrl, meetingPhone, meetingAddress) {
-  if (meetingUrl) return ['Collegamento', `<a href="${meetingUrl}" style="color:${BRAND};text-decoration:none;">${esc(meetingUrl)}</a>`];
+  if (meetingUrl) return ['Collegamento', `<a href="${meetingUrl}" style="color:${LINK};text-decoration:none;">${esc(meetingUrl)}</a>`];
   if (meetingPhone) return ['Numero da chiamare', esc(meetingPhone)];
   if (meetingAddress) return ['Indirizzo', esc(meetingAddress)];
   return null;

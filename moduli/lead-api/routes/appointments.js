@@ -274,7 +274,7 @@ module.exports = function createAppointmentsRouter(supabase) {
         text = built.text;
       } else {
         // Booking link — usa template brandato
-        subject = `Scegli quando fare ${TYPE_LABEL[appt.appointment_type] || 'un incontro'}, ${appt.title}`;
+        subject = appt.duration_minutes ? `Scegli quando sentirci, ${appt.duration_minutes} minuti` : 'Scegli quando sentirci';
         const built = buildBookingLinkEmail({
           name: lead.name,
           companyName: lead.company,

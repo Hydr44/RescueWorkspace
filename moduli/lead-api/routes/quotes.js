@@ -384,7 +384,10 @@ module.exports = function createQuotesRouter(supabase) {
       // Invia email
       await sendEmail({
         to: lead.email,
-        subject: `Preventivo ${quote.quote_number} da RescueManager`,
+        // Oggetto: il fatto prima, poi per chi.
+        subject: (lead.company || lead.name)
+          ? `Preventivo ${quote.quote_number} per ${lead.company || lead.name}`
+          : `Preventivo ${quote.quote_number} da RescueManager`,
         html,
         text
       });

@@ -112,13 +112,14 @@ function createCalendlyAuthRouter(supabase) {
         customMessage: custom_message,
       });
 
-      await sendEmail({ to: lead.email, subject: 'Scegli quando fare la demo di RescueManager', html: built.html, text: built.text });
+      const subject = `Scegli quando sentirci, ${apptDuration} minuti`;
+      await sendEmail({ to: lead.email, subject, html: built.html, text: built.text });
 
       // Log email_campaigns
       await supabase.from('email_campaigns').insert({
         lead_id: leadId,
         to_email: lead.email,
-        subject: 'Scegli quando fare la demo di RescueManager',
+        subject,
         body_html: built.html,
         body_text: built.text,
         status: 'sent',
@@ -309,9 +310,11 @@ async function handleInviteeCreated(supabase, payload) {
         meetingUrl: joinUrl,
         publicUrl: null,
       });
+      // Oggetto come le altre conferme: giorno e ora, il fatto prima.
+      const subject = `Appuntamento confermato per ${new Date(startTime).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })} alle ${new Date(startTime).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
       await sendEmail({
         to: lead.email,
-        subject: `Appuntamento confermato per ${new Date(startTime).toLocaleDateString('it-IT', { day:'2-digit', month:'long' })}`,
+        subject,
         html: built.html,
         text: built.text,
       });
@@ -319,7 +322,7 @@ async function handleInviteeCreated(supabase, payload) {
       await supabase.from('email_campaigns').insert({
         lead_id: lead.id,
         to_email: lead.email,
-        subject: `Appuntamento confermato`,
+        subject,
         body_html: built.html,
         body_text: built.text,
         status: 'sent',

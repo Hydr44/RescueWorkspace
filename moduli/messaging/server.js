@@ -122,10 +122,8 @@ async function sendOtpEmail(to, code, ctx = {}) {
   const from = orgName ? `"${fromDisplayName(orgName)} via RescueManager" <${addr}>` : OTP_EMAIL_FROM;
   // Se rispondono, la risposta va all'azienda, non a noi.
   const replyTo = orgName ? validEmail(ctx.orgEmail) : null;
-  // Oggetto: il fatto prima, poi da chi.
-  const subject = orgName
-    ? `Codice per la firma di consegna da ${fromDisplayName(orgName)}`
-    : 'Codice per la firma di consegna';
+  // Oggetto: il fatto, senza nome (l'azienda è già nel mittente "<azienda> via RescueManager").
+  const subject = 'Il codice per firmare la consegna del veicolo';
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',

@@ -226,7 +226,7 @@ module.exports = function createDemoRouter(supabase) {
 
         await sendEmail({
           to: lead.email,
-          subject: 'Il tuo account demo RescueManager è pronto',
+          subject: 'La tua prova di RescueManager è pronta',
           html,
           text
         });
